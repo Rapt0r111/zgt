@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import Optional
+from datetime import date
 
 from app.core.database import get_db
 from app.api.deps import get_current_user
@@ -37,7 +38,13 @@ async def create_personnel(
 ):
     """Добавить военнослужащего"""
     service = PersonnelService(db)
-    return service.create(personnel)
+    try:
+        return service.create(personnel)
+    except ValueError as e:  # ДОБАВИТЬ обработку
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 @router.get("/{personnel_id}", response_model=PersonnelResponse)
 async def get_personnel(
@@ -125,9 +132,9 @@ async def get_expiring_clearances(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Получить список истекающих допусков"""
     service = PersonnelService(db)
     personnel_list = service.get_expiring_clearances(days=days)
+    today = date.today()
     
     return {
         "days": days,
@@ -139,7 +146,8 @@ async def get_expiring_clearances(
                 "rank": p.rank,
                 "clearance_level": p.security_clearance_level,
                 "expiry_date": p.clearance_expiry_date,
-                "days_remaining": (p.clearance_expiry_date - __import__('datetime').date.today()).days
+                # Добавляем проверку на None
+                "days_remaining": (p.clearance_expiry_date - today).days if p.clearance_expiry_date else None
             }
             for p in personnel_list
         ]

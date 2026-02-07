@@ -73,7 +73,16 @@ export default function DashboardPage() {
               </CardHeader>
             </Card>
           </Link>
-
+          <Link href="/phones">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+              <CardHeader>
+                <CardTitle>Средства связи</CardTitle>
+                <CardDescription>
+                  Учёт личных телефонов
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
           <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-50">
             <CardHeader>
               <CardTitle>Вычислительная техника</CardTitle>

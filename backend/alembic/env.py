@@ -2,7 +2,9 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
-from app.models.personnel import Personnel  # ДОБАВИТЬ ЭТУ СТРОКУ
+from app.models.user import User
+from app.models.personnel import Personnel
+from app.models.phone import Phone  # ДОБАВИТЬ
 
 # ДОБАВИТЬ ЭТИ ИМПОРТЫ:
 import sys

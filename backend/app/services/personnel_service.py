@@ -3,6 +3,7 @@ from sqlalchemy import or_, func
 from typing import Optional, List
 from app.models.personnel import Personnel
 from app.schemas.personnel import PersonnelCreate, PersonnelUpdate
+from sqlalchemy.exc import IntegrityError  # ДОБАВИТЬ импорт
 
 class PersonnelService:
     def __init__(self, db: Session):
@@ -49,11 +50,17 @@ class PersonnelService:
     
     def create(self, personnel_data: PersonnelCreate) -> Personnel:
         """Создать запись о военнослужащем"""
-        personnel = Personnel(**personnel_data.model_dump())
-        self.db.add(personnel)
-        self.db.commit()
-        self.db.refresh(personnel)
-        return personnel
+        try:
+            personnel = Personnel(**personnel_data.model_dump())
+            self.db.add(personnel)
+            self.db.commit()
+            self.db.refresh(personnel)
+            return personnel
+        except IntegrityError as e:
+            self.db.rollback()
+            if 'personal_number' in str(e.orig):
+                raise ValueError("Личный номер уже существует")
+            raise ValueError("Ошибка при создании записи")
     
     def update(self, personnel_id: int, personnel_data: PersonnelUpdate) -> Optional[Personnel]:
         """Обновить данные военнослужащего"""

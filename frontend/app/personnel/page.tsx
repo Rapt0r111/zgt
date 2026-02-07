@@ -127,19 +127,27 @@ export default function PersonnelPage() {
                             <Button
                               size="sm"
                               variant="destructive"
+                              disabled={deleteMutation.isPending}
                               onClick={() => {
                                 if (confirm(`Удалить ${person.full_name}?`)) {
                                   deleteMutation.mutate(person.id);
                                 }
                               }}
                             >
-                              Удалить
+                              {deleteMutation.isPending ? 'Удаление...' : 'Удалить'}
                             </Button>
                           </div>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
+                  {data?.items.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        Нет данных. Создайте первую запись.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </Table>
               </>
             )}

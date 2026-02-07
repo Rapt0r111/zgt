@@ -15,6 +15,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { personnelApi } from '@/lib/api/personnel';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { cleanEmptyStrings } from '@/lib/utils/transform'; // ДОБАВИТЬ
+import { toast } from "sonner"; // ДОБАВИТЬ
 
 // Схема валидации
 const personnelSchema = z.object({
@@ -26,7 +28,7 @@ const personnelSchema = z.object({
   service_number: z.string().optional().or(z.literal('')),
   security_clearance_level: z.number().min(1).max(3).optional(),
   clearance_order_number: z.string().optional().or(z.literal('')),
-  clearance_expiry_date: z.string().optional().or(z.literal('')),
+  clearance_expiry_date: z.string().optional().or(z.literal('')), // ✅ Правильно - строка от input[type="date"]
   status: z.string().min(1, 'Статус обязателен'),
 });
 
@@ -60,12 +62,14 @@ export default function CreatePersonnelPage() {
   const createMutation = useMutation({
     mutationFn: (data: PersonnelFormData) => personnelApi.create(data),
     onSuccess: () => {
+      toast.success('Военнослужащий добавлен'); // ДОБАВИТЬ
       router.push('/personnel');
       router.refresh();
     },
     onError: (err: any) => {
       const detail = err.response?.data?.detail;
-      
+      toast.error('Ошибка при создании'); // ДОБАВИТЬ
+
       if (typeof detail === 'string') {
         setError(detail);
       } else if (Array.isArray(detail)) {
@@ -83,7 +87,9 @@ export default function CreatePersonnelPage() {
 
   const onSubmit = (data: PersonnelFormData) => {
     setError('');
-    createMutation.mutate(data);
+    const cleanedData = cleanEmptyStrings(data);
+    // ИЗМЕНЕНО: используем createMutation вместо updateMutation
+    createMutation.mutate(cleanedData as PersonnelFormData); 
   };
 
   // Наблюдаем за значениями для Select компонентов
@@ -172,7 +178,7 @@ export default function CreatePersonnelPage() {
                 <div className="space-y-2">
                   <Label>Форма допуска</Label>
                   <Select
-                    value={currentClearance?.toString()}
+                    value={currentClearance?.toString() || ''} // ИЗМЕНИТЬ - добавить || ''
                     onValueChange={(val) => setValue('security_clearance_level', val ? parseInt(val) : undefined)}
                   >
                     <SelectTrigger>

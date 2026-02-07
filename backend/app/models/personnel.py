@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Date
 from sqlalchemy.sql import func
 from app.core.database import Base
+from sqlalchemy.orm import relationship  # ДОБАВИТЬ
 
 class Personnel(Base):
     __tablename__ = "personnel"
@@ -24,7 +25,8 @@ class Personnel(Base):
     
     # Статус
     status = Column(String(50), default="В строю")  # В строю/Командировка/Госпиталь/Отпуск
-    
+    phones = relationship("Phone", back_populates="owner", cascade="all, delete-orphan")
+
     # Служебная информация
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
