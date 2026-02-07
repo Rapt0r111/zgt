@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
 from datetime import date as date_type
@@ -12,13 +12,12 @@ class PersonnelBase(BaseModel):
     service_number: Optional[str] = Field(None, max_length=50)
     security_clearance_level: Optional[int] = Field(None, ge=1, le=3)
     clearance_order_number: Optional[str] = Field(None, max_length=100)
-    clearance_expiry_date: Optional[date] = None
+    clearance_expiry_date: Optional[date_type] = None
     status: str = Field(default="В строю", max_length=50)
 
-class PersonnelCreate(BaseModel):
-    clearance_expiry_date: Optional[date_type] = None
-    
-    @validator('clearance_expiry_date')
+class PersonnelCreate(PersonnelBase):
+    @field_validator('clearance_expiry_date')
+    @classmethod
     def validate_date(cls, v):
         if v and v < date_type(1900, 1, 1):
             raise ValueError('Дата не может быть раньше 1900 года')
@@ -33,7 +32,7 @@ class PersonnelUpdate(BaseModel):
     service_number: Optional[str] = None
     security_clearance_level: Optional[int] = Field(None, ge=1, le=3)
     clearance_order_number: Optional[str] = None
-    clearance_expiry_date: Optional[date] = None
+    clearance_expiry_date: Optional[date_type] = None
     status: Optional[str] = None
 
 class PersonnelResponse(PersonnelBase):

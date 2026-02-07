@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, func
+from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional, List
 from datetime import datetime
 from app.models.equipment import Equipment, EquipmentMovement, StorageDevice

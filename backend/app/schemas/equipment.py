@@ -8,7 +8,7 @@ class EquipmentBase(BaseModel):
     equipment_type: str = Field(..., max_length=50)
     inventory_number: str = Field(..., max_length=100)
     serial_number: Optional[str] = Field(None, max_length=100)
-        mni_serial_number: Optional[str] = Field(None, max_length=100)  # ← ДОБАВИТЬ
+    mni_serial_number: Optional[str] = Field(None, max_length=100)
     manufacturer: Optional[str] = Field(None, max_length=100)
     model: Optional[str] = Field(None, max_length=255)
     cpu: Optional[str] = Field(None, max_length=255)
@@ -34,6 +34,7 @@ class EquipmentUpdate(BaseModel):
     equipment_type: Optional[str] = None
     inventory_number: Optional[str] = None
     serial_number: Optional[str] = None
+    mni_serial_number: Optional[str] = None
     manufacturer: Optional[str] = None
     model: Optional[str] = None
     cpu: Optional[str] = None
