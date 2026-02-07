@@ -15,7 +15,7 @@ class Equipment(Base):
     # Идентификация
     inventory_number = Column(String(100), unique=True, index=True)  # Инвентарный номер
     serial_number = Column(String(100), index=True)
-    
+    mni_serial_number = Column(String(100), index=True)
     # Характеристики
     manufacturer = Column(String(100))  # Производитель
     model = Column(String(255))

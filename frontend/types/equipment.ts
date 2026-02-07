@@ -5,6 +5,7 @@ export interface Equipment {
   equipment_type: string;
   inventory_number: string;
   serial_number?: string;
+  mni_serial_number?: string;  // ← ДОБАВИТЬ
   manufacturer?: string;
   model?: string;
   cpu?: string;
@@ -33,6 +34,7 @@ export interface EquipmentCreate {
   equipment_type: string;
   inventory_number: string;
   serial_number?: string;
+  mni_serial_number?: string;  // ← ДОБАВИТЬ
   manufacturer?: string;
   model?: string;
   cpu?: string;

@@ -117,25 +117,27 @@ class EquipmentService:
             raise ValueError("Техника не найдена")
         
         # Создать запись о перемещении
-        movement = EquipmentMovement(
-            **movement_data.model_dump(),
-            created_by_id=created_by_id
-        )
-        self.db.add(movement)
+        try:
+            movement = EquipmentMovement(
+                **movement_data.model_dump(),
+                created_by_id=created_by_id
+            )
+            self.db.add(movement)
         
-        # Обновить текущее размещение
-        equipment.current_location = movement_data.to_location
-        equipment.current_owner_id = movement_data.to_person_id
-        
-        # Обновить пломбу если указана
-        if movement_data.seal_number_after:
-            equipment.seal_number = movement_data.seal_number_after
-            equipment.seal_install_date = datetime.now()
-            equipment.seal_status = movement_data.seal_status or "Исправна"
-        
-        self.db.commit()
-        self.db.refresh(movement)
-        return movement
+            equipment.current_location = movement_data.to_location
+            equipment.current_owner_id = movement_data.to_person_id
+            
+            if movement_data.seal_number_after:
+                equipment.seal_number = movement_data.seal_number_after
+                equipment.seal_install_date = datetime.now()
+                equipment.seal_status = movement_data.seal_status or "Исправна"
+            
+            self.db.commit()
+            self.db.refresh(movement)
+            return movement
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            raise ValueError(f"Ошибка при создании перемещения: {str(e)}")
     
     def get_movement_history(
         self,

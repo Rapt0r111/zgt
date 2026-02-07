@@ -14,6 +14,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/login", response_model=Token)
 async def login(
     login_data: LoginRequest,
+    response: Response,
     db: Session = Depends(get_db)
 ):
     """Вход в систему"""
@@ -45,7 +46,14 @@ async def login(
         data={"sub": user.username, "role": user.role},
         expires_delta=access_token_expires
     )
-    
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,  # Только HTTPS в production
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=UserResponse)

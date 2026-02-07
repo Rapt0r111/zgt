@@ -202,6 +202,8 @@ export default function EquipmentPage() {
                     <TableHead>Инв. номер</TableHead>
                     <TableHead>Тип</TableHead>
                     <TableHead>Модель</TableHead>
+                    <TableHead>S/N</TableHead>  {/* ← ДОБАВИТЬ */}
+                    <TableHead>МНИ S/N</TableHead>  {/* ← ДОБАВИТЬ */}
                     <TableHead>Владелец</TableHead>
                     <TableHead>Местоположение</TableHead>
                     <TableHead>Пломба</TableHead>
@@ -227,6 +229,8 @@ export default function EquipmentPage() {
                           {equipment.manufacturer && `${equipment.manufacturer} `}
                           {equipment.model || '—'}
                         </TableCell>
+                        <TableCell>{equipment.serial_number || '—'}</TableCell>
+                        <TableCell>{equipment.mni_serial_number || '—'}</TableCell>
                         <TableCell>
                           {equipment.current_owner_name ? (
                             <div>

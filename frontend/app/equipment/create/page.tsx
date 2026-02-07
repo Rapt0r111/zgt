@@ -29,6 +29,8 @@ const equipmentSchema = z.object({
   equipment_type: z.string().min(1, 'Выберите тип техники'),
   inventory_number: z.string().min(1, 'Инвентарный номер обязателен'),
   serial_number: z.string().default(''),
+  mni_serial_number: z.string().default(''),
+
   manufacturer: z.string().default(''),
   model: z.string().default(''),
   cpu: z.string().default(''),
@@ -201,6 +203,14 @@ export default function CreateEquipmentPage() {
                     id="serial_number"
                     {...register('serial_number')}
                     placeholder="S/N: ABC123XYZ"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="mni_serial_number">Серийный номер МНИ</Label>
+                  <Input
+                    id="mni_serial_number"
+                    {...register('mni_serial_number')}
+                    placeholder="МНИ: MNI789456"
                   />
                 </div>
               </div>
