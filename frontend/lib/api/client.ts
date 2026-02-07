@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'sonner';
 
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
@@ -21,10 +22,21 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Перенаправить на страницу логина
       localStorage.removeItem('access_token');
-      window.location.href = '/login';
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
     }
+    
+    // Добавить обработку других статусов
+    if (error.response?.status === 403) {
+      toast.error('Недостаточно прав');
+    }
+    
+    if (error.response?.status === 500) {
+      toast.error('Ошибка сервера');
+    }
+    
     return Promise.reject(error);
   }
 );

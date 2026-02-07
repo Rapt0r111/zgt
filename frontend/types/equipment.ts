@@ -101,6 +101,14 @@ export interface MovementListResponse {
   items: Movement[];
 }
 
+export interface ApiError {
+  response?: {
+    data?: {
+      detail?: string | Array<{loc?: string[]; msg: string}>;
+    };
+  };
+}
+
 // ============ STORAGE DEVICE TYPES ============
 
 export interface StorageDevice {
