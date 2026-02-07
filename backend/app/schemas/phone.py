@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator # Добавьте field_validator
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
@@ -34,17 +34,8 @@ class PhoneResponse(PhoneBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    
     owner_full_name: Optional[str] = None
     owner_rank: Optional[str] = None
-    
-    @field_validator("owner_full_name", mode="before")
-    @classmethod
-    def get_owner_name(cls, v, info):
-        # Если поле пустое, пробуем достать из связанного объекта owner
-        if v is None and info.data.get('owner'):
-             return info.data['owner'].full_name
-        return v
 
     class Config:
         from_attributes = True

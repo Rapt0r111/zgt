@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import auth, personnel  # Добавить personnel
-from app.api.routes import auth, personnel, phones  # Добавить phones
+from app.api.routes import auth, personnel, phones, equipment  # ДОБАВИТЬ equipment
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -35,4 +34,5 @@ async def health_check():
 # Подключение роутеров
 app.include_router(auth.router, prefix="/api")
 app.include_router(personnel.router, prefix="/api")
-app.include_router(phones.router, prefix="/api")  # ДОБАВИТЬ
+app.include_router(phones.router, prefix="/api")
+app.include_router(equipment.router, prefix="/api")

@@ -73,6 +73,7 @@ export default function DashboardPage() {
               </CardHeader>
             </Card>
           </Link>
+          
           <Link href="/phones">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer">
               <CardHeader>
@@ -83,23 +84,17 @@ export default function DashboardPage() {
               </CardHeader>
             </Card>
           </Link>
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-50">
-            <CardHeader>
-              <CardTitle>Вычислительная техника</CardTitle>
-              <CardDescription>
-                Учёт АРМ, ноутбуков и носителей информации
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-50">
-            <CardHeader>
-              <CardTitle>Средства связи</CardTitle>
-              <CardDescription>
-                Учёт личных телефонов
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          
+          <Link href="/equipment">  {/* ИЗМЕНИТЬ - добавить Link */}
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">  {/* УДАЛИТЬ opacity-50 */}
+              <CardHeader>
+                <CardTitle>Вычислительная техника</CardTitle>
+                <CardDescription>
+                  Учёт АРМ, ноутбуков и носителей информации
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
 
           <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-50">
             <CardHeader>

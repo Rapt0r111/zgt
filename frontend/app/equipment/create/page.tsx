@@ -1,0 +1,395 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Textarea } from '@/components/ui/textarea';
+import { equipmentApi } from '@/lib/api/equipment';
+import { personnelApi } from '@/lib/api/personnel';
+import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import { cleanEmptyStrings } from '@/lib/utils/transform';
+
+const EQUIPMENT_TYPES = ['АРМ', 'Ноутбук', 'Сервер', 'Принтер', 'Другое'];
+const STATUSES = ['В работе', 'На складе', 'В ремонте', 'Списан'];
+const STORAGE_TYPES = ['HDD', 'SSD', 'NVMe', 'Другое'];
+
+const equipmentSchema = z.object({
+  equipment_type: z.string().min(1, 'Выберите тип техники'),
+  inventory_number: z.string().min(1, 'Инвентарный номер обязателен'),
+  serial_number: z.string().default(''),
+  manufacturer: z.string().default(''),
+  model: z.string().default(''),
+  cpu: z.string().default(''),
+  ram_gb: z.number().optional(),
+  storage_type: z.string().default(''),
+  storage_capacity_gb: z.number().optional(),
+  has_optical_drive: z.boolean().default(false),
+  has_card_reader: z.boolean().default(false),
+  operating_system: z.string().default(''),
+  current_owner_id: z.number().optional(),
+  current_location: z.string().default(''),
+  seal_number: z.string().default(''),
+  seal_status: z.string().default('Исправна'),
+  status: z.string().default('В работе'),
+  notes: z.string().default(''),
+});
+
+type EquipmentFormData = z.infer<typeof equipmentSchema>;
+
+export default function CreateEquipmentPage() {
+  const router = useRouter();
+  const [error, setError] = useState('');
+
+  const { data: personnelData } = useQuery({
+    queryKey: ['personnel'],
+    queryFn: () => personnelApi.getList({ limit: 1000 }),
+  });
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(equipmentSchema),
+    defaultValues: {
+      equipment_type: '',
+      inventory_number: '',
+      serial_number: '',
+      manufacturer: '',
+      model: '',
+      cpu: '',
+      storage_type: '',
+      operating_system: '',
+      current_location: '',
+      seal_number: '',
+      seal_status: 'Исправна',
+      status: 'В работе',
+      notes: '',
+      has_optical_drive: false,
+      has_card_reader: false,
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: EquipmentFormData) => equipmentApi.create(data),
+    onSuccess: () => {
+      toast.success('Техника добавлена');
+      router.push('/equipment');
+      router.refresh();
+    },
+    onError: (err: any) => {
+      const detail = err.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : 'Ошибка при создании');
+      toast.error('Ошибка при создании');
+    },
+  });
+
+  const onSubmit = (data: EquipmentFormData) => {
+    setError('');
+    const cleanedData = cleanEmptyStrings(data);
+    createMutation.mutate(cleanedData as EquipmentFormData);
+  };
+
+  const currentType = watch('equipment_type');
+  const currentStatus = watch('status');
+  const currentOwnerId = watch('current_owner_id');
+  const currentStorageType = watch('storage_type');
+  const hasOpticalDrive = watch('has_optical_drive');
+  const hasCardReader = watch('has_card_reader');
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-8">
+      <div className="max-w-4xl mx-auto">
+        <Button variant="ghost" asChild className="mb-4">
+          <Link href="/equipment">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Назад к списку
+          </Link>
+        </Button>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Добавить технику</CardTitle>
+          </CardHeader>
+
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <CardContent className="space-y-6">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Основная информация */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Основная информация</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Тип техники *</Label>
+                    <Select
+                      value={currentType}
+                      onValueChange={(val) => setValue('equipment_type', val)}
+                    >
+                      <SelectTrigger className={errors.equipment_type ? 'border-destructive' : ''}>
+                        <SelectValue placeholder="Выберите тип" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EQUIPMENT_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.equipment_type && (
+                      <p className="text-sm text-destructive">{errors.equipment_type.message as string}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="inventory_number">Инвентарный номер *</Label>
+                    <Input
+                      id="inventory_number"
+                      {...register('inventory_number')}
+                      placeholder="ИНВ-001"
+                      className={errors.inventory_number ? 'border-destructive' : ''}
+                    />
+                    {errors.inventory_number && (
+                      <p className="text-sm text-destructive">{errors.inventory_number.message as string}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="manufacturer">Производитель</Label>
+                    <Input
+                      id="manufacturer"
+                      {...register('manufacturer')}
+                      placeholder="Dell, HP, Lenovo..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="model">Модель</Label>
+                    <Input
+                      id="model"
+                      {...register('model')}
+                      placeholder="OptiPlex 7090"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="serial_number">Серийный номер</Label>
+                  <Input
+                    id="serial_number"
+                    {...register('serial_number')}
+                    placeholder="S/N: ABC123XYZ"
+                  />
+                </div>
+              </div>
+
+              {/* Характеристики */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Характеристики</h3>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cpu">Процессор</Label>
+                  <Input
+                    id="cpu"
+                    {...register('cpu')}
+                    placeholder="Intel Core i5-10400"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="ram_gb">Объём RAM (ГБ)</Label>
+                    <Input
+                      id="ram_gb"
+                      type="number"
+                      {...register('ram_gb', { valueAsNumber: true })}
+                      placeholder="16"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Тип хранилища</Label>
+                    <Select
+                      value={currentStorageType}
+                      onValueChange={(val) => setValue('storage_type', val)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите тип" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STORAGE_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="storage_capacity_gb">Объём хранилища (ГБ)</Label>
+                    <Input
+                      id="storage_capacity_gb"
+                      type="number"
+                      {...register('storage_capacity_gb', { valueAsNumber: true })}
+                      placeholder="512"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="operating_system">Операционная система</Label>
+                    <Input
+                      id="operating_system"
+                      {...register('operating_system')}
+                      placeholder="Windows 10 Pro"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Дополнительные устройства</Label>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="has_optical_drive"
+                        checked={hasOpticalDrive}
+                        onCheckedChange={(checked) => setValue('has_optical_drive', checked as boolean)}
+                      />
+                      <Label htmlFor="has_optical_drive" className="font-normal cursor-pointer">
+                        Оптический привод
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="has_card_reader"
+                        checked={hasCardReader}
+                        onCheckedChange={(checked) => setValue('has_card_reader', checked as boolean)}
+                      />
+                      <Label htmlFor="has_card_reader" className="font-normal cursor-pointer">
+                        Картридер
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Размещение */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Размещение</h3>
+
+                <div className="space-y-2">
+                  <Label>Ответственное лицо</Label>
+                  <Select
+                    value={currentOwnerId?.toString() || ''}
+                    onValueChange={(val) => setValue('current_owner_id', val ? parseInt(val) : undefined)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите владельца (опционально)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {personnelData?.items.map((person) => (
+                        <SelectItem key={person.id} value={person.id.toString()}>
+                          {person.rank ? `${person.rank} ` : ''}{person.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="current_location">Местоположение</Label>
+                  <Input
+                    id="current_location"
+                    {...register('current_location')}
+                    placeholder="Каб. 205, Склад №1"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Статус</Label>
+                  <Select
+                    value={currentStatus}
+                    onValueChange={(val) => setValue('status', val)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUSES.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Пломба */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Пломба</h3>
+
+                <div className="space-y-2">
+                  <Label htmlFor="seal_number">Номер пломбы</Label>
+                  <Input
+                    id="seal_number"
+                    {...register('seal_number')}
+                    placeholder="П-123456"
+                  />
+                </div>
+              </div>
+
+              {/* Примечания */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg border-b pb-2">Примечания</h3>
+
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Дополнительная информация</Label>
+                  <Textarea
+                    id="notes"
+                    {...register('notes')}
+                    placeholder="Дополнительные сведения о технике..."
+                    rows={4}
+                  />
+                </div>
+              </div>
+            </CardContent>
+
+            <CardFooter className="flex justify-between border-t mt-6 pt-6">
+              <Button type="button" variant="outline" asChild>
+                <Link href="/equipment">Отмена</Link>
+              </Button>
+              <Button type="submit" disabled={createMutation.isPending}>
+                {createMutation.isPending ? 'Сохранение...' : 'Создать запись'}
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
+      </div>
+    </div>
+  );
+}
