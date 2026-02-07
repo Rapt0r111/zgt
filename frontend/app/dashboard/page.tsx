@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import apiClient from '@/lib/api/client';
+import Link from 'next/link';
 
 interface User {
   id: number;
@@ -24,7 +25,6 @@ export default function DashboardPage() {
         const response = await apiClient.get('/api/auth/me');
         setUser(response.data);
       } catch (error) {
-        // Если ошибка авторизации - перенаправить на логин
         router.push('/login');
       } finally {
         setIsLoading(false);
@@ -63,16 +63,18 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-            <CardHeader>
-              <CardTitle>Личный состав</CardTitle>
-              <CardDescription>
-                Учёт военнослужащих и их допусков
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <Link href="/personnel">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+              <CardHeader>
+                <CardTitle>Личный состав</CardTitle>
+                <CardDescription>
+                  Учёт военнослужащих и их допусков
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
 
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-50">
             <CardHeader>
               <CardTitle>Вычислительная техника</CardTitle>
               <CardDescription>
@@ -81,7 +83,7 @@ export default function DashboardPage() {
             </CardHeader>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-50">
             <CardHeader>
               <CardTitle>Средства связи</CardTitle>
               <CardDescription>
@@ -90,7 +92,7 @@ export default function DashboardPage() {
             </CardHeader>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-50">
             <CardHeader>
               <CardTitle>Генератор документов</CardTitle>
               <CardDescription>
@@ -100,7 +102,7 @@ export default function DashboardPage() {
           </Card>
 
           {user?.role === 'admin' && (
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-50">
               <CardHeader>
                 <CardTitle>Администрирование</CardTitle>
                 <CardDescription>

@@ -1,9 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import auth  # Добавить импорт
+from app.api.routes import auth, personnel  # Добавить personnel
 
-# Создаём приложение FastAPI
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
@@ -12,7 +11,6 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
-# Настройка CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -21,7 +19,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Главный эндпоинт для проверки
 @app.get("/")
 async def root():
     return {
@@ -30,10 +27,10 @@ async def root():
         "status": "running"
     }
 
-# Health check
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
 # Подключение роутеров
-app.include_router(auth.router, prefix="/api")  # Добавить эту строку
+app.include_router(auth.router, prefix="/api")
+app.include_router(personnel.router, prefix="/api")  # Добавить эту строку
