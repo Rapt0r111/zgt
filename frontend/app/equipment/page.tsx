@@ -202,8 +202,8 @@ export default function EquipmentPage() {
                     <TableHead>Инв. номер</TableHead>
                     <TableHead>Тип</TableHead>
                     <TableHead>Модель</TableHead>
-                    <TableHead>S/N</TableHead>  {/* ← ДОБАВИТЬ */}
-                    <TableHead>МНИ S/N</TableHead>  {/* ← ДОБАВИТЬ */}
+                    <TableHead>S/N</TableHead>
+                    <TableHead>МНИ S/N</TableHead>
                     <TableHead>Владелец</TableHead>
                     <TableHead>Местоположение</TableHead>
                     <TableHead>Пломба</TableHead>
@@ -214,7 +214,7 @@ export default function EquipmentPage() {
                 <TableBody>
                   {data?.items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         Нет данных. Создайте первую запись.
                       </TableCell>
                     </TableRow>
