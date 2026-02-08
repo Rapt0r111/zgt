@@ -18,6 +18,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
     expose_headers=["Content-Type"],
+    max_age=600,  # ← ДОБАВИТЬ кэш preflight запросов
 )
 
 @app.get("/")

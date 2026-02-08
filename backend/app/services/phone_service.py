@@ -18,8 +18,9 @@ class PhoneService:
         owner_id: Optional[int] = None
     ) -> tuple[List[Phone], int]:
         """Получить список телефонов с фильтрацией"""
-        query = self.db.query(Phone).options(joinedload(Phone.owner)).filter(Phone.is_active == True)
-        
+        query = self.db.query(Phone).options(
+            joinedload(Phone.owner)  # ← ДОБАВИТЬ
+        ).filter(Phone.is_active == True)        
         # Фильтр по статусу
         if status:
             query = query.filter(Phone.status == status)

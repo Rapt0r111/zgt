@@ -88,6 +88,16 @@ class EquipmentService:
             return None
         
         update_data = equipment_data.model_dump(exclude_unset=True)
+        if 'inventory_number' in update_data:
+            existing = self.db.query(Equipment).filter(
+                Equipment.inventory_number == update_data['inventory_number'],
+                Equipment.is_active == True,
+                Equipment.id != equipment_id  # ← Исключаем текущую запись
+            ).first()
+            
+            if existing:
+                raise ValueError(f"Инвентарный номер {update_data['inventory_number']} уже существует")
+        
         for field, value in update_data.items():
             setattr(equipment, field, value)
         
@@ -260,7 +270,7 @@ class StorageDeviceService:
     ) -> tuple[List[StorageDevice], int]:
         """Получить список носителей"""
         query = self.db.query(StorageDevice).options(
-            joinedload(StorageDevice.equipment)
+            joinedload(StorageDevice.equipment)  # ← ДОБАВИТЬ
         ).filter(StorageDevice.is_active == True)
         
         if equipment_id:

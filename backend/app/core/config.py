@@ -16,8 +16,14 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # CORS
-    BACKEND_CORS_ORIGINS: list = ["http://localhost:3000"]
-    
+    BACKEND_CORS_ORIGINS: list = []
+    @field_validator('BACKEND_CORS_ORIGINS', mode='before')
+    @classmethod
+    def assemble_cors_origins(cls, v):
+        if isinstance(v, str):
+            return [i.strip() for i in v.split(",")]
+        return v
+        
     class Config:
         env_file = ".env"
         case_sensitive = True

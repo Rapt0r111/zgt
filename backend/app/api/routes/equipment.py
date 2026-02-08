@@ -25,7 +25,7 @@ async def list_equipment(
     status: Optional[str] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user) 
 ):
     """Получить список техники"""
     service = EquipmentService(db)
@@ -54,12 +54,13 @@ async def list_equipment(
 async def create_equipment(
     equipment: EquipmentCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles(["admin", "user"]))  # ✅ Проверка роли
 ):
     """Добавить технику"""
     service = EquipmentService(db)
     try:
         new_equipment = service.create(equipment)
+        db.refresh(new_equipment, ['current_owner'])  # ← ДОБАВИТЬ
         return {
             **new_equipment.__dict__,
             "current_owner_name": new_equipment.current_owner.full_name if new_equipment.current_owner else None,
@@ -119,11 +120,11 @@ async def update_equipment(
     }
 
 
-@router.delete("/{equipment_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{equipment_id}")
 async def delete_equipment(
     equipment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)  # ✅ Только админ
 ):
     """Удалить технику"""
     service = EquipmentService(db)

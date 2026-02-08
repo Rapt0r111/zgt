@@ -49,9 +49,9 @@ async def login(
     response.set_cookie(
         key="access_token",
         value=access_token,
-        httponly=True,
-        secure=True,  # Только HTTPS в production
-        samesite="lax",
+        httponly=True,  # ✅ Защита от XSS
+        secure=True,    # ✅ Только HTTPS
+        samesite="lax", # ✅ Защита от CSRF
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
     return {"access_token": access_token, "token_type": "bearer"}
@@ -64,6 +64,6 @@ async def get_current_user_info(
     return current_user
 
 @router.post("/logout")
-async def logout(current_user: User = Depends(get_current_user)):
-    """Выход из системы (на клиенте нужно удалить токен)"""
-    return {"message": "Успешный выход из системы"}
+async def logout(response: Response):
+    response.delete_cookie("access_token")
+    return {"message": "Успешный выход"}

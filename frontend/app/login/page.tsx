@@ -22,16 +22,6 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await apiClient.post('/api/auth/login', {
-        username,
-        password,
-      });
-
-      const { access_token } = response.data;
-      
-      // Сохранить токен
-      localStorage.setItem('access_token', access_token);
-      
       // Перенаправить на dashboard
       router.push('/dashboard');
     } catch (err: any) {

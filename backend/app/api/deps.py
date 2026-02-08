@@ -1,15 +1,23 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
-from jose import JWTError
-from app.core.database import get_db
-from app.core.security import verify_token
-from app.models.user import User
+from typing import Optional, List
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)  # ← ИЗМЕНИТЬ на auto_error=False
+
+def require_roles(allowed_roles: List[str]):
+    """Проверка наличия роли у пользователя"""
+    def role_checker(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Требуется роль: {', '.join(allowed_roles)}"
+            )
+        return current_user
+    return role_checker
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,  # ← ДОБАВИТЬ
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),  # ← Optional
     db: Session = Depends(get_db)
 ) -> User:
     """Получить текущего пользователя из токена"""
@@ -20,10 +28,19 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    try:
+    # ДОБАВИТЬ: Проверка cookie
+    token = None
+    if credentials:
         token = credentials.credentials
+    else:
+        # Попытка получить из cookie
+        token = request.cookies.get("access_token")
+    
+    if not token:
+        raise credentials_exception
+    
+    try:
         payload = verify_token(token)
-        
         if payload is None:
             raise credentials_exception
         
@@ -46,12 +63,3 @@ def get_current_user(
         )
     
     return user
-
-def require_admin(current_user: User = Depends(get_current_user)) -> User:
-    """Проверка прав администратора"""
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Недостаточно прав. Требуются права администратора."
-        )
-    return current_user
