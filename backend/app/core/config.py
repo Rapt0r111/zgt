@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
-
+from pydantic import field_validator 
 class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
@@ -16,14 +16,14 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # CORS
-    BACKEND_CORS_ORIGINS: list = []
+    BACKEND_CORS_ORIGINS: list[str] | str = []
     @field_validator('BACKEND_CORS_ORIGINS', mode='before')
     @classmethod
     def assemble_cors_origins(cls, v):
         if isinstance(v, str):
             return [i.strip() for i in v.split(",")]
         return v
-        
+
     class Config:
         env_file = ".env"
         case_sensitive = True
