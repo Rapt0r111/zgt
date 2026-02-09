@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { equipmentApi } from '@/lib/api/equipment';
-import { Plus, Search, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Plus, Search, ArrowLeft, AlertTriangle, Eye, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -61,22 +61,23 @@ export default function EquipmentPage() {
       'В ремонте': 'outline',
       'Списан': 'destructive',
     };
-    return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
+    return <Badge variant={variants[status] || 'default'} className="whitespace-nowrap text-[10px] px-1.5 py-0">{status}</Badge>;
   };
 
   const getSealBadge = (sealStatus: string) => {
+    const className = "text-[10px] px-1 py-0 h-4 whitespace-nowrap";
     if (sealStatus === 'Исправна') {
-      return <Badge variant="default">Исправна</Badge>;
+      return <Badge variant="default" className={className}>Исправна</Badge>;
     } else if (sealStatus === 'Повреждена') {
-      return <Badge variant="destructive">Повреждена</Badge>;
+      return <Badge variant="destructive" className={className}>Повреждена</Badge>;
     } else {
-      return <Badge variant="outline">Отсутствует</Badge>;
+      return <Badge variant="outline" className={className}>Отсутствует</Badge>;
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+      <div className="max-w-[1600px] mx-auto">
         <div className="mb-6">
           <Button variant="ghost" asChild className="mb-4">
             <Link href="/dashboard">
@@ -86,8 +87,8 @@ export default function EquipmentPage() {
           </Button>
 
           <div className="flex justify-between items-center mb-4">
-            <h1 className="text-3xl font-bold">Вычислительная техника</h1>
-            <Button asChild>
+            <h1 className="text-2xl md:text-3xl font-bold">Вычислительная техника</h1>
+            <Button asChild size="sm">
               <Link href="/equipment/create">
                 <Plus className="mr-2 h-4 w-4" />
                 Добавить
@@ -97,33 +98,33 @@ export default function EquipmentPage() {
 
           {/* Статистика */}
           {stats && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
               <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold">{stats.total_equipment}</div>
-                  <div className="text-sm text-muted-foreground">Всего техники</div>
+                <CardContent className="pt-4 pb-4 px-4 text-center md:text-left">
+                  <div className="text-xl font-bold">{stats.total_equipment}</div>
+                  <div className="text-xs text-muted-foreground">Всего техники</div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold text-green-600">
+                <CardContent className="pt-4 pb-4 px-4 text-center md:text-left">
+                  <div className="text-xl font-bold text-green-600">
                     {stats.by_status['В работе'] || 0}
                   </div>
-                  <div className="text-sm text-muted-foreground">В работе</div>
+                  <div className="text-xs text-muted-foreground">В работе</div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold text-blue-600">
+                <CardContent className="pt-4 pb-4 px-4 text-center md:text-left">
+                  <div className="text-xl font-bold text-blue-600">
                     {stats.by_status['На складе'] || 0}
                   </div>
-                  <div className="text-sm text-muted-foreground">На складе</div>
+                  <div className="text-xs text-muted-foreground">На складе</div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="pt-6">
-                  <div className="text-2xl font-bold text-red-600">{stats.seal_issues}</div>
-                  <div className="text-sm text-muted-foreground">Проблемы с пломбами</div>
+                <CardContent className="pt-4 pb-4 px-4 text-center md:text-left">
+                  <div className="text-xl font-bold text-red-600">{stats.seal_issues}</div>
+                  <div className="text-xs text-muted-foreground">Проблемы с пломбами</div>
                 </CardContent>
               </Card>
             </div>
@@ -131,43 +132,40 @@ export default function EquipmentPage() {
 
           {/* Предупреждение о проблемных пломбах */}
           {sealIssues && sealIssues.total > 0 && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-              <div>
-                <div className="font-semibold text-red-900">
-                  Внимание! Обнаружены проблемы с пломбами
-                </div>
-                <div className="text-sm text-red-700">
-                  {sealIssues.total} единиц техники требуют проверки
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-red-900 text-sm">
+                  Внимание! Обнаружены проблемы с пломбами ({sealIssues.total})
                 </div>
               </div>
-              <Button variant="outline" size="sm" asChild className="ml-auto">
+              <Button variant="outline" size="xs" asChild className="ml-auto h-7 text-xs">
                 <Link href="/equipment?filter=seal-issues">Просмотреть</Link>
               </Button>
             </div>
           )}
         </div>
 
-        <Card>
-          <CardHeader>
+        <Card className="overflow-hidden">
+          <CardHeader className="p-4 space-y-4">
             <div className="flex items-center justify-between">
-              <CardTitle>Поиск и фильтры</CardTitle>
-              <div className="text-sm text-muted-foreground">
+              <CardTitle className="text-lg">Поиск и фильтры</CardTitle>
+              <div className="text-xs text-muted-foreground">
                 Найдено: {data?.total || 0}
               </div>
             </div>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <div className="flex flex-wrap gap-2">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Поиск по инв. номеру, модели, местоположению..."
+                  placeholder="Инв. номер, модель, место..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9"
+                  className="pl-9 h-9 text-sm"
                 />
               </div>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[140px] h-9 text-sm">
                   <SelectValue placeholder="Тип техники" />
                 </SelectTrigger>
                 <SelectContent>
@@ -180,63 +178,63 @@ export default function EquipmentPage() {
                 </SelectContent>
               </Select>
             </div>
-          </CardHeader>
-
-          <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
-              <TabsList>
-                <TabsTrigger value="all">Все</TabsTrigger>
-                <TabsTrigger value="В работе">В работе</TabsTrigger>
-                <TabsTrigger value="На складе">На складе</TabsTrigger>
-                <TabsTrigger value="В ремонте">В ремонте</TabsTrigger>
-                <TabsTrigger value="Списан">Списан</TabsTrigger>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="h-9 w-full justify-start overflow-x-auto">
+                <TabsTrigger value="all" className="text-xs">Все</TabsTrigger>
+                <TabsTrigger value="В работе" className="text-xs">В работе</TabsTrigger>
+                <TabsTrigger value="На складе" className="text-xs">На складе</TabsTrigger>
+                <TabsTrigger value="В ремонте" className="text-xs">В ремонте</TabsTrigger>
+                <TabsTrigger value="Списан" className="text-xs">Списан</TabsTrigger>
               </TabsList>
             </Tabs>
+          </CardHeader>
 
-            {isLoading ? (
-              <div className="text-center py-8">Загрузка...</div>
-            ) : (
+          <CardContent className="p-0 border-t">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Инв. номер</TableHead>
-                    <TableHead>Тип</TableHead>
-                    <TableHead>Модель</TableHead>
-                    <TableHead>S/N</TableHead>
-                    <TableHead>МНИ S/N</TableHead>
-                    <TableHead>Владелец</TableHead>
-                    <TableHead>Местоположение</TableHead>
-                    <TableHead>Пломба</TableHead>
-                    <TableHead>Статус</TableHead>
-                    <TableHead className="text-right">Действия</TableHead>
+                  <TableRow className="bg-slate-50/50">
+                    <TableHead className="text-[11px] uppercase font-bold px-2 h-10 w-[100px]">Инв. №</TableHead>
+                    <TableHead className="text-[11px] uppercase font-bold px-2 h-10">Тип</TableHead>
+                    <TableHead className="text-[11px] uppercase font-bold px-2 h-10">Модель</TableHead>
+                    <TableHead className="text-[11px] uppercase font-bold px-2 h-10">S/N</TableHead>
+                    <TableHead className="text-[11px] uppercase font-bold px-2 h-10">МНИ S/N</TableHead>
+                    <TableHead className="text-[11px] uppercase font-bold px-2 h-10">Владелец</TableHead>
+                    <TableHead className="text-[11px] uppercase font-bold px-2 h-10">Место</TableHead>
+                    <TableHead className="text-[11px] uppercase font-bold px-2 h-10">Пломба</TableHead>
+                    <TableHead className="text-[11px] uppercase font-bold px-2 h-10">Статус</TableHead>
+                    <TableHead className="text-right text-[11px] uppercase font-bold px-2 h-10">Действия</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data?.items.length === 0 ? (
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center py-8">Загрузка...</TableCell>
+                    </TableRow>
+                  ) : data?.items.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                        Нет данных. Создайте первую запись.
+                        Нет данных.
                       </TableCell>
                     </TableRow>
                   ) : (
                     data?.items.map((equipment) => (
-                      <TableRow key={equipment.id}>
-                        <TableCell className="font-medium">
+                      <TableRow key={equipment.id} className="hover:bg-slate-50/50">
+                        <TableCell className="font-medium text-xs px-2 py-2">
                           {equipment.inventory_number}
                         </TableCell>
-                        <TableCell>{equipment.equipment_type}</TableCell>
-                        <TableCell>
-                          {equipment.manufacturer && `${equipment.manufacturer} `}
-                          {equipment.model || '—'}
+                        <TableCell className="text-xs px-2 py-2">{equipment.equipment_type}</TableCell>
+                        <TableCell className="text-xs px-2 py-2 max-w-[150px] truncate" title={`${equipment.manufacturer || ''} ${equipment.model || ''}`}>
+                          <span className="font-semibold">{equipment.manufacturer}</span> {equipment.model || '—'}
                         </TableCell>
-                        <TableCell>{equipment.serial_number || '—'}</TableCell>
-                        <TableCell>{equipment.mni_serial_number || '—'}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-[10px] font-mono px-2 py-2">{equipment.serial_number || '—'}</TableCell>
+                        <TableCell className="text-[10px] font-mono px-2 py-2">{equipment.mni_serial_number || '—'}</TableCell>
+                        <TableCell className="text-xs px-2 py-2 max-w-[120px] truncate leading-tight">
                           {equipment.current_owner_name ? (
                             <div>
-                              <div>{equipment.current_owner_name}</div>
+                              <div className="font-medium truncate">{equipment.current_owner_name}</div>
                               {equipment.current_owner_rank && (
-                                <div className="text-xs text-muted-foreground">
+                                <div className="text-[9px] text-muted-foreground truncate">
                                   {equipment.current_owner_rank}
                                 </div>
                               )}
@@ -245,36 +243,38 @@ export default function EquipmentPage() {
                             '—'
                           )}
                         </TableCell>
-                        <TableCell>{equipment.current_location || '—'}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-xs px-2 py-2 max-w-[100px] truncate">{equipment.current_location || '—'}</TableCell>
+                        <TableCell className="px-2 py-2">
                           {equipment.seal_number ? (
-                            <div>
-                              <div className="text-xs">{equipment.seal_number}</div>
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className="text-[9px] font-mono font-bold leading-none">{equipment.seal_number}</span>
                               {getSealBadge(equipment.seal_status)}
                             </div>
                           ) : (
                             '—'
                           )}
                         </TableCell>
-                        <TableCell>{getStatusBadge(equipment.status)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button size="sm" variant="outline" asChild>
+                        <TableCell className="px-2 py-2">{getStatusBadge(equipment.status)}</TableCell>
+                        <TableCell className="text-right px-2 py-2">
+                          <div className="flex justify-end gap-1">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" asChild title="Открыть">
                               <Link href={`/equipment/${equipment.id}`}>
-                                Открыть
+                                <Eye className="h-4 w-4" />
                               </Link>
                             </Button>
                             <Button
-                              size="sm"
-                              variant="destructive"
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                               disabled={deleteMutation.isPending}
+                              title="Удалить"
                               onClick={() => {
                                 if (confirm(`Удалить ${equipment.inventory_number}?`)) {
                                   deleteMutation.mutate(equipment.id);
                                 }
                               }}
                             >
-                              {deleteMutation.isPending ? 'Удаление...' : 'Удалить'}
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </TableCell>
@@ -283,10 +283,10 @@ export default function EquipmentPage() {
                   )}
                 </TableBody>
               </Table>
-            )}
+            </div>
           </CardContent>
         </Card>
       </div>
     </div>
   );
-}
+} 

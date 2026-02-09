@@ -55,6 +55,7 @@ class EquipmentUpdate(BaseModel):
 
 class EquipmentResponse(EquipmentBase):
     id: int
+    inventory_number: Optional[str] = None # Теперь None (null) разрешен
     is_active: bool
     created_at: datetime
     updated_at: datetime
