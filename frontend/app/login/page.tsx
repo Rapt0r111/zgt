@@ -22,21 +22,42 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Отправляем запрос на сервер
-      const response = await apiClient.post('/api/auth/login', {
-        username,
-        password
-      });
+      console.log('🔐 Попытка входа...', { username });
+      console.log('🌐 API URL:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
+      
+      // Отправляем запрос на сервер с таймаутом
+      const response = await Promise.race([
+        apiClient.post('/api/auth/login', { username, password }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout: сервер не отвечает')), 10000)
+        )
+      ]) as any;
+
+      console.log('✅ Ответ получен:', response.status);
 
       // Если успешно - перенаправляем на dashboard
-      if (response.data.access_token) {
-        // Токен уже сохранён в cookie бэкендом
+      if (response.data?.access_token) {
+        console.log('✅ Токен получен, перенаправление...');
         router.push('/dashboard');
         router.refresh();
+      } else {
+        throw new Error('Токен не получен');
       }
     } catch (err: any) {
-      console.error('Login error:', err);
-      setError(err.response?.data?.detail || 'Ошибка входа в систему');
+      console.error('❌ Login error:', err);
+      
+      // Детальная обработка ошибок
+      if (err.message === 'Timeout: сервер не отвечает') {
+        setError('Сервер не отвечает. Убедитесь, что backend запущен на http://localhost:8000');
+      } else if (err.code === 'ERR_NETWORK' || err.message.includes('Network Error')) {
+        setError('Ошибка сети. Проверьте: 1) Запущен ли backend, 2) Нет ли блокировки CORS');
+      } else if (err.response?.status === 401) {
+        setError('Неверный логин или пароль');
+      } else if (err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError(err.message || 'Ошибка входа в систему');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +76,7 @@ export default function LoginPage() {
           <CardContent className="space-y-4">
             {error && (
               <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription className="whitespace-pre-line">{error}</AlertDescription>
               </Alert>
             )}
             
@@ -69,6 +90,7 @@ export default function LoginPage() {
                 placeholder="admin"
                 required
                 disabled={isLoading}
+                autoFocus
               />
             </div>
             
@@ -84,6 +106,9 @@ export default function LoginPage() {
                 disabled={isLoading}
               />
             </div>
+
+            {/* Подсказка для разработчика */}
+            
           </CardContent>
           
           <CardFooter>
