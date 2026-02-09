@@ -9,7 +9,8 @@ export const phonesApi = {
     search?: string;
     owner_id?: number;
   }): Promise<PhoneListResponse> => {
-    const response = await apiClient.get('/api/phones', { params });
+    // ИСПРАВЛЕНО: Добавлен слеш в конце
+    const response = await apiClient.get('/api/phones/', { params });
     return response.data;
   },
 
@@ -19,7 +20,8 @@ export const phonesApi = {
   },
 
   create: async (data: PhoneCreate): Promise<Phone> => {
-    const response = await apiClient.post('/api/phones', data);
+    // ИСПРАВЛЕНО: Добавлен слеш в конце
+    const response = await apiClient.post('/api/phones/', data);
     return response.data;
   },
 

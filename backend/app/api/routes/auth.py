@@ -46,14 +46,17 @@ async def login(
         data={"sub": user.username, "role": user.role},
         expires_delta=access_token_expires
     )
+    
+    # ИСПРАВЛЕНО: Настройки cookie для development
     response.set_cookie(
         key="access_token",
         value=access_token,
-        httponly=True,  # ✅ Защита от XSS
-        secure=True,    # ✅ Только HTTPS
-        samesite="lax", # ✅ Защита от CSRF
+        httponly=True,
+        secure=False,  # ← ИЗМЕНЕНО: False для HTTP (localhost)
+        samesite="lax",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
+    
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=UserResponse)

@@ -8,7 +8,8 @@ export const personnelApi = {
     status?: string;
     search?: string;
   }): Promise<PersonnelListResponse> => {
-    const response = await apiClient.get('/api/personnel', { params });
+    // ИСПРАВЛЕНО: Добавлен слеш в конце
+    const response = await apiClient.get('/api/personnel/', { params });
     return response.data;
   },
 
@@ -18,7 +19,8 @@ export const personnelApi = {
   },
 
   create: async (data: PersonnelCreate): Promise<Personnel> => {
-    const response = await apiClient.post('/api/personnel', data);
+    // ИСПРАВЛЕНО: Добавлен слеш в конце
+    const response = await apiClient.post('/api/personnel/', data);
     return response.data;
   },
 

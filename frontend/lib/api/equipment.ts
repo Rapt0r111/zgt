@@ -27,7 +27,8 @@ export const equipmentApi = {
     status?: string;
     search?: string;
   }): Promise<EquipmentListResponse> => {
-    const response = await apiClient.get('/api/equipment', { params });
+    // ИСПРАВЛЕНО: Добавлен слеш в конце
+    const response = await apiClient.get('/api/equipment/', { params });
     return response.data;
   },
 
@@ -37,7 +38,8 @@ export const equipmentApi = {
   },
 
   create: async (data: EquipmentCreate): Promise<Equipment> => {
-    const response = await apiClient.post('/api/equipment', data);
+    // ИСПРАВЛЕНО: Добавлен слеш в конце
+    const response = await apiClient.post('/api/equipment/', data);
     return response.data;
   },
 
@@ -93,7 +95,8 @@ export const equipmentApi = {
     status?: string;
     search?: string;
   }): Promise<StorageDeviceListResponse> => {
-    const response = await apiClient.get('/api/equipment/storage-devices', { params });
+    // ИСПРАВЛЕНО: Добавлен слеш в конце
+    const response = await apiClient.get('/api/equipment/storage-devices/', { params });
     return response.data;
   },
 
@@ -103,7 +106,8 @@ export const equipmentApi = {
   },
 
   createStorageDevice: async (data: StorageDeviceCreate): Promise<StorageDevice> => {
-    const response = await apiClient.post('/api/equipment/storage-devices', data);
+    // ИСПРАВЛЕНО: Добавлен слеш в конце
+    const response = await apiClient.post('/api/equipment/storage-devices/', data);
     return response.data;
   },
 
