@@ -1,36 +1,37 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from app.core.config import settings
 
-# ИСПРАВЛЕНО: Оптимизированные настройки для работы с PostgreSQL
+# SQLAlchemy 2.0+ синтаксис
+class Base(DeclarativeBase):
+    pass
+
+# Оптимизированные настройки для PostgreSQL
 engine = create_engine(
     settings.DATABASE_URL,
-    pool_pre_ping=True,  # Проверка соединения перед использованием
-    pool_size=5,  # Размер пула соединений
-    max_overflow=10,  # Максимум дополнительных соединений
-    pool_recycle=3600,  # Переиспользование соединений каждый час
-    echo=False,  # ИСПРАВЛЕНО: Отключаем логи SQL в production
+    pool_pre_ping=True,
+    pool_size=10,              # ↑ Увеличено с 5
+    max_overflow=20,           # ↑ Увеличено с 10
+    pool_recycle=3600,
+    echo=settings.DEBUG,       # Логи только в DEBUG
     connect_args={
-        "options": "-c timezone=utc"  # Устанавливаем timezone
-    }
+        "options": "-c timezone=utc"
+    },
+    # Новые параметры для производительности
+    pool_timeout=30,
+    pool_reset_on_return='rollback'
 )
 
-# Создаём фабрику сессий
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine,
-    expire_on_commit=False  # ДОБАВЛЕНО: Не истекать объекты после commit
+    expire_on_commit=False
 )
 
-# Базовый класс для моделей
-Base = declarative_base()
-
-# ИСПРАВЛЕНО: Улучшенный dependency с правильным закрытием сессии
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
-        db.close()  # Всегда закрываем сессию
+        db.close()

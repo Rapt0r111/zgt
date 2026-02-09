@@ -8,7 +8,9 @@
     "start": "bun next start",
     "lint": "bunx @biomejs/biome check .",
     "format": "bunx @biomejs/biome format . --write",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "generate:api": "powershell -ExecutionPolicy Bypass -File ./scripts/generate-api.ps1"
+
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -36,6 +38,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.14",
+    "@hey-api/openapi-ts": "^0.92.3",
     "@next/bundle-analyzer": "^16.1.6",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
