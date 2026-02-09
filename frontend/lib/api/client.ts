@@ -2,29 +2,26 @@ import axios from 'axios';
 import { toast } from 'sonner';
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
   headers: {
     'Content-Type': 'application/json',
   },
-});
-
-// Добавляем токен к каждому запросу
-apiClient.interceptors.request.use((config) => {
-  return config;
+  withCredentials: true, // ← ВАЖНО! Для работы с cookies
 });
 
 // Обработка ошибок
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.error('API Error:', error.response || error);
+    
     if (error.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      if (typeof window !== 'undefined') {
+      // Не перенаправляем на /login если мы уже там
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }
     }
     
-    // Добавить обработку других статусов
     if (error.response?.status === 403) {
       toast.error('Недостаточно прав');
     }

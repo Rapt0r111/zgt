@@ -104,6 +104,8 @@ export default function PersonnelPage() {
                       <TableHead className="text-right">Действия</TableHead>
                     </TableRow>
                   </TableHeader>
+                  
+                  {/* FIX STARTS HERE: Everything must be inside TableBody */}
                   <TableBody>
                     {data?.items.map((person) => (
                       <TableRow key={person.id}>
@@ -115,11 +117,7 @@ export default function PersonnelPage() {
                         <TableCell>{getStatusBadge(person.status)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              asChild
-                            >
+                            <Button size="sm" variant="outline" asChild>
                               <Link href={`/personnel/${person.id}`}>
                                 Открыть
                               </Link>
@@ -140,14 +138,18 @@ export default function PersonnelPage() {
                         </TableCell>
                       </TableRow>
                     ))}
+
+                    {/* MOVED INSIDE TableBody */}
+                    {data?.items.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          Нет данных. Создайте первую запись.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
-                  {data?.items.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        Нет данных. Создайте первую запись.
-                      </TableCell>
-                    </TableRow>
-                  )}
+                  {/* FIX ENDS HERE */}
+                  
                 </Table>
               </>
             )}

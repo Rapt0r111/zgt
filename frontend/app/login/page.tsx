@@ -22,9 +22,20 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Перенаправить на dashboard
-      router.push('/dashboard');
+      // Отправляем запрос на сервер
+      const response = await apiClient.post('/api/auth/login', {
+        username,
+        password
+      });
+
+      // Если успешно - перенаправляем на dashboard
+      if (response.data.access_token) {
+        // Токен уже сохранён в cookie бэкендом
+        router.push('/dashboard');
+        router.refresh();
+      }
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.response?.data?.detail || 'Ошибка входа в систему');
     } finally {
       setIsLoading(false);

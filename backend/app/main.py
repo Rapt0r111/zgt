@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import auth, personnel, phones, equipment  # ДОБАВИТЬ equipment
+from app.api.routes import auth, personnel, phones, equipment
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -11,14 +11,18 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
+# CORS настройки - ВАЖНО для работы с фронтендом
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],  # Разрешаем фронтенд
+    allow_credentials=True,  # ← КРИТИЧНО! Для cookies
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
-    expose_headers=["Content-Type"],
-    max_age=600,  # ← ДОБАВИТЬ кэш preflight запросов
+    allow_headers=["Content-Type", "Authorization", "Cookie"],
+    expose_headers=["Content-Type", "Set-Cookie"],
+    max_age=600,
 )
 
 @app.get("/")

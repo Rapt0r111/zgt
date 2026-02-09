@@ -18,14 +18,31 @@ export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
+        console.log('Fetching user data...');
+        console.log('API URL:', process.env.NEXT_PUBLIC_API_URL);
+        
         const response = await apiClient.get('/api/auth/me');
+        console.log('User data received:', response.data);
         setUser(response.data);
-      } catch (error) {
-        router.push('/login');
+        setError(null);
+      } catch (error: any) {
+        console.error('Failed to fetch user:', error);
+        console.error('Error response:', error.response);
+        console.error('Error message:', error.message);
+        
+        setError(error.response?.data?.detail || error.message || 'Ошибка загрузки данных');
+        
+        // Перенаправляем на логин только при 401
+        if (error.response?.status === 401) {
+          setTimeout(() => {
+            router.push('/login');
+          }, 1000);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -35,14 +52,55 @@ export default function DashboardPage() {
   }, [router]);
 
   const handleLogout = async () => {
-    await apiClient.post('/api/auth/logout');
-    router.push('/login');
+    try {
+      await apiClient.post('/api/auth/logout');
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Всё равно перенаправляем на логин
+      router.push('/login');
+    }
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Загрузка...</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-lg">Загрузка...</p>
+          <p className="text-sm text-muted-foreground mt-2">Подключение к серверу...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Card className="w-[400px]">
+          <CardHeader>
+            <CardTitle className="text-red-600">Ошибка</CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Проверьте, что:
+            </p>
+            <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+              <li>Backend сервер запущен (http://localhost:8000)</li>
+              <li>Вы вошли в систему</li>
+              <li>Нет ошибок CORS</li>
+            </ul>
+            <div className="flex gap-2">
+              <Button onClick={() => window.location.reload()} variant="outline" className="flex-1">
+                Обновить
+              </Button>
+              <Button onClick={() => router.push('/login')} className="flex-1">
+                На страницу входа
+              </Button>
+            </div>
+          </div>
+        </Card>
       </div>
     );
   }
@@ -85,8 +143,8 @@ export default function DashboardPage() {
             </Card>
           </Link>
           
-          <Link href="/equipment">  {/* ИЗМЕНИТЬ - добавить Link */}
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">  {/* УДАЛИТЬ opacity-50 */}
+          <Link href="/equipment">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
               <CardHeader>
                 <CardTitle>Вычислительная техника</CardTitle>
                 <CardDescription>
