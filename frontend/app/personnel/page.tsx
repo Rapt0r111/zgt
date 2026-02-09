@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -12,8 +12,38 @@ import { personnelApi } from '@/lib/api/personnel';
 import { Plus, Search, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
+// 1. Приоритет званий (от Маршала до Курсанта)
+const RANK_PRIORITY: Record<string, number> = {
+  'Маршал Российской Федерации': 1,
+  'Генерал армии': 2,
+  'Генерал-полковник': 3,
+  'Генерал-лейтенант': 4,
+  'Генерал-майор': 5,
+  'Полковник': 6,
+  'Подполковник': 7,
+  'Майор': 8,
+  'Капитан': 9,
+  'Старший лейтенант': 10,
+  'Лейтенант': 11,
+  'Младший лейтенант': 12,
+  'Старший прапорщик': 13,
+  'Прапорщик': 14,
+  'Старшина': 15,
+  'Старший сержант': 16,
+  'Сержант': 17,
+  'Младший сержант': 18,
+  'Ефрейтор': 19,
+  'Рядовой': 20,
+  'Курсант': 21,
+};
+
+// 2. Приоритет должностей (Старший оператор выше Оператора)
+const POSITION_PRIORITY: Record<string, number> = {
+  '	Старший оператор роты (научной)': 1,
+  'Оператор роты (научной)': 2,
+};
+
 export default function PersonnelPage() {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   
@@ -22,6 +52,45 @@ export default function PersonnelPage() {
     queryFn: () => personnelApi.getList({ search: search || undefined }),
   });
 
+  const sortedPersonnel = useMemo(() => {
+    const items = data?.items || [];
+    if (items.length === 0) return [];
+
+    // Вспомогательная функция для определения веса должности по ключевым словам
+    const getPositionWeight = (position: string): number => {
+      const pos = position.toLowerCase();
+      if (pos.includes('старший оператор')) return 1;
+      if (pos.includes('оператор')) return 2;
+      return 1000;
+    };
+
+    return [...items].sort((a, b) => {
+      // --- ШАГ 1: Сортировка по Званию ---
+      const rankA = RANK_PRIORITY[a.rank?.trim() || ''] || 1000;
+      const rankB = RANK_PRIORITY[b.rank?.trim() || ''] || 1000;
+      
+      if (rankA !== rankB) {
+        return rankA - rankB;
+      }
+
+      // --- ШАГ 2: Сортировка по Должности (по весам из функции) ---
+      const posWeightA = getPositionWeight(a.position || '');
+      const posWeightB = getPositionWeight(b.position || '');
+
+      if (posWeightA !== posWeightB) {
+        return posWeightA - posWeightB;
+      }
+
+      // Если веса одинаковые (например, оба "Старшие операторы"), сортируем по названию
+      const posNameCompare = (a.position || '').localeCompare(b.position || '', 'ru');
+      if (posNameCompare !== 0) return posNameCompare;
+
+      // --- ШАГ 3: Сортировка по ФИО ---
+      return (a.full_name || '').localeCompare(b.full_name || '', 'ru');
+    });
+  }, [data]);
+
+  // Остальной код (deleteMutation, Badge функции и JSX) остается без изменений
   const deleteMutation = useMutation({
     mutationFn: personnelApi.delete,
     onSuccess: () => {
@@ -42,7 +111,7 @@ export default function PersonnelPage() {
   const getClearanceBadge = (level?: number) => {
     if (!level) return <Badge variant="outline">Нет</Badge>;
     const labels = { 1: 'Форма 1', 2: 'Форма 2', 3: 'Форма 3' };
-    return <Badge>{labels[level as keyof typeof labels]}</Badge>;
+    return <Badge>{labels[level as keyof typeof labels] || 'Нет'}</Badge>;
   };
 
   return (
@@ -105,9 +174,8 @@ export default function PersonnelPage() {
                     </TableRow>
                   </TableHeader>
                   
-                  {/* FIX STARTS HERE: Everything must be inside TableBody */}
                   <TableBody>
-                    {data?.items.map((person) => (
+                    {sortedPersonnel.map((person) => (
                       <TableRow key={person.id}>
                         <TableCell className="font-medium">{person.full_name}</TableCell>
                         <TableCell>{person.rank || '—'}</TableCell>
@@ -139,8 +207,7 @@ export default function PersonnelPage() {
                       </TableRow>
                     ))}
 
-                    {/* MOVED INSIDE TableBody */}
-                    {data?.items.length === 0 && (
+                    {sortedPersonnel.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           Нет данных. Создайте первую запись.
@@ -148,8 +215,6 @@ export default function PersonnelPage() {
                       </TableRow>
                     )}
                   </TableBody>
-                  {/* FIX ENDS HERE */}
-                  
                 </Table>
               </>
             )}

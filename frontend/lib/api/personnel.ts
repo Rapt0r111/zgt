@@ -1,6 +1,16 @@
 import apiClient from './client';
 import type { Personnel, PersonnelCreate, PersonnelUpdate, PersonnelListResponse } from '@/types/personnel';
 
+const sanitizeData = <T extends object>(data: T): T => {
+  const cleanData = { ...data } as Record<string, unknown>;
+  Object.keys(cleanData).forEach((key) => {
+    if (cleanData[key] === '') {
+      cleanData[key] = null;
+    }
+  });
+  return cleanData as T;
+};
+
 export const personnelApi = {
   getList: async (params?: {
     skip?: number;
@@ -19,13 +29,14 @@ export const personnelApi = {
   },
 
   create: async (data: PersonnelCreate): Promise<Personnel> => {
-    // ИСПРАВЛЕНО: Добавлен слеш в конце
-    const response = await apiClient.post('/api/personnel/', data);
+    const cleanData = sanitizeData(data); // Очищаем данные перед отправкой
+    const response = await apiClient.post('/api/personnel/', cleanData);
     return response.data;
   },
 
   update: async (id: number, data: PersonnelUpdate): Promise<Personnel> => {
-    const response = await apiClient.put(`/api/personnel/${id}`, data);
+    const cleanData = sanitizeData(data); // Очищаем данные перед отправкой
+    const response = await apiClient.put(`/api/personnel/${id}`, cleanData);
     return response.data;
   },
 

@@ -13,8 +13,10 @@ const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('API Error:', error.response || error);
-    
+    console.error('API Error Details:', error.response?.data); 
+    if (error.response?.status === 422) {
+      console.error('Validation Error:', JSON.stringify(error.response.data, null, 2));
+    }
     if (error.response?.status === 401) {
       // Не перенаправляем на /login если мы уже там
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
