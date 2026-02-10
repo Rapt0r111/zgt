@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
 from datetime import date as date_type
+from app.core.validators import validate_date_range
 
 class PersonnelBase(BaseModel):
     full_name: str = Field(..., min_length=1, max_length=255)
@@ -19,9 +20,7 @@ class PersonnelCreate(PersonnelBase):
     @field_validator('clearance_expiry_date')
     @classmethod
     def validate_date(cls, v):
-        if v and v < date_type(1900, 1, 1):
-            raise ValueError('Дата не может быть раньше 1900 года')
-        return v
+        return validate_date_range(v, min_year=1950, max_years_ahead=10)
 
 class PersonnelUpdate(BaseModel):
     full_name: Optional[str] = Field(None, min_length=1, max_length=255)
@@ -34,6 +33,11 @@ class PersonnelUpdate(BaseModel):
     clearance_order_number: Optional[str] = None
     clearance_expiry_date: Optional[date_type] = None
     status: Optional[str] = None
+    
+    @field_validator('clearance_expiry_date')
+    @classmethod
+    def validate_date(cls, v):
+        return validate_date_range(v, min_year=1950, max_years_ahead=10)
 
 class PersonnelResponse(PersonnelBase):
     id: int

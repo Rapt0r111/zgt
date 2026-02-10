@@ -62,7 +62,7 @@ async def list_phones(
     
     return PhoneListResponse(total=total, items=response_items)
 
-@router.post("/", response_model=PhoneResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=PhoneResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(verify_csrf)])
 async def create_phone(
     phone: PhoneCreate,
     db: Session = Depends(get_db),
@@ -105,7 +105,7 @@ async def get_phone(
         "owner_rank": phone.owner.rank if phone.owner else None,
     }
 
-@router.put("/{phone_id}", response_model=PhoneResponse)
+@router.put("/{phone_id}", response_model=PhoneResponse, dependencies=[Depends(verify_csrf)])
 async def update_phone(
     phone_id: int,
     phone_data: PhoneUpdate,
@@ -128,7 +128,7 @@ async def update_phone(
         "owner_rank": phone.owner.rank if phone.owner else None,
     }
 
-@router.delete("/{phone_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{phone_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(verify_csrf)])
 async def delete_phone(
     phone_id: int,
     db: Session = Depends(get_db),
@@ -144,7 +144,7 @@ async def delete_phone(
             detail="Телефон не найден"
         )
 
-@router.post("/batch-checkin")
+@router.post("/batch-checkin", dependencies=[Depends(verify_csrf)])
 async def batch_checkin(
     request: BatchCheckinRequest,
     db: Session = Depends(get_db),
@@ -159,7 +159,7 @@ async def batch_checkin(
         "count": count
     }
 
-@router.post("/batch-checkout")
+@router.post("/batch-checkout", dependencies=[Depends(verify_csrf)])
 async def batch_checkout(
     request: BatchCheckoutRequest,
     db: Session = Depends(get_db),

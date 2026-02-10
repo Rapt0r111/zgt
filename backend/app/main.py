@@ -1,27 +1,29 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.api.routes import auth, personnel, phones, equipment
 import logging
+import time
 
 # Настройка логирования
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.INFO if settings.DEBUG else logging.WARNING,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-# Отключаем SQLAlchemy логи
 logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json"
+    docs_url="/api/docs" if settings.DEBUG else None,  # Disable in production
+    redoc_url="/api/redoc" if settings.DEBUG else None,
+    openapi_url="/api/openapi.json" if settings.DEBUG else None
 )
 
-# CORS настройки - КРИТИЧНО для работы с cookies и фронтендом
+# CORS настройки
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -31,27 +33,58 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Set-Cookie", "X-Process-Time"],
+    expose_headers=["Set-Cookie", "X-Process-Time", "X-CSRF-Token"],
     max_age=3600,
 )
 
-# Middleware для мониторинга производительности
+# Security headers middleware
 @app.middleware("http")
-async def add_process_time_header(request, call_next):
-    import time
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    
+    # Add security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    
+    if not settings.DEBUG:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    
+    return response
+
+# Performance monitoring middleware
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
     
-    # Логируем только медленные запросы (>1 сек)
+    # Log slow requests
     if process_time > 1.0:
-        logging.warning(
+        logger.warning(
             f"⚠️  SLOW: {request.method} {request.url.path} "
             f"took {process_time:.2f}s"
         )
     
     response.headers["X-Process-Time"] = f"{process_time:.4f}"
     return response
+
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global exception: {exc}", exc_info=True)
+    
+    # Don't leak internal errors to clients in production
+    if settings.DEBUG:
+        detail = str(exc)
+    else:
+        detail = "Internal server error"
+    
+    return JSONResponse(
+        status_code=500,
+        content={"detail": detail}
+    )
 
 @app.get("/")
 async def root():

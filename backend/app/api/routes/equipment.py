@@ -48,7 +48,7 @@ async def list_storage_devices(
     return StorageDeviceListResponse(total=total, items=response_items)
 
 
-@storage_router.post("/", response_model=StorageDeviceResponse, status_code=status.HTTP_201_CREATED)
+@storage_router.post("/", response_model=StorageDeviceResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(verify_csrf)])
 async def create_storage_device(
     device: StorageDeviceCreate,
     db: Session = Depends(get_db),
@@ -91,7 +91,7 @@ async def get_storage_device(
     }
 
 
-@storage_router.put("/{device_id}", response_model=StorageDeviceResponse)
+@storage_router.put("/{device_id}", response_model=StorageDeviceResponse, dependencies=[Depends(verify_csrf)])
 async def update_storage_device(
     device_id: int,
     device_data: StorageDeviceUpdate,
@@ -114,7 +114,7 @@ async def update_storage_device(
     }
 
 
-@storage_router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
+@storage_router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(verify_csrf)])
 async def delete_storage_device(
     device_id: int,
     db: Session = Depends(get_db),
@@ -168,7 +168,7 @@ async def list_equipment(
     return EquipmentListResponse(total=total, items=response_items)
 
 
-@router.post("/", response_model=EquipmentResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=EquipmentResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(verify_csrf)])
 async def create_equipment(
     equipment: EquipmentCreate,
     db: Session = Depends(get_db),
@@ -224,7 +224,7 @@ async def get_seal_issues(
         ]
     }
 
-@router.post("/seals/check", response_model=SealCheckResponse)
+@router.post("/seals/check", response_model=SealCheckResponse, dependencies=[Depends(verify_csrf)])
 async def check_seals(
     request: SealCheckRequest,
     db: Session = Depends(get_db),
@@ -243,7 +243,7 @@ async def check_seals(
         "message": f"Проверено {result['checked_count']} единиц техники"
     }
 
-@router.post("/movements", response_model=MovementResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/movements", response_model=MovementResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(verify_csrf)])
 async def create_movement(
     movement: MovementCreate,
     db: Session = Depends(get_db),
@@ -293,7 +293,7 @@ async def get_equipment(
     }
 
 
-@router.put("/{equipment_id}", response_model=EquipmentResponse)
+@router.put("/{equipment_id}", response_model=EquipmentResponse, dependencies=[Depends(verify_csrf)])
 async def update_equipment(
     equipment_id: int,
     equipment_data: EquipmentUpdate,
@@ -317,7 +317,7 @@ async def update_equipment(
     }
 
 
-@router.delete("/{equipment_id}")
+@router.delete("/{equipment_id}", dependencies=[Depends(verify_csrf)])
 async def delete_equipment(
     equipment_id: int,
     db: Session = Depends(get_db),

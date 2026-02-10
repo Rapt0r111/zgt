@@ -30,7 +30,7 @@ async def list_personnel(
     
     return PersonnelListResponse(total=total, items=items)
 
-@router.post("/", response_model=PersonnelResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=PersonnelResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(verify_csrf)])
 async def create_personnel(
     personnel: PersonnelCreate,
     db: Session = Depends(get_db),
@@ -64,7 +64,7 @@ async def get_personnel(
     
     return personnel
 
-@router.put("/{personnel_id}", response_model=PersonnelResponse)
+@router.put("/{personnel_id}", response_model=PersonnelResponse, dependencies=[Depends(verify_csrf)])
 async def update_personnel(
     personnel_id: int,
     personnel_data: PersonnelUpdate,
@@ -83,7 +83,7 @@ async def update_personnel(
     
     return personnel
 
-@router.delete("/{personnel_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{personnel_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(verify_csrf)])
 async def delete_personnel(
     personnel_id: int,
     db: Session = Depends(get_db),

@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, text
 from app.core.database import Base
 
 class Equipment(Base):
@@ -10,45 +10,42 @@ class Equipment(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     # Тип техники
-    equipment_type = Column(String(50), nullable=False)  # АРМ/Ноутбук/Сервер/Принтер
+    equipment_type = Column(String(50), nullable=False)
     
     # Идентификация
-    inventory_number = Column(String(100), unique=True, index=True)  # Инвентарный номер
+    inventory_number = Column(String(100), index=True)
     serial_number = Column(String(100), index=True)
     mni_serial_number = Column(String(100), index=True)
+    
     # Характеристики
-    manufacturer = Column(String(100))  # Производитель
+    manufacturer = Column(String(100))
     model = Column(String(255))
-    
-    # Процессор и память
-    cpu = Column(String(255))  # Intel Core i5-10400
-    ram_gb = Column(Integer)  # Объём RAM в ГБ
-    
-    # Хранение данных
-    storage_type = Column(String(50))  # HDD/SSD/NVMe
-    storage_capacity_gb = Column(Integer)  # Объём в ГБ
-    
-    # Дополнительно
-    has_optical_drive = Column(Boolean, default=False)  # Оптический привод
-    has_card_reader = Column(Boolean, default=False)  # Картридер
-    operating_system = Column(String(100))  # Windows 10 Pro
+    cpu = Column(String(255))
+    ram_gb = Column(Integer)
+    storage_type = Column(String(50))
+    storage_capacity_gb = Column(Integer)
+    has_optical_drive = Column(Boolean, default=False)
+    has_card_reader = Column(Boolean, default=False)
+    operating_system = Column(String(100))
     
     # Текущее размещение
-    current_owner_id = Column(Integer, ForeignKey('personnel.id'), nullable=True)
+    current_owner_id = Column(
+        Integer,
+        ForeignKey('personnel.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True  # ← Added index
+    )
     current_owner = relationship("Personnel", foreign_keys=[current_owner_id])
-    
-    current_location = Column(String(255))  # Каб. 205, Склад №1
+    current_location = Column(String(255))
     
     # Пломбы
-    seal_number = Column(String(100))  # Номер пломбы
-    seal_install_date = Column(DateTime(timezone=True))  # Дата установки
-    seal_status = Column(String(50), default="Исправна")  # Исправна/Повреждена/Отсутствует
-    seal_check_date = Column(DateTime(timezone=True))  # Дата последней проверки
+    seal_number = Column(String(100))
+    seal_install_date = Column(DateTime(timezone=True))
+    seal_status = Column(String(50), default="Исправна")
+    seal_check_date = Column(DateTime(timezone=True))
     
     # Статус
-    status = Column(String(50), default="В работе")  # В работе/На складе/В ремонте/Списан
-    
-    # Примечания
+    status = Column(String(50), default="В работе")
     notes = Column(Text)
     
     # Связи
@@ -57,8 +54,21 @@ class Equipment(Base):
     
     # Служебная информация
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=text("timezone('UTC', now())"),
+        nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=text("timezone('UTC', now())"),
+        onupdate=text("timezone('UTC', now())"),
+        nullable=False
+    )
+    
+    __table_args__ = (
+        UniqueConstraint('inventory_number', name='uq_equipment_inventory'),
+    )
 
 
 class EquipmentMovement(Base):
@@ -67,36 +77,37 @@ class EquipmentMovement(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     
-    # Связь с техникой
-    equipment_id = Column(Integer, ForeignKey('equipment.id', ondelete='CASCADE'), nullable=False)
+    equipment_id = Column(
+        Integer,
+        ForeignKey('equipment.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True  # ← Added index
+    )
     equipment = relationship("Equipment", back_populates="movement_history")
     
-    # Откуда/Куда
-    from_location = Column(String(255))  # Предыдущее размещение
-    to_location = Column(String(255))  # Новое размещение
+    from_location = Column(String(255))
+    to_location = Column(String(255))
     
-    # Ответственные
-    from_person_id = Column(Integer, ForeignKey('personnel.id'), nullable=True)
+    from_person_id = Column(Integer, ForeignKey('personnel.id'), nullable=True, index=True)
     from_person = relationship("Personnel", foreign_keys=[from_person_id])
     
-    to_person_id = Column(Integer, ForeignKey('personnel.id'), nullable=True)
+    to_person_id = Column(Integer, ForeignKey('personnel.id'), nullable=True, index=True)
     to_person = relationship("Personnel", foreign_keys=[to_person_id])
     
-    # Документ
-    movement_type = Column(String(50))  # Передача/Возврат/Списание/Ремонт
-    document_number = Column(String(100))  # Номер акта приёма-передачи
+    movement_type = Column(String(50))
+    document_number = Column(String(100))
     document_date = Column(DateTime(timezone=True))
+    reason = Column(Text)
     
-    # Примечания
-    reason = Column(Text)  # Причина перемещения
+    seal_number_before = Column(String(100))
+    seal_number_after = Column(String(100))
+    seal_status = Column(String(50))
     
-    # Пломба при передаче
-    seal_number_before = Column(String(100))  # Номер пломбы до
-    seal_number_after = Column(String(100))  # Номер пломбы после
-    seal_status = Column(String(50))  # Состояние пломбы при передаче
-    
-    # Служебная информация
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=text("timezone('UTC', now())"),
+        nullable=False
+    )
     created_by_id = Column(Integer, ForeignKey('users.id'))
     created_by = relationship("User")
 
@@ -107,31 +118,38 @@ class StorageDevice(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     
-    # Связь с компьютером (может быть None если носитель на складе)
-    equipment_id = Column(Integer, ForeignKey('equipment.id', ondelete='SET NULL'), nullable=True)
+    equipment_id = Column(
+        Integer,
+        ForeignKey('equipment.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True  # ← Added index
+    )
     equipment = relationship("Equipment", back_populates="storage_devices")
     
-    # Тип носителя
-    device_type = Column(String(50), nullable=False)  # HDD/SSD/NVMe/USB Flash
-    
-    # Идентификация
-    inventory_number = Column(String(100), unique=True, index=True)
+    device_type = Column(String(50), nullable=False)
+    inventory_number = Column(String(100), index=True)
     serial_number = Column(String(100), index=True)
-    
-    # Характеристики
     manufacturer = Column(String(100))
     model = Column(String(255))
     capacity_gb = Column(Integer)
-    interface = Column(String(50))  # SATA/NVMe/USB 3.0
-    
-    # Статус
-    status = Column(String(50), default="В работе")  # В работе/На складе/Списан
-    location = Column(String(255))  # Текущее местоположение
-    
-    # Примечания
+    interface = Column(String(50))
+    status = Column(String(50), default="В работе")
+    location = Column(String(255))
     notes = Column(Text)
     
-    # Служебная информация
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=text("timezone('UTC', now())"),
+        nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=text("timezone('UTC', now())"),
+        onupdate=text("timezone('UTC', now())"),
+        nullable=False
+    )
+    
+    __table_args__ = (
+        UniqueConstraint('inventory_number', name='uq_storage_inventory'),
+    )

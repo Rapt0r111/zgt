@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, func
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.models.equipment import Equipment, EquipmentMovement, StorageDevice
 from app.models.personnel import Personnel
 from app.schemas.equipment import (
@@ -10,12 +10,14 @@ from app.schemas.equipment import (
     MovementCreate,
     StorageDeviceCreate, StorageDeviceUpdate
 )
+from app.core.validators import sanitize_html
+import logging
+
+logger = logging.getLogger(__name__)
 
 class EquipmentService:
     def __init__(self, db: Session):
         self.db = db
-    
-    # ============ EQUIPMENT CRUD ============
     
     def get_list(
         self,
@@ -30,16 +32,14 @@ class EquipmentService:
             joinedload(Equipment.current_owner)
         ).filter(Equipment.is_active == True)
         
-        # Фильтр по типу
         if equipment_type:
             query = query.filter(Equipment.equipment_type == equipment_type)
         
-        # Фильтр по статусу
         if status:
             query = query.filter(Equipment.status == status)
         
-        # Поиск
         if search:
+            search = sanitize_html(search)
             search_filter = or_(
                 Equipment.inventory_number.ilike(f"%{search}%"),
                 Equipment.serial_number.ilike(f"%{search}%"),
@@ -65,21 +65,18 @@ class EquipmentService:
         ).first()
     
     def create(self, equipment_data: EquipmentCreate) -> Equipment:
-        """Создать запись о технике"""
-        # Проверить уникальность инвентарного номера
-        existing = self.db.query(Equipment).filter(
-            Equipment.inventory_number == equipment_data.inventory_number,
-            Equipment.is_active == True
-        ).first()
-        
-        if existing:
-            raise ValueError(f"Инвентарный номер {equipment_data.inventory_number} уже существует")
-        
-        equipment = Equipment(**equipment_data.model_dump())
-        self.db.add(equipment)
-        self.db.commit()
-        self.db.refresh(equipment)
-        return equipment
+        """Создать запись о технике с DB-enforced uniqueness"""
+        try:
+            equipment = Equipment(**equipment_data.model_dump())
+            self.db.add(equipment)
+            self.db.commit()
+            self.db.refresh(equipment)
+            return equipment
+        except IntegrityError as e:
+            self.db.rollback()
+            if 'uq_equipment_inventory' in str(e.orig):
+                raise ValueError(f"Инвентарный номер {equipment_data.inventory_number} уже существует")
+            raise ValueError(f"Ошибка при создании: {str(e)}")
     
     def update(self, equipment_id: int, equipment_data: EquipmentUpdate) -> Optional[Equipment]:
         """Обновить данные техники"""
@@ -88,22 +85,19 @@ class EquipmentService:
             return None
         
         update_data = equipment_data.model_dump(exclude_unset=True)
-        if 'inventory_number' in update_data:
-            existing = self.db.query(Equipment).filter(
-                Equipment.inventory_number == update_data['inventory_number'],
-                Equipment.is_active == True,
-                Equipment.id != equipment_id  # ← Исключаем текущую запись
-            ).first()
+        
+        try:
+            for field, value in update_data.items():
+                setattr(equipment, field, value)
             
-            if existing:
-                raise ValueError(f"Инвентарный номер {update_data['inventory_number']} уже существует")
-        
-        for field, value in update_data.items():
-            setattr(equipment, field, value)
-        
-        self.db.commit()
-        self.db.refresh(equipment)
-        return equipment
+            self.db.commit()
+            self.db.refresh(equipment)
+            return equipment
+        except IntegrityError as e:
+            self.db.rollback()
+            if 'uq_equipment_inventory' in str(e.orig):
+                raise ValueError(f"Инвентарный номер {update_data.get('inventory_number')} уже существует")
+            raise
     
     def delete(self, equipment_id: int) -> bool:
         """Мягкое удаление"""
@@ -115,40 +109,64 @@ class EquipmentService:
         self.db.commit()
         return True
     
-    # ============ MOVEMENT OPERATIONS ============
-    
     def create_movement(
         self,
         movement_data: MovementCreate,
         created_by_id: int
     ) -> EquipmentMovement:
-        """Создать перемещение и обновить текущее местоположение"""
-        equipment = self.get_by_id(movement_data.equipment_id)
-        if not equipment:
-            raise ValueError("Техника не найдена")
+        """Create movement with row-level locking to prevent race conditions"""
         
-        # Создать запись о перемещении
         try:
-            movement = EquipmentMovement(
-                **movement_data.model_dump(),
-                created_by_id=created_by_id
-            )
-            self.db.add(movement)
-        
-            equipment.current_location = movement_data.to_location
-            equipment.current_owner_id = movement_data.to_person_id
-            
-            if movement_data.seal_number_after:
-                equipment.seal_number = movement_data.seal_number_after
-                equipment.seal_install_date = datetime.now()
-                equipment.seal_status = movement_data.seal_status or "Исправна"
+            with self.db.begin_nested():  # Savepoint for rollback
+                
+                # Lock equipment row
+                equipment = self.db.query(Equipment).with_for_update().filter(
+                    Equipment.id == movement_data.equipment_id,
+                    Equipment.is_active == True
+                ).one_or_none()
+                
+                if not equipment:
+                    raise ValueError("Техника не найдена")
+                
+                # Verify no concurrent movement in last 5 minutes
+                pending_movement = self.db.query(EquipmentMovement).filter(
+                    EquipmentMovement.equipment_id == equipment.id,
+                    EquipmentMovement.created_at > datetime.now() - timedelta(minutes=5)
+                ).first()
+                
+                if pending_movement:
+                    raise ValueError("Перемещение уже выполняется другим пользователем")
+                
+                # Create movement record
+                movement = EquipmentMovement(
+                    **movement_data.model_dump(),
+                    created_by_id=created_by_id
+                )
+                self.db.add(movement)
+                
+                # Update equipment location atomically
+                equipment.current_location = movement_data.to_location
+                equipment.current_owner_id = movement_data.to_person_id
+                
+                if movement_data.seal_number_after:
+                    equipment.seal_number = movement_data.seal_number_after
+                    equipment.seal_install_date = datetime.now()
+                    equipment.seal_status = movement_data.seal_status or "Исправна"
+                
+                self.db.flush()
             
             self.db.commit()
             self.db.refresh(movement)
             return movement
-        except SQLAlchemyError as e:
+            
+        except IntegrityError as e:
             self.db.rollback()
-            raise ValueError(f"Ошибка при создании перемещения: {str(e)}")
+            logger.error(f"Movement creation failed: {e}")
+            raise ValueError(f"Конфликт данных: {str(e)}")
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Movement creation error: {e}")
+            raise
     
     def get_movement_history(
         self,
@@ -169,8 +187,6 @@ class EquipmentService:
         items = query.order_by(EquipmentMovement.created_at.desc()).offset(skip).limit(limit).all()
         
         return items, total
-    
-    # ============ SEAL OPERATIONS ============
     
     def check_seals(
         self,
@@ -211,13 +227,10 @@ class EquipmentService:
             Equipment.seal_status.in_(["Повреждена", "Отсутствует"])
         ).all()
     
-    # ============ STATISTICS ============
-    
     def get_statistics(self) -> dict:
         """Получить статистику по технике"""
         total = self.db.query(Equipment).filter(Equipment.is_active == True).count()
         
-        # По типам
         by_type = {}
         type_stats = self.db.query(
             Equipment.equipment_type,
@@ -229,7 +242,6 @@ class EquipmentService:
         for eq_type, count in type_stats:
             by_type[eq_type] = count
         
-        # По статусам
         by_status = {}
         status_stats = self.db.query(
             Equipment.status,
@@ -241,7 +253,6 @@ class EquipmentService:
         for status, count in status_stats:
             by_status[status] = count
         
-        # Проблемы с пломбами
         seal_issues = self.db.query(Equipment).filter(
             Equipment.is_active == True,
             Equipment.seal_status.in_(["Повреждена", "Отсутствует"])
@@ -252,7 +263,7 @@ class EquipmentService:
             "by_type": by_type,
             "by_status": by_status,
             "seal_issues": seal_issues,
-            "pending_movements": 0  # TODO: implement if needed
+            "pending_movements": 0
         }
 
 
@@ -270,7 +281,7 @@ class StorageDeviceService:
     ) -> tuple[List[StorageDevice], int]:
         """Получить список носителей"""
         query = self.db.query(StorageDevice).options(
-            joinedload(StorageDevice.equipment)  # ← ДОБАВИТЬ
+            joinedload(StorageDevice.equipment)
         ).filter(StorageDevice.is_active == True)
         
         if equipment_id:
@@ -280,6 +291,7 @@ class StorageDeviceService:
             query = query.filter(StorageDevice.status == status)
         
         if search:
+            search = sanitize_html(search)
             search_filter = or_(
                 StorageDevice.inventory_number.ilike(f"%{search}%"),
                 StorageDevice.serial_number.ilike(f"%{search}%"),
@@ -304,19 +316,17 @@ class StorageDeviceService:
     
     def create(self, device_data: StorageDeviceCreate) -> StorageDevice:
         """Создать запись о носителе"""
-        existing = self.db.query(StorageDevice).filter(
-            StorageDevice.inventory_number == device_data.inventory_number,
-            StorageDevice.is_active == True
-        ).first()
-        
-        if existing:
-            raise ValueError(f"Инвентарный номер {device_data.inventory_number} уже существует")
-        
-        device = StorageDevice(**device_data.model_dump())
-        self.db.add(device)
-        self.db.commit()
-        self.db.refresh(device)
-        return device
+        try:
+            device = StorageDevice(**device_data.model_dump())
+            self.db.add(device)
+            self.db.commit()
+            self.db.refresh(device)
+            return device
+        except IntegrityError as e:
+            self.db.rollback()
+            if 'uq_storage_inventory' in str(e.orig):
+                raise ValueError(f"Инвентарный номер {device_data.inventory_number} уже существует")
+            raise ValueError(f"Ошибка при создании: {str(e)}")
     
     def update(self, device_id: int, device_data: StorageDeviceUpdate) -> Optional[StorageDevice]:
         """Обновить данные носителя"""

@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
 from pydantic import field_validator 
+
 class Settings(BaseSettings):
     # Database
     DATABASE_URL: str
@@ -13,10 +14,19 @@ class Settings(BaseSettings):
     # App
     PROJECT_NAME: str = "ZGT System"
     VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = False  # ← CHANGED: False by default
     
     # CORS
     BACKEND_CORS_ORIGINS: list[str] | str = []
+    
+    # Cookie Settings
+    COOKIE_DOMAIN: Optional[str] = None
+    SECURE_COOKIES: bool = True
+    
+    # Pagination
+    MAX_PAGE_SIZE: int = 1000
+    DEFAULT_PAGE_SIZE: int = 100
+    
     @field_validator('BACKEND_CORS_ORIGINS', mode='before')
     @classmethod
     def assemble_cors_origins(cls, v):

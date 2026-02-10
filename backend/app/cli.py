@@ -1,11 +1,11 @@
 import sys
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal, engine
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, generate_secure_password
 from app.models.user import User
 
 def create_admin():
-    """Создать первого администратора"""
+    """Создать первого администратора с безопасным паролем"""
     db: Session = SessionLocal()
     
     try:
@@ -15,10 +15,13 @@ def create_admin():
             print("❌ Пользователь 'admin' уже существует!")
             return
         
+        # Generate secure random password
+        temp_password = generate_secure_password()
+        
         # Создать админа
         admin = User(
             username="admin",
-            password_hash=get_password_hash("admin123"),  # ИЗМЕНИТЬ В PRODUCTION!
+            password_hash=get_password_hash(temp_password),
             full_name="Администратор системы",
             role="admin",
             is_active=True
@@ -29,8 +32,11 @@ def create_admin():
         db.refresh(admin)
         
         print("✅ Администратор создан успешно!")
+        print("=" * 60)
         print(f"   Логин: admin")
-        print(f"   Пароль: admin123")
+        print(f"   ВРЕМЕННЫЙ пароль: {temp_password}")
+        print("=" * 60)
+        print(f"   ⚠️  ЗАПИШИТЕ ПАРОЛЬ - он показан только один раз!")
         print(f"   ⚠️  ОБЯЗАТЕЛЬНО смените пароль после первого входа!")
         
     except Exception as e:

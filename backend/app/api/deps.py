@@ -1,11 +1,11 @@
-from fastapi import Depends, HTTPException, status, Request
+from fastapi import Depends, HTTPException, status, Request, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from jose import JWTError
 
 from app.core.database import get_db
-from app.core.security import verify_token
+from app.core.security import verify_token, verify_csrf_token
 from app.models.user import User
 
 security = HTTPBearer(auto_error=False)
@@ -28,7 +28,6 @@ def get_current_user(
     if credentials:
         token = credentials.credentials
     else:
-        # Попытка получить из cookie
         token = request.cookies.get("access_token")
     
     if not token:
@@ -46,7 +45,6 @@ def get_current_user(
     except JWTError:
         raise credentials_exception
     
-    # ИСПРАВЛЕНО: Используем .one_or_none() вместо .first()
     user = db.query(User).filter(User.username == username).one_or_none()
     
     if user is None:
@@ -59,6 +57,19 @@ def get_current_user(
         )
     
     return user
+
+
+def verify_csrf(
+    x_csrf_token: str = Header(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Dependency to verify CSRF token on mutating requests"""
+    if not verify_csrf_token(x_csrf_token, current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid CSRF token"
+        )
+    return current_user
 
 
 def require_roles(allowed_roles: List[str]):
