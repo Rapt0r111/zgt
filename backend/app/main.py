@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
-from app.api.routes import auth, personnel, phones, equipment, users  
+from app.api.routes import auth, personnel, phones, equipment, users, storage_and_passes  
 import logging
 import time
 
@@ -104,3 +104,4 @@ app.include_router(users.router, prefix="/api")
 app.include_router(personnel.router, prefix="/api")
 app.include_router(phones.router, prefix="/api")
 app.include_router(equipment.router, prefix="/api")
+app.include_router(storage_and_passes.router, prefix="/api")  # ADD

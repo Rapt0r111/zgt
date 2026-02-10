@@ -165,6 +165,16 @@ export default function DashboardPage() {
               </Card>
             </Link>
           )}
+          <Link href="/storage-and-passes">
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+              <CardHeader>
+                <CardTitle>Носители и пропуска</CardTitle>
+                <CardDescription>
+                  Учёт флешек и электронных пропусков
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
           <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-50">
             <CardHeader>
               <CardTitle>Генератор документов</CardTitle>
