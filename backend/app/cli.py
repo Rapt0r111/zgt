@@ -1,24 +1,20 @@
 import sys
 from sqlalchemy.orm import Session
-from app.core.database import SessionLocal, engine
+from app.core.database import SessionLocal
 from app.core.security import get_password_hash, generate_secure_password
 from app.models.user import User
 
 def create_admin():
-    """Создать первого администратора с безопасным паролем"""
     db: Session = SessionLocal()
     
     try:
-        # Проверить, есть ли уже админ
         existing_admin = db.query(User).filter(User.username == "admin").first()
         if existing_admin:
             print("❌ Пользователь 'admin' уже существует!")
             return
         
-        # Generate secure random password
         temp_password = generate_secure_password()
         
-        # Создать админа
         admin = User(
             username="admin",
             password_hash=get_password_hash(temp_password),

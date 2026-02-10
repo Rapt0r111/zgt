@@ -4,20 +4,17 @@ from sqlalchemy.sql import func, text
 from app.core.database import Base
 
 class Equipment(Base):
-    """Вычислительная техника"""
     __tablename__ = "equipment"
     
     id = Column(Integer, primary_key=True, index=True)
-    
-    # Тип техники
     equipment_type = Column(String(50), nullable=False)
     
-    # Идентификация
+    # Identification
     inventory_number = Column(String(100), index=True)
     serial_number = Column(String(100), index=True)
     mni_serial_number = Column(String(100), index=True)
     
-    # Характеристики
+    # Specs
     manufacturer = Column(String(100))
     model = Column(String(255))
     cpu = Column(String(255))
@@ -28,43 +25,29 @@ class Equipment(Base):
     has_card_reader = Column(Boolean, default=False)
     operating_system = Column(String(100))
     
-    # Текущее размещение
-    current_owner_id = Column(
-        Integer,
-        ForeignKey('personnel.id', ondelete='SET NULL'),
-        nullable=True,
-        index=True  # ← Added index
-    )
-    current_owner = relationship("Personnel", foreign_keys=[current_owner_id])
+    # Assignment
+    current_owner_id = Column(Integer, ForeignKey('personnel.id', ondelete='SET NULL'), nullable=True, index=True)
+    current_owner = relationship("Personnel", foreign_keys=[current_owner_id], back_populates="equipment")
     current_location = Column(String(255))
     
-    # Пломбы
+    # Seals
     seal_number = Column(String(100))
     seal_install_date = Column(DateTime(timezone=True))
     seal_status = Column(String(50), default="Исправна")
     seal_check_date = Column(DateTime(timezone=True))
     
-    # Статус
+    # Status
     status = Column(String(50), default="В работе")
     notes = Column(Text)
     
-    # Связи
+    # Relationships
     movement_history = relationship("EquipmentMovement", back_populates="equipment", cascade="all, delete-orphan")
     storage_devices = relationship("StorageDevice", back_populates="equipment", cascade="all, delete-orphan")
     
-    # Служебная информация
+    # Metadata
     is_active = Column(Boolean, default=True)
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=text("timezone('UTC', now())"),
-        nullable=False
-    )
-    updated_at = Column(
-        DateTime(timezone=True),
-        server_default=text("timezone('UTC', now())"),
-        onupdate=text("timezone('UTC', now())"),
-        nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), server_default=text("timezone('UTC', now())"), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=text("timezone('UTC', now())"), onupdate=text("timezone('UTC', now())"), nullable=False)
     
     __table_args__ = (
         UniqueConstraint('inventory_number', name='uq_equipment_inventory'),
@@ -72,27 +55,16 @@ class Equipment(Base):
 
 
 class EquipmentMovement(Base):
-    """История перемещений техники"""
     __tablename__ = "equipment_movements"
     
     id = Column(Integer, primary_key=True, index=True)
-    
-    equipment_id = Column(
-        Integer,
-        ForeignKey('equipment.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True  # ← Added index
-    )
+    equipment_id = Column(Integer, ForeignKey('equipment.id', ondelete='CASCADE'), nullable=False, index=True)
     equipment = relationship("Equipment", back_populates="movement_history")
     
     from_location = Column(String(255))
     to_location = Column(String(255))
-    
     from_person_id = Column(Integer, ForeignKey('personnel.id'), nullable=True, index=True)
-    from_person = relationship("Personnel", foreign_keys=[from_person_id])
-    
     to_person_id = Column(Integer, ForeignKey('personnel.id'), nullable=True, index=True)
-    to_person = relationship("Personnel", foreign_keys=[to_person_id])
     
     movement_type = Column(String(50))
     document_number = Column(String(100))
@@ -103,27 +75,15 @@ class EquipmentMovement(Base):
     seal_number_after = Column(String(100))
     seal_status = Column(String(50))
     
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=text("timezone('UTC', now())"),
-        nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), server_default=text("timezone('UTC', now())"), nullable=False)
     created_by_id = Column(Integer, ForeignKey('users.id'))
-    created_by = relationship("User")
 
 
 class StorageDevice(Base):
-    """Съёмные носители информации (HDD/SSD)"""
     __tablename__ = "storage_devices"
     
     id = Column(Integer, primary_key=True, index=True)
-    
-    equipment_id = Column(
-        Integer,
-        ForeignKey('equipment.id', ondelete='SET NULL'),
-        nullable=True,
-        index=True  # ← Added index
-    )
+    equipment_id = Column(Integer, ForeignKey('equipment.id', ondelete='SET NULL'), nullable=True, index=True)
     equipment = relationship("Equipment", back_populates="storage_devices")
     
     device_type = Column(String(50), nullable=False)
@@ -138,17 +98,8 @@ class StorageDevice(Base):
     notes = Column(Text)
     
     is_active = Column(Boolean, default=True)
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=text("timezone('UTC', now())"),
-        nullable=False
-    )
-    updated_at = Column(
-        DateTime(timezone=True),
-        server_default=text("timezone('UTC', now())"),
-        onupdate=text("timezone('UTC', now())"),
-        nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), server_default=text("timezone('UTC', now())"), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=text("timezone('UTC', now())"), onupdate=text("timezone('UTC', now())"), nullable=False)
     
     __table_args__ = (
         UniqueConstraint('inventory_number', name='uq_storage_inventory'),

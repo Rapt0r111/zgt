@@ -1,20 +1,16 @@
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
-import sys
-from pathlib import Path
-
-# Добавляем путь к app
-sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.core.config import settings
 from app.core.database import Base
 
-# Импортируем ВСЕ модели
+# Import ALL models for Alembic auto-detection
 from app.models.user import User
 from app.models.personnel import Personnel
 from app.models.phone import Phone
 from app.models.equipment import Equipment, EquipmentMovement, StorageDevice
+from app.models.storage_and_passes import StorageAndPass
 
 config = context.config
 
@@ -24,9 +20,8 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
-    url = settings.DATABASE_URL
     context.configure(
-        url=url,
+        url=settings.DATABASE_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},

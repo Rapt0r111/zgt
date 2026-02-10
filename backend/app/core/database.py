@@ -10,20 +10,18 @@ logger = logging.getLogger(__name__)
 class Base(DeclarativeBase):
     pass
 
-# Optimized settings for production PostgreSQL
 engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
-    pool_size=50,              # ← Increased for production
-    max_overflow=100,          # ← Allow burst capacity
+    pool_size=50,
+    max_overflow=100,
     pool_recycle=3600,
     echo=settings.DEBUG,
     connect_args={
         "options": "-c timezone=utc",
         "connect_timeout": 5,
     },
-    pool_timeout=30,
-    pool_reset_on_return='rollback'
+    pool_timeout=30
 )
 
 SessionLocal = sessionmaker(
@@ -39,20 +37,15 @@ SessionLocal = sessionmaker(
     retry=retry_if_exception_type(OperationalError)
 )
 def get_db():
-    """Get DB session with automatic retry on connection failure"""
     db = SessionLocal()
     try:
-        # Test connection
         db.execute(text("SELECT 1"))
         yield db
     except OperationalError as e:
         logger.error(f"Database connection failed: {e}")
         db.close()
         from fastapi import HTTPException
-        raise HTTPException(
-            status_code=503,
-            detail="Database temporarily unavailable"
-        )
+        raise HTTPException(status_code=503, detail="Database temporarily unavailable")
     except Exception:
         db.close()
         raise

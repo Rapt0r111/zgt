@@ -74,11 +74,6 @@ export const equipmentApi = {
     return response.data;
   },
 
-  getSealIssues: async (): Promise<SealIssuesResponse> => {
-    const response = await apiClient.get('/api/equipment/seals/issues');
-    return response.data;
-  },
-
   // ============ STATISTICS ============
 
   getStatistics: async (): Promise<EquipmentStats> => {
