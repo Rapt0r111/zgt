@@ -7,7 +7,7 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true,
-  timeout: 30000, // 30 second timeout
+  timeout: 30000,
 });
 
 // CSRF token storage
@@ -65,11 +65,20 @@ apiClient.interceptors.response.use(
   }
 );
 
+// List of endpoints that don't require CSRF token
+const CSRF_EXEMPT_ENDPOINTS = [
+  '/api/auth/login',
+  '/api/auth/logout',
+];
+
 // Request interceptor - attach CSRF token to mutating requests
 apiClient.interceptors.request.use((config) => {
-  // Attach CSRF token to POST/PUT/PATCH/DELETE requests
   const mutatingMethods = ['post', 'put', 'patch', 'delete'];
-  if (mutatingMethods.includes(config.method?.toLowerCase() || '')) {
+  const isMutating = mutatingMethods.includes(config.method?.toLowerCase() || '');
+  const isExempt = CSRF_EXEMPT_ENDPOINTS.some(endpoint => config.url?.includes(endpoint));
+  
+  // Only attach CSRF token to mutating requests that are not exempt
+  if (isMutating && !isExempt) {
     if (csrfToken) {
       config.headers['X-CSRF-Token'] = csrfToken;
     } else {

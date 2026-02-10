@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.core.database import get_db
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, verify_csrf
 from app.schemas.phone import (
     PhoneCreate,
     PhoneUpdate,
@@ -37,7 +37,6 @@ async def list_phones(
         owner_id=owner_id
     )
     
-    # Добавляем информацию о владельце
     response_items = []
     for phone in items:
         phone_dict = {
@@ -62,11 +61,11 @@ async def list_phones(
     
     return PhoneListResponse(total=total, items=response_items)
 
-@router.post("/", response_model=PhoneResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(verify_csrf)])
+@router.post("/", response_model=PhoneResponse, status_code=status.HTTP_201_CREATED)
 async def create_phone(
     phone: PhoneCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(verify_csrf)
 ):
     """Добавить телефон"""
     service = PhoneService(db)
@@ -105,12 +104,12 @@ async def get_phone(
         "owner_rank": phone.owner.rank if phone.owner else None,
     }
 
-@router.put("/{phone_id}", response_model=PhoneResponse, dependencies=[Depends(verify_csrf)])
+@router.put("/{phone_id}", response_model=PhoneResponse)
 async def update_phone(
     phone_id: int,
     phone_data: PhoneUpdate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(verify_csrf)
 ):
     """Обновить данные телефона"""
     service = PhoneService(db)
@@ -128,11 +127,11 @@ async def update_phone(
         "owner_rank": phone.owner.rank if phone.owner else None,
     }
 
-@router.delete("/{phone_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(verify_csrf)])
+@router.delete("/{phone_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_phone(
     phone_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(verify_csrf)
 ):
     """Удалить телефон"""
     service = PhoneService(db)
@@ -144,11 +143,11 @@ async def delete_phone(
             detail="Телефон не найден"
         )
 
-@router.post("/batch-checkin", dependencies=[Depends(verify_csrf)])
+@router.post("/batch-checkin")
 async def batch_checkin(
     request: BatchCheckinRequest,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(verify_csrf)
 ):
     """Массовая вечерняя сдача телефонов"""
     service = PhoneService(db)
@@ -159,11 +158,11 @@ async def batch_checkin(
         "count": count
     }
 
-@router.post("/batch-checkout", dependencies=[Depends(verify_csrf)])
+@router.post("/batch-checkout")
 async def batch_checkout(
     request: BatchCheckoutRequest,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(verify_csrf)
 ):
     """Массовая утренняя выдача телефонов"""
     service = PhoneService(db)
@@ -183,7 +182,6 @@ async def get_status_report(
     service = PhoneService(db)
     report = service.get_status_report()
     
-    # Форматируем телефоны для ответа
     phones_not_submitted = [
         {
             **phone.__dict__,

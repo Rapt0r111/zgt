@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.core.database import get_db
-from app.api.deps import get_current_user, require_admin, require_roles
+from app.api.deps import get_current_user, require_admin, require_roles, verify_csrf
 from app.models.user import User
 from app.schemas.equipment import (
     EquipmentCreate, EquipmentUpdate, EquipmentResponse, EquipmentListResponse,
@@ -48,11 +48,11 @@ async def list_storage_devices(
     return StorageDeviceListResponse(total=total, items=response_items)
 
 
-@storage_router.post("/", response_model=StorageDeviceResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(verify_csrf)])
+@storage_router.post("/", response_model=StorageDeviceResponse, status_code=status.HTTP_201_CREATED)
 async def create_storage_device(
     device: StorageDeviceCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(verify_csrf)
 ):
     """Добавить носитель"""
     service = StorageDeviceService(db)
@@ -91,12 +91,12 @@ async def get_storage_device(
     }
 
 
-@storage_router.put("/{device_id}", response_model=StorageDeviceResponse, dependencies=[Depends(verify_csrf)])
+@storage_router.put("/{device_id}", response_model=StorageDeviceResponse)
 async def update_storage_device(
     device_id: int,
     device_data: StorageDeviceUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(verify_csrf)
 ):
     """Обновить данные носителя"""
     service = StorageDeviceService(db)
@@ -114,11 +114,11 @@ async def update_storage_device(
     }
 
 
-@storage_router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(verify_csrf)])
+@storage_router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_storage_device(
     device_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(verify_csrf)
 ):
     """Удалить носитель"""
     service = StorageDeviceService(db)
@@ -168,11 +168,11 @@ async def list_equipment(
     return EquipmentListResponse(total=total, items=response_items)
 
 
-@router.post("/", response_model=EquipmentResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(verify_csrf)])
+@router.post("/", response_model=EquipmentResponse, status_code=status.HTTP_201_CREATED)
 async def create_equipment(
     equipment: EquipmentCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(["admin", "user"]))
+    current_user: User = Depends(verify_csrf)
 ):
     """Добавить технику"""
     service = EquipmentService(db)
@@ -224,11 +224,11 @@ async def get_seal_issues(
         ]
     }
 
-@router.post("/seals/check", response_model=SealCheckResponse, dependencies=[Depends(verify_csrf)])
+@router.post("/seals/check", response_model=SealCheckResponse)
 async def check_seals(
     request: SealCheckRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(verify_csrf)
 ):
     """Массовая проверка пломб"""
     service = EquipmentService(db)
@@ -243,11 +243,11 @@ async def check_seals(
         "message": f"Проверено {result['checked_count']} единиц техники"
     }
 
-@router.post("/movements", response_model=MovementResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(verify_csrf)])
+@router.post("/movements", response_model=MovementResponse, status_code=status.HTTP_201_CREATED)
 async def create_movement(
     movement: MovementCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(verify_csrf)
 ):
     """Создать перемещение техники"""
     service = EquipmentService(db)
@@ -293,12 +293,12 @@ async def get_equipment(
     }
 
 
-@router.put("/{equipment_id}", response_model=EquipmentResponse, dependencies=[Depends(verify_csrf)])
+@router.put("/{equipment_id}", response_model=EquipmentResponse)
 async def update_equipment(
     equipment_id: int,
     equipment_data: EquipmentUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(verify_csrf)
 ):
     """Обновить данные техники"""
     service = EquipmentService(db)
@@ -317,7 +317,7 @@ async def update_equipment(
     }
 
 
-@router.delete("/{equipment_id}", dependencies=[Depends(verify_csrf)])
+@router.delete("/{equipment_id}")
 async def delete_equipment(
     equipment_id: int,
     db: Session = Depends(get_db),

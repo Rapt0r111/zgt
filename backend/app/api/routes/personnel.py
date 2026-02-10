@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import date
 
 from app.core.database import get_db
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, verify_csrf
 from app.schemas.personnel import (
     PersonnelCreate,
     PersonnelUpdate,
@@ -30,17 +30,17 @@ async def list_personnel(
     
     return PersonnelListResponse(total=total, items=items)
 
-@router.post("/", response_model=PersonnelResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(verify_csrf)])
+@router.post("/", response_model=PersonnelResponse, status_code=status.HTTP_201_CREATED)
 async def create_personnel(
     personnel: PersonnelCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(verify_csrf)
 ):
     """Добавить военнослужащего"""
     service = PersonnelService(db)
     try:
         return service.create(personnel)
-    except ValueError as e:  # ДОБАВИТЬ обработку
+    except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
@@ -64,12 +64,12 @@ async def get_personnel(
     
     return personnel
 
-@router.put("/{personnel_id}", response_model=PersonnelResponse, dependencies=[Depends(verify_csrf)])
+@router.put("/{personnel_id}", response_model=PersonnelResponse)
 async def update_personnel(
     personnel_id: int,
     personnel_data: PersonnelUpdate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(verify_csrf)
 ):
     """Обновить данные военнослужащего"""
     service = PersonnelService(db)
@@ -83,11 +83,11 @@ async def update_personnel(
     
     return personnel
 
-@router.delete("/{personnel_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(verify_csrf)])
+@router.delete("/{personnel_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_personnel(
     personnel_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(verify_csrf)
 ):
     """Удалить военнослужащего"""
     service = PersonnelService(db)
@@ -146,7 +146,6 @@ async def get_expiring_clearances(
                 "rank": p.rank,
                 "clearance_level": p.security_clearance_level,
                 "expiry_date": p.clearance_expiry_date,
-                # Добавляем проверку на None
                 "days_remaining": (p.clearance_expiry_date - today).days if p.clearance_expiry_date else None
             }
             for p in personnel_list

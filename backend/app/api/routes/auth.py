@@ -76,7 +76,7 @@ async def login(
         domain=settings.COOKIE_DOMAIN
     )
     
-    # Send CSRF token in header
+    # ВАЖНО: Отправляем CSRF токен в заголовке ответа
     response.headers["X-CSRF-Token"] = csrf_token
     
     return {"access_token": access_token, "token_type": "bearer"}
@@ -90,5 +90,6 @@ async def get_current_user_info(
 
 @router.post("/logout")
 async def logout(response: Response):
+    """Выход из системы"""
     response.delete_cookie("access_token")
     return {"message": "Успешный выход"}

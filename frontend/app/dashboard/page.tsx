@@ -153,7 +153,18 @@ export default function DashboardPage() {
               </CardHeader>
             </Card>
           </Link>
-
+          {user?.role === 'admin' && (
+            <Link href="/users">
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                <CardHeader>
+                  <CardTitle>Пользователи</CardTitle>
+                  <CardDescription>
+                    Управление пользователями системы
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+          )}
           <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-50">
             <CardHeader>
               <CardTitle>Генератор документов</CardTitle>

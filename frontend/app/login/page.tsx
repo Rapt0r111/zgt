@@ -28,17 +28,22 @@ export default function LoginPage() {
     try {
       console.log('🔐 Попытка входа...', { username });
       
-      const response = await Promise.race([
-        apiClient.post('/api/auth/login', { username, password }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout: сервер не отвечает')), 10000)
-        )
-      ]) as any;
+      const response = await apiClient.post('/api/auth/login', { 
+        username, 
+        password 
+      });
 
-      console.log('✅ Ответ получен:', response.status);
+      console.log('✅ Ответ получен:', {
+        status: response.status,
+        hasToken: !!response.data?.access_token,
+        hasCsrfHeader: !!response.headers['x-csrf-token']
+      });
 
       if (response.data?.access_token) {
         console.log('✅ Токен получен, перенаправление...');
+        
+        // Небольшая задержка для захвата CSRF токена
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Validate and use redirect URL
         const safeRedirect = validateRedirectUrl(redirectTo);
@@ -50,10 +55,10 @@ export default function LoginPage() {
     } catch (err: any) {
       console.error('❌ Login error:', err);
       
-      if (err.message === 'Timeout: сервер не отвечает') {
+      if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
         setError('Сервер не отвечает. Убедитесь, что backend запущен на http://localhost:8000');
       } else if (err.code === 'ERR_NETWORK' || err.message.includes('Network Error')) {
-        setError('Ошибка сети. Проверьте: 1) Запущен ли backend, 2) Нет ли блокировки CORS');
+        setError('Ошибка сети. Проверьте:\n1) Запущен ли backend\n2) Нет ли блокировки CORS');
       } else if (err.response?.status === 429) {
         setError('Слишком много неудачных попыток входа. Попробуйте через 15 минут.');
       } else if (err.response?.status === 401) {

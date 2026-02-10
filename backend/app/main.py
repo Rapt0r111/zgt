@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
-from app.api.routes import auth, personnel, phones, equipment
+from app.api.routes import auth, personnel, phones, equipment, users  
 import logging
 import time
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    docs_url="/api/docs" if settings.DEBUG else None,  # Disable in production
+    docs_url="/api/docs" if settings.DEBUG else None,
     redoc_url="/api/redoc" if settings.DEBUG else None,
     openapi_url="/api/openapi.json" if settings.DEBUG else None
 )
@@ -33,7 +33,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Set-Cookie", "X-Process-Time", "X-CSRF-Token"],
+    expose_headers=["Set-Cookie", "X-Process-Time", "X-CSRF-Token"],  # ✅ Важно!
     max_age=3600,
 )
 
@@ -100,6 +100,7 @@ async def health_check():
 
 # Подключение роутеров
 app.include_router(auth.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 app.include_router(personnel.router, prefix="/api")
 app.include_router(phones.router, prefix="/api")
 app.include_router(equipment.router, prefix="/api")
