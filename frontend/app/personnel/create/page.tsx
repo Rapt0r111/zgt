@@ -44,7 +44,6 @@ const personnelSchema = z.object({
 
 type PersonnelFormData = z.input<typeof personnelSchema>;
 
-
 export default function CreatePersonnelPage() {
 	const router = useRouter();
 	const [error, setError] = useState("");

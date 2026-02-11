@@ -89,6 +89,15 @@ export default function BatchPhonePage() {
 		}
 	};
 
+	const getPhoneButtonClassName = (phoneId: number) => {
+		const baseClassName =
+			"flex items-center space-x-3 p-4 border rounded-lg cursor-pointer transition-colors";
+
+		return selectedPhones.includes(phoneId)
+			? `${baseClassName} border-primary bg-primary/5`
+			: `${baseClassName} hover:bg-slate-50`;
+	};
+
 	const currentPhones =
 		activeTab === "checkin"
 			? issuedPhones?.items || []
@@ -209,10 +218,7 @@ export default function BatchPhonePage() {
 												<button
 													key={phone.id}
 													type="button"
-													className={`flex items-center space-x-3 p-4 border rounded-lg cursor-pointer transition-colors ${selectedPhones.includes(phone.id)
-														? "border-primary bg-primary/5"
-														: "hover:bg-slate-50"
-														}`}
+													className={getPhoneButtonClassName(phone.id)}
 													onClick={() => handleTogglePhone(phone.id)}
 												>
 													<Checkbox
@@ -283,10 +289,7 @@ export default function BatchPhonePage() {
 												<button
 													key={phone.id}
 													type="button"
-													className={`flex items-center space-x-3 p-4 border rounded-lg cursor-pointer transition-colors ${selectedPhones.includes(phone.id)
-														? "border-primary bg-primary/5"
-														: "hover:bg-slate-50"
-														}`}
+													className={getPhoneButtonClassName(phone.id)}
 													onClick={() => handleTogglePhone(phone.id)}
 												>
 													<Checkbox
