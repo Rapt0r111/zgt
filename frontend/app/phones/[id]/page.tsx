@@ -98,8 +98,9 @@ export default function PhoneDetailPage() {
 			setError("");
 			toast.success("Данные обновлены");
 		},
-		onError: (err: any) => {
-			setError(err.response?.data?.detail || "Ошибка при обновлении");
+		onError: (err: unknown) => {
+			const error = err as { response?: { data?: { detail?: string } } };
+			setError(error.response?.data?.detail || "Ошибка при обновлении");
 			toast.error("Ошибка при обновлении");
 		},
 	});

@@ -162,7 +162,9 @@ export default function CreateStorageAndPassPage() {
 								<Select
 									value={currentType}
 									onValueChange={(val) =>
-										setValue("asset_type", val as any, { shouldValidate: true })
+										setValue("asset_type", val as AssetFormData["asset_type"], {
+											shouldValidate: true,
+										})
 									}
 								>
 									<SelectTrigger
@@ -262,7 +264,9 @@ export default function CreateStorageAndPassPage() {
 								<Select
 									value={currentStatus}
 									onValueChange={(val) =>
-										setValue("status", val as any, { shouldValidate: true })
+										setValue("status", val as AssetFormData["status"], {
+											shouldValidate: true,
+										})
 									}
 								>
 									<SelectTrigger>

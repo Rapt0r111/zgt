@@ -88,8 +88,9 @@ export default function CreateEquipmentPage() {
 			toast.success("Техника добавлена");
 			router.push("/equipment");
 		},
-		onError: (err: any) => {
-			const detail = err.response?.data?.detail;
+		onError: (err: unknown) => {
+			const error = err as { response?: { data?: { detail?: string } } };
+			const detail = error.response?.data?.detail;
 			setError(typeof detail === "string" ? detail : "Ошибка при создании");
 			toast.error("Ошибка при создании");
 		},

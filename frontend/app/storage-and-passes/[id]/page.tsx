@@ -32,7 +32,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { personnelApi } from "@/lib/api/personnel";
 import { storageAndPassesApi } from "@/lib/api/storage-and-passes";
-import { cleanEmptyStrings } from "@/lib/utils/transform";
 
 const assetSchema = z
 	.object({
@@ -60,7 +59,7 @@ const assetSchema = z
 		},
 	);
 
-type AssetFormData = z.infer<typeof assetSchema>;
+type AssetFormData = z.input<typeof assetSchema>;
 
 export default function StorageAndPassDetailPage() {
 	const _router = useRouter();
@@ -124,8 +123,9 @@ export default function StorageAndPassDetailPage() {
 			setError("");
 			toast.success("Данные обновлены");
 		},
-		onError: (err: any) => {
-			setError(err.response?.data?.detail || "Ошибка при обновлении");
+		onError: (err: unknown) => {
+			const error = err as { response?: { data?: { detail?: string } } };
+			setError(error.response?.data?.detail || "Ошибка при обновлении");
 			toast.error("Ошибка при обновлении");
 		},
 	});
@@ -142,8 +142,9 @@ export default function StorageAndPassDetailPage() {
 			setSelectedPersonnelId(null);
 			toast.success("Устройство выдано");
 		},
-		onError: (err: any) => {
-			toast.error(err.response?.data?.detail || "Ошибка при выдаче");
+		onError: (err: unknown) => {
+			const error = err as { response?: { data?: { detail?: string } } };
+			toast.error(error.response?.data?.detail || "Ошибка при выдаче");
 		},
 	});
 
@@ -156,15 +157,15 @@ export default function StorageAndPassDetailPage() {
 			queryClient.invalidateQueries({ queryKey: ["storage-and-passes"] });
 			toast.success("Устройство возвращено");
 		},
-		onError: (err: any) => {
-			toast.error(err.response?.data?.detail || "Ошибка при возврате");
+		onError: (err: unknown) => {
+			const error = err as { response?: { data?: { detail?: string } } };
+			toast.error(error.response?.data?.detail || "Ошибка при возврате");
 		},
 	});
 
 	const onSubmit = (data: AssetFormData) => {
 		setError("");
-		const cleanedData = cleanEmptyStrings(data);
-		updateMutation.mutate(cleanedData as AssetFormData);
+		updateMutation.mutate(data);
 	};
 
 	const handleAssign = () => {
@@ -344,7 +345,7 @@ export default function StorageAndPassDetailPage() {
 											<Select
 												value={currentStatus}
 												onValueChange={(val) =>
-													setValue("status", val as any, {
+													setValue("status", val as AssetFormData["status"], {
 														shouldValidate: true,
 													})
 												}
@@ -448,8 +449,8 @@ export default function StorageAndPassDetailPage() {
 											</p>
 										)}
 										<p className="text-sm text-muted-foreground">
-											При статусе "Используется" необходимо указать владельца
-										</p>
+											При статусе &quot;Используется&quot; необходимо указать
+											владельца										</p>
 									</div>
 								)}
 							</CardContent>

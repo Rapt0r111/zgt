@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { phonesApi } from "@/lib/api/phones";
-
+import type { Phone } from "@/types/phone";
 export default function BatchPhonePage() {
 	const queryClient = useQueryClient();
 	const [selectedPhones, setSelectedPhones] = useState<number[]>([]);
@@ -68,7 +68,7 @@ export default function BatchPhonePage() {
 		);
 	};
 
-	const handleSelectAll = (phones: any[]) => {
+	const handleSelectAll = (phones: Phone[]) => {
 		if (selectedPhones.length === phones.length) {
 			setSelectedPhones([]);
 		} else {

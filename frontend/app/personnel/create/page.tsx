@@ -28,7 +28,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { personnelApi } from "@/lib/api/personnel";
-import { cleanEmptyStrings } from "@/lib/utils/transform";
 
 const personnelSchema = z.object({
 	full_name: z.string().min(1, "ФИО обязательно"),
@@ -43,7 +42,8 @@ const personnelSchema = z.object({
 	status: z.string().min(1, "Статус обязателен"),
 });
 
-type PersonnelFormData = z.infer<typeof personnelSchema>;
+type PersonnelFormData = z.input<typeof personnelSchema>;
+
 
 export default function CreatePersonnelPage() {
 	const router = useRouter();
@@ -68,8 +68,9 @@ export default function CreatePersonnelPage() {
 			toast.success("Военнослужащий добавлен");
 			router.push("/personnel");
 		},
-		onError: (err: any) => {
-			const detail = err.response?.data?.detail;
+		onError: (err: unknown) => {
+			const error = err as { response?: { data?: { detail?: string } } };
+			const detail = error.response?.data?.detail;
 			setError(typeof detail === "string" ? detail : "Ошибка при создании");
 			toast.error("Ошибка при создании");
 		},
@@ -77,8 +78,7 @@ export default function CreatePersonnelPage() {
 
 	const onSubmit = (data: PersonnelFormData) => {
 		setError("");
-		const cleanedData = cleanEmptyStrings(data);
-		createMutation.mutate(cleanedData as PersonnelFormData);
+		createMutation.mutate(data);
 	};
 
 	const currentStatus = watch("status");
