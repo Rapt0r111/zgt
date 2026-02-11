@@ -206,15 +206,13 @@ export default function BatchPhonePage() {
 
 										<div className="space-y-2 max-h-96 overflow-y-auto">
 											{currentPhones.map((phone) => (
-												<div
+												<button
 													key={phone.id}
-													role="button"
-													tabIndex={0}
-													className={`flex items-center space-x-3 p-4 border rounded-lg cursor-pointer transition-colors ${
-														selectedPhones.includes(phone.id)
-															? "bg-primary/5 border-primary"
-															: "hover:bg-slate-50"
-													}`}
+													type="button"
+													className={`flex items-center space-x-3 p-4 border rounded-lg cursor-pointer transition-colors ${selectedPhones.includes(phone.id)
+														? "border-primary bg-primary/5"
+														: "hover:bg-slate-50"
+														}`}
 													onClick={() => handleTogglePhone(phone.id)}
 												>
 													<Checkbox
@@ -231,7 +229,7 @@ export default function BatchPhonePage() {
 														</div>
 													</div>
 													<Badge variant="outline">{phone.status}</Badge>
-												</div>
+												</button>
 											))}
 										</div>
 
@@ -282,13 +280,13 @@ export default function BatchPhonePage() {
 
 										<div className="space-y-2 max-h-96 overflow-y-auto">
 											{currentPhones.map((phone) => (
-												<div
+												<button
 													key={phone.id}
-													className={`flex items-center space-x-3 p-4 border rounded-lg cursor-pointer transition-colors ${
-														selectedPhones.includes(phone.id)
-															? "bg-primary/5 border-primary"
-															: "hover:bg-slate-50"
-													}`}
+													type="button"
+													className={`flex items-center space-x-3 p-4 border rounded-lg cursor-pointer transition-colors ${selectedPhones.includes(phone.id)
+														? "border-primary bg-primary/5"
+														: "hover:bg-slate-50"
+														}`}
 													onClick={() => handleTogglePhone(phone.id)}
 												>
 													<Checkbox
@@ -305,7 +303,7 @@ export default function BatchPhonePage() {
 														</div>
 													</div>
 													<Badge variant="secondary">{phone.status}</Badge>
-												</div>
+												</button>
 											))}
 										</div>
 

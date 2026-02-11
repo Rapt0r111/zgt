@@ -450,7 +450,8 @@ export default function StorageAndPassDetailPage() {
 										)}
 										<p className="text-sm text-muted-foreground">
 											При статусе &quot;Используется&quot; необходимо указать
-											владельца										</p>
+											владельца{" "}
+										</p>
 									</div>
 								)}
 							</CardContent>
