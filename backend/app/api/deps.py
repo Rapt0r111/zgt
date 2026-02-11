@@ -60,11 +60,11 @@ def get_current_user(
 
 
 def verify_csrf(
-    x_csrf_token: str = Header(...),
+    x_csrf_token: Optional[str] = Header(None),
     current_user: User = Depends(get_current_user)
 ):
     """Dependency to verify CSRF token on mutating requests"""
-    if not verify_csrf_token(x_csrf_token, current_user.id):
+    if not x_csrf_token or not verify_csrf_token(x_csrf_token, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid CSRF token"

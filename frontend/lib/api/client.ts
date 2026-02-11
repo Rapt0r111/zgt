@@ -1,6 +1,8 @@
 import axios from "axios";
 import { toast } from "sonner";
 
+const CSRF_STORAGE_KEY = "zgt_csrf_token";
+
 const apiClient = axios.create({
 	baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
 	headers: {
@@ -10,12 +12,28 @@ const apiClient = axios.create({
 	timeout: 30000,
 });
 
-let csrfToken: string | null = null;
+const getStoredCsrfToken = (): string | null => {
+	if (typeof window === "undefined") {
+		return null;
+	}
+	return window.sessionStorage.getItem(CSRF_STORAGE_KEY);
+};
+
+const storeCsrfToken = (token: string) => {
+	if (typeof window === "undefined") {
+		return;
+	}
+	window.sessionStorage.setItem(CSRF_STORAGE_KEY, token);
+};
+
+let csrfToken: string | null = getStoredCsrfToken();
 
 apiClient.interceptors.response.use(
 	(response) => {
 		if (response.headers["x-csrf-token"]) {
-			csrfToken = response.headers["x-csrf-token"];
+			const token = response.headers["x-csrf-token"] as string;
+			csrfToken = token;
+			storeCsrfToken(token);
 		}
 		return response;
 	},
@@ -63,8 +81,14 @@ apiClient.interceptors.request.use((config) => {
 		config.url?.includes(endpoint),
 	);
 
-	if (isMutating && !isExempt && csrfToken) {
-		config.headers["X-CSRF-Token"] = csrfToken;
+	if (isMutating && !isExempt) {
+		if (!csrfToken) {
+			csrfToken = getStoredCsrfToken();
+		}
+
+		if (csrfToken) {
+			config.headers["X-CSRF-Token"] = csrfToken;
+		}
 	}
 
 	return config;
