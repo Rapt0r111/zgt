@@ -23,9 +23,7 @@ apiClient.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
-    console.error('API Error Details:', error.response?.data);
-    
+  (error) => {    
     // Log validation errors in detail
     if (error.response?.status === 422) {
       console.error('Validation Error:', JSON.stringify(error.response.data, null, 2));
