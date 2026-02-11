@@ -59,7 +59,7 @@ const equipmentSchema = z.object({
 	notes: z.string().default(""),
 });
 
-type EquipmentFormData = z.infer<typeof equipmentSchema>;
+type EquipmentFormData = z.input<typeof equipmentSchema>;
 
 export default function CreateEquipmentPage() {
 	const router = useRouter();

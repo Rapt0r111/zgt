@@ -45,7 +45,7 @@ const phoneSchema = z.object({
 	status: z.string().default("Выдан"),
 });
 
-type PhoneFormData = z.infer<typeof phoneSchema>;
+type PhoneFormData = z.input<typeof phoneSchema>;
 
 export default function CreatePhonePage() {
 	const router = useRouter();

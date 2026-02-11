@@ -1,6 +1,4 @@
-export function cleanEmptyStrings<T extends Record<string, unknown>>(
-	obj: T,
-): Partial<T> {
+export function cleanEmptyStrings<T extends object>(obj: T): Partial<T> {
 	const result: Record<string, unknown> = {};
 
 	for (const [key, value] of Object.entries(obj)) {
