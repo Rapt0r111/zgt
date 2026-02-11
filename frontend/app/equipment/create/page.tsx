@@ -50,6 +50,14 @@ const equipmentSchema = z.object({
 	storage_capacity_gb: z.number().optional(),
 	has_optical_drive: z.boolean().default(false),
 	has_card_reader: z.boolean().default(false),
+	has_laptop: z.boolean().default(false),
+	laptop_functional: z.boolean().default(true),
+	has_charger: z.boolean().default(false),
+	charger_functional: z.boolean().default(true),
+	has_mouse: z.boolean().default(false),
+	mouse_functional: z.boolean().default(true),
+	has_bag: z.boolean().default(false),
+	bag_functional: z.boolean().default(true),
 	operating_system: z.string().default(""),
 	current_owner_id: z.number().optional(),
 	current_location: z.string().default(""),
@@ -79,6 +87,14 @@ export default function CreateEquipmentPage() {
 			seal_status: "Исправна",
 			has_optical_drive: false,
 			has_card_reader: false,
+			has_laptop: false,
+			laptop_functional: true,
+			has_charger: false,
+			charger_functional: true,
+			has_mouse: false,
+			mouse_functional: true,
+			has_bag: false,
+			bag_functional: true,
 		},
 	});
 
@@ -108,6 +124,15 @@ export default function CreateEquipmentPage() {
 	const currentStorageType = watch("storage_type");
 	const hasOpticalDrive = watch("has_optical_drive");
 	const hasCardReader = watch("has_card_reader");
+	const hasLaptop = watch("has_laptop");
+	const laptopFunctional = watch("laptop_functional");
+	const hasCharger = watch("has_charger");
+	const chargerFunctional = watch("charger_functional");
+	const hasMouse = watch("has_mouse");
+	const mouseFunctional = watch("mouse_functional");
+	const hasBag = watch("has_bag");
+	const bagFunctional = watch("bag_functional");
+	
 
 	return (
 		<div className="min-h-screen bg-slate-50 p-8">
@@ -329,6 +354,128 @@ export default function CreateEquipmentPage() {
 											>
 												Картридер
 											</Label>
+										</div>
+										<div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="has_laptop"
+													checked={hasLaptop}
+													onCheckedChange={(checked) =>
+														setValue("has_laptop", checked as boolean)
+													}
+												/>
+												<Label
+													htmlFor="has_laptop"
+													className="font-normal cursor-pointer"
+												>
+													Ноутбук (в наличии)
+												</Label>
+											</div>
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="laptop_functional"
+													checked={laptopFunctional}
+													onCheckedChange={(checked) =>
+														setValue("laptop_functional", checked as boolean)
+													}
+												/>
+												<Label
+													htmlFor="laptop_functional"
+													className="font-normal cursor-pointer"
+												>
+													Ноутбук исправен
+												</Label>
+											</div>
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="has_charger"
+													checked={hasCharger}
+													onCheckedChange={(checked) =>
+														setValue("has_charger", checked as boolean)
+													}
+												/>
+												<Label
+													htmlFor="has_charger"
+													className="font-normal cursor-pointer"
+												>
+													Зарядка (в наличии)
+												</Label>
+											</div>
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="charger_functional"
+													checked={chargerFunctional}
+													onCheckedChange={(checked) =>
+														setValue("charger_functional", checked as boolean)
+													}
+												/>
+												<Label
+													htmlFor="charger_functional"
+													className="font-normal cursor-pointer"
+												>
+													Зарядка исправна
+												</Label>
+											</div>
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="has_mouse"
+													checked={hasMouse}
+													onCheckedChange={(checked) =>
+														setValue("has_mouse", checked as boolean)
+													}
+												/>
+												<Label
+													htmlFor="has_mouse"
+													className="font-normal cursor-pointer"
+												>
+													Мышь (в наличии)
+												</Label>
+											</div>
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="mouse_functional"
+													checked={mouseFunctional}
+													onCheckedChange={(checked) =>
+														setValue("mouse_functional", checked as boolean)
+													}
+												/>
+												<Label
+													htmlFor="mouse_functional"
+													className="font-normal cursor-pointer"
+												>
+													Мышь исправна
+												</Label>
+											</div>
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="has_bag"
+													checked={hasBag}
+													onCheckedChange={(checked) =>
+														setValue("has_bag", checked as boolean)
+													}
+												/>
+												<Label
+													htmlFor="has_bag"
+													className="font-normal cursor-pointer"
+												>
+													Сумка (в наличии)
+												</Label>
+											</div>
+											<div className="flex items-center space-x-2">
+												<Checkbox
+													id="bag_functional"
+													checked={bagFunctional}
+													onCheckedChange={(checked) =>
+														setValue("bag_functional", checked as boolean)
+													}
+												/>
+												<Label
+													htmlFor="bag_functional"
+													className="font-normal cursor-pointer"
+												>
+													Сумка исправна
+												</Label>
+											</div>
 										</div>
 									</div>
 								</div>

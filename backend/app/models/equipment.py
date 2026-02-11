@@ -23,6 +23,14 @@ class Equipment(Base):
     storage_capacity_gb = Column(Integer)
     has_optical_drive = Column(Boolean, default=False)
     has_card_reader = Column(Boolean, default=False)
+    has_laptop = Column(Boolean, default=False)
+    laptop_functional = Column(Boolean, default=True)
+    has_charger = Column(Boolean, default=False)
+    charger_functional = Column(Boolean, default=True)
+    has_mouse = Column(Boolean, default=False)
+    mouse_functional = Column(Boolean, default=True)
+    has_bag = Column(Boolean, default=False)
+    bag_functional = Column(Boolean, default=True)
     operating_system = Column(String(100))
     
     # Assignment

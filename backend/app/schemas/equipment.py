@@ -17,6 +17,14 @@ class EquipmentBase(BaseModel):
     storage_capacity_gb: Optional[int] = None
     has_optical_drive: bool = False
     has_card_reader: bool = False
+    has_laptop: bool = False
+    laptop_functional: bool = True
+    has_charger: bool = False
+    charger_functional: bool = True
+    has_mouse: bool = False
+    mouse_functional: bool = True
+    has_bag: bool = False
+    bag_functional: bool = True
     operating_system: Optional[str] = Field(None, max_length=100)
     current_owner_id: Optional[int] = None
     current_location: Optional[str] = Field(None, max_length=255)
@@ -43,6 +51,14 @@ class EquipmentUpdate(BaseModel):
     storage_capacity_gb: Optional[int] = None
     has_optical_drive: Optional[bool] = None
     has_card_reader: Optional[bool] = None
+    has_laptop: Optional[bool] = None
+    laptop_functional: Optional[bool] = None
+    has_charger: Optional[bool] = None
+    charger_functional: Optional[bool] = None
+    has_mouse: Optional[bool] = None
+    mouse_functional: Optional[bool] = None
+    has_bag: Optional[bool] = None
+    bag_functional: Optional[bool] = None
     operating_system: Optional[str] = None
     current_owner_id: Optional[int] = None
     current_location: Optional[str] = None

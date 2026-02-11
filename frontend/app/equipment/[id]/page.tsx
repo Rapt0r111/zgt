@@ -47,6 +47,14 @@ const equipmentSchema = z.object({
 	storage_capacity_gb: z.number().optional(),
 	has_optical_drive: z.boolean().default(false),
 	has_card_reader: z.boolean().default(false),
+	has_laptop: z.boolean().default(false),
+	laptop_functional: z.boolean().default(true),
+	has_charger: z.boolean().default(false),
+	charger_functional: z.boolean().default(true),
+	has_mouse: z.boolean().default(false),
+	mouse_functional: z.boolean().default(true),
+	has_bag: z.boolean().default(false),
+	bag_functional: z.boolean().default(true),
 	operating_system: z.string().default(""),
 	current_owner_id: z.number().optional(),
 	current_location: z.string().default(""),
@@ -102,6 +110,14 @@ export default function EquipmentDetailPage() {
 				storage_capacity_gb: equipment.storage_capacity_gb,
 				has_optical_drive: equipment.has_optical_drive,
 				has_card_reader: equipment.has_card_reader,
+				has_laptop: equipment.has_laptop,
+				laptop_functional: equipment.laptop_functional,
+				has_charger: equipment.has_charger,
+				charger_functional: equipment.charger_functional,
+				has_mouse: equipment.has_mouse,
+				mouse_functional: equipment.mouse_functional,
+				has_bag: equipment.has_bag,
+				bag_functional: equipment.bag_functional,
 				operating_system: equipment.operating_system || "",
 				current_owner_id: equipment.current_owner_id,
 				current_location: equipment.current_location || "",
@@ -144,6 +160,14 @@ export default function EquipmentDetailPage() {
 	const currentSealStatus = watch("seal_status");
 	const hasOpticalDrive = watch("has_optical_drive");
 	const hasCardReader = watch("has_card_reader");
+	const hasLaptop = watch("has_laptop");
+	const hasCharger = watch("has_charger");
+	const hasMouse = watch("has_mouse");
+	const hasBag = watch("has_bag");
+	const laptopFunctional = watch("laptop_functional");
+	const chargerFunctional = watch("charger_functional");
+	const mouseFunctional = watch("mouse_functional");
+	const bagFunctional = watch("bag_functional");
 
 	if (isLoading) {
 		return (
@@ -440,6 +464,132 @@ export default function EquipmentDetailPage() {
 												>
 													Картридер
 												</Label>
+											</div>
+											<div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+												<div className="rounded-md border px-3 py-2">
+													<div className="flex items-center justify-between">
+														<Label htmlFor="has_laptop" className="font-normal">
+															Ноутбук
+														</Label>
+														<Checkbox
+															id="has_laptop"
+															checked={hasLaptop}
+															onCheckedChange={(checked) =>
+																setValue("has_laptop", checked as boolean)
+															}
+															disabled={!isEditing}
+														/>
+													</div>
+													{hasLaptop && (
+														<div className="mt-2 flex items-center justify-between text-sm">
+															<span>Исправен</span>
+															<Checkbox
+																id="laptop_functional"
+																checked={laptopFunctional}
+																onCheckedChange={(checked) =>
+																	setValue(
+																		"laptop_functional",
+																		checked as boolean,
+																	)
+																}
+																disabled={!isEditing}
+															/>
+														</div>
+													)}
+												</div>
+												<div className="rounded-md border px-3 py-2">
+													<div className="flex items-center justify-between">
+														<Label
+															htmlFor="has_charger"
+															className="font-normal"
+														>
+															Зарядное устройство
+														</Label>
+														<Checkbox
+															id="has_charger"
+															checked={hasCharger}
+															onCheckedChange={(checked) =>
+																setValue("has_charger", checked as boolean)
+															}
+															disabled={!isEditing}
+														/>
+													</div>
+													{hasCharger && (
+														<div className="mt-2 flex items-center justify-between text-sm">
+															<span>Исправно</span>
+															<Checkbox
+																id="charger_functional"
+																checked={chargerFunctional}
+																onCheckedChange={(checked) =>
+																	setValue(
+																		"charger_functional",
+																		checked as boolean,
+																	)
+																}
+																disabled={!isEditing}
+															/>
+														</div>
+													)}
+												</div>
+												<div className="rounded-md border px-3 py-2">
+													<div className="flex items-center justify-between">
+														<Label htmlFor="has_mouse" className="font-normal">
+															Мышь
+														</Label>
+														<Checkbox
+															id="has_mouse"
+															checked={hasMouse}
+															onCheckedChange={(checked) =>
+																setValue("has_mouse", checked as boolean)
+															}
+															disabled={!isEditing}
+														/>
+													</div>
+													{hasMouse && (
+														<div className="mt-2 flex items-center justify-between text-sm">
+															<span>Исправна</span>
+															<Checkbox
+																id="mouse_functional"
+																checked={mouseFunctional}
+																onCheckedChange={(checked) =>
+																	setValue(
+																		"mouse_functional",
+																		checked as boolean,
+																	)
+																}
+																disabled={!isEditing}
+															/>
+														</div>
+													)}
+												</div>
+												<div className="rounded-md border px-3 py-2">
+													<div className="flex items-center justify-between">
+														<Label htmlFor="has_bag" className="font-normal">
+															Сумка
+														</Label>
+														<Checkbox
+															id="has_bag"
+															checked={hasBag}
+															onCheckedChange={(checked) =>
+																setValue("has_bag", checked as boolean)
+															}
+															disabled={!isEditing}
+														/>
+													</div>
+													{hasBag && (
+														<div className="mt-2 flex items-center justify-between text-sm">
+															<span>Исправна</span>
+															<Checkbox
+																id="bag_functional"
+																checked={bagFunctional}
+																onCheckedChange={(checked) =>
+																	setValue("bag_functional", checked as boolean)
+																}
+																disabled={!isEditing}
+															/>
+														</div>
+													)}
+												</div>
 											</div>
 										</div>
 									</div>
