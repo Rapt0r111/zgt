@@ -1,90 +1,73 @@
-import axios from 'axios';
-import { toast } from 'sonner';
+import axios from "axios";
+import { toast } from "sonner";
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
-  timeout: 30000,
+	baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
+	headers: {
+		"Content-Type": "application/json",
+	},
+	withCredentials: true,
+	timeout: 30000,
 });
 
-// CSRF token storage
 let csrfToken: string | null = null;
 
-// Response interceptor - capture CSRF token and handle errors
 apiClient.interceptors.response.use(
-  (response) => {
-    // Capture CSRF token from headers
-    if (response.headers['x-csrf-token']) {
-      csrfToken = response.headers['x-csrf-token'];
-      console.log('✅ CSRF token captured');
-    }
-    return response;
-  },
-  (error) => {    
-    // Log validation errors in detail
-    if (error.response?.status === 422) {
-      console.error('Validation Error:', JSON.stringify(error.response.data, null, 2));
-    }
-    
-    // Handle authentication errors
-    if (error.response?.status === 401) {
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-        toast.error('Сессия истекла');
-        window.location.href = '/login';
-      }
-    }
-    
-    // Handle CSRF errors
-    if (error.response?.status === 403 && error.response?.data?.detail?.includes('CSRF')) {
-      toast.error('Ошибка безопасности. Обновите страницу.');
-    } else if (error.response?.status === 403) {
-      toast.error('Недостаточно прав');
-    }
-    
-    // Handle rate limiting
-    if (error.response?.status === 429) {
-      toast.error('Слишком много запросов. Попробуйте позже.');
-    }
-    
-    // Handle server errors
-    if (error.response?.status === 500) {
-      toast.error('Ошибка сервера');
-    }
-    
-    // Handle service unavailable
-    if (error.response?.status === 503) {
-      toast.error('Сервис временно недоступен');
-    }
-    
-    return Promise.reject(error);
-  }
+	(response) => {
+		if (response.headers["x-csrf-token"]) {
+			csrfToken = response.headers["x-csrf-token"];
+		}
+		return response;
+	},
+	(error) => {
+		if (error.response?.status === 422) {
+			console.error(
+				"Validation Error:",
+				JSON.stringify(error.response.data, null, 2),
+			);
+		}
+
+		if (error.response?.status === 401) {
+			toast.error("Сессия истекла");
+			window.location.href = "/login";
+		}
+
+		if (error.response?.status === 403) {
+			if (error.response.data?.detail?.includes("CSRF")) {
+				toast.error("Ошибка безопасности. Обновите страницу.");
+			} else {
+				toast.error("Недостаточно прав");
+			}
+		}
+
+		if (error.response?.status === 429) {
+			toast.error("Слишком много запросов. Попробуйте позже.");
+		}
+
+		if (error.response?.status >= 500) {
+			toast.error("Ошибка сервера");
+		}
+
+		return Promise.reject(error);
+	},
 );
 
-// List of endpoints that don't require CSRF token
-const CSRF_EXEMPT_ENDPOINTS = [
-  '/api/auth/login',
-  '/api/auth/logout',
-];
+const CSRF_EXEMPT_ENDPOINTS = ["/api/auth/login", "/api/auth/logout"];
 
-// Request interceptor - attach CSRF token to mutating requests
 apiClient.interceptors.request.use((config) => {
-  const mutatingMethods = ['post', 'put', 'patch', 'delete'];
-  const isMutating = mutatingMethods.includes(config.method?.toLowerCase() || '');
-  const isExempt = CSRF_EXEMPT_ENDPOINTS.some(endpoint => config.url?.includes(endpoint));
-  
-  // Only attach CSRF token to mutating requests that are not exempt
-  if (isMutating && !isExempt) {
-    if (csrfToken) {
-      config.headers['X-CSRF-Token'] = csrfToken;
-    } else {
-      console.warn('⚠️  CSRF token not available for mutating request');
-    }
-  }
-  
-  return config;
+	const mutatingMethods = ["post", "put", "patch", "delete"];
+	const isMutating = mutatingMethods.includes(
+		config.method?.toLowerCase() || "",
+	);
+	const isExempt = CSRF_EXEMPT_ENDPOINTS.some((endpoint) =>
+		config.url?.includes(endpoint),
+	);
+
+	if (isMutating && !isExempt && csrfToken) {
+		config.headers["X-CSRF-Token"] = csrfToken;
+	}
+
+	return config;
 });
 
 export default apiClient;

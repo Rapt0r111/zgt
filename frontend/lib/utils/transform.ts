@@ -1,21 +1,13 @@
-export function cleanEmptyStrings<T extends Record<string, any>>(
-  obj: T, 
-  excludeFields: string[] = []
+export function cleanEmptyStrings<T extends Record<string, unknown>>(
+	obj: T,
 ): Partial<T> {
-  const result: any = {};
-  
-  for (const [key, value] of Object.entries(obj)) {
-    // Пропускаем поля из excludeFields
-    if (excludeFields.includes(key) && value === '') {
-      result[key] = value;
-      continue;
-    }
-    
-    if (value === '' || value === null) {
-      continue;
-    }
-    result[key] = value;
-  }
-  
-  return result;
+	const result: Record<string, unknown> = {};
+
+	for (const [key, value] of Object.entries(obj)) {
+		if (value !== "") {
+			result[key] = value;
+		}
+	}
+
+	return result as Partial<T>;
 }

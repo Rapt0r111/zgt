@@ -1,117 +1,115 @@
-import apiClient from './client';
 import type {
-  Equipment,
-  EquipmentCreate,
-  EquipmentUpdate,
-  EquipmentListResponse,
-  Movement,
-  MovementCreate,
-  MovementListResponse,
-  StorageDevice,
-  StorageDeviceCreate,
-  StorageDeviceUpdate,
-  StorageDeviceListResponse,
-  SealCheckRequest,
-  SealCheckResponse,
-  EquipmentStats,
-  SealIssuesResponse
-} from '@/types/equipment';
+	Equipment,
+	EquipmentCreate,
+	EquipmentListResponse,
+	EquipmentStats,
+	EquipmentUpdate,
+	Movement,
+	MovementCreate,
+	MovementListResponse,
+	SealCheckRequest,
+	SealCheckResponse,
+	StorageDevice,
+	StorageDeviceCreate,
+	StorageDeviceListResponse,
+	StorageDeviceUpdate,
+} from "@/types/equipment";
+import apiClient from "./client";
 
 export const equipmentApi = {
-  // ============ EQUIPMENT ============
-  
-  getList: async (params?: {
-    skip?: number;
-    limit?: number;
-    equipment_type?: string;
-    status?: string;
-    search?: string;
-  }): Promise<EquipmentListResponse> => {
-    // ИСПРАВЛЕНО: Добавлен слеш в конце
-    const response = await apiClient.get('/api/equipment/', { params });
-    return response.data;
-  },
+	getList: async (params?: {
+		skip?: number;
+		limit?: number;
+		equipment_type?: string;
+		status?: string;
+		search?: string;
+	}) => {
+		const response = await apiClient.get("/api/equipment/", { params });
+		return response.data as EquipmentListResponse;
+	},
 
-  getById: async (id: number): Promise<Equipment> => {
-    const response = await apiClient.get(`/api/equipment/${id}`);
-    return response.data;
-  },
+	getById: async (id: number) => {
+		const response = await apiClient.get(`/api/equipment/${id}`);
+		return response.data as Equipment;
+	},
 
-  create: async (data: EquipmentCreate): Promise<Equipment> => {
-    // ИСПРАВЛЕНО: Добавлен слеш в конце
-    const response = await apiClient.post('/api/equipment/', data);
-    return response.data;
-  },
+	create: async (data: EquipmentCreate) => {
+		const response = await apiClient.post("/api/equipment/", data);
+		return response.data as Equipment;
+	},
 
-  update: async (id: number, data: EquipmentUpdate): Promise<Equipment> => {
-    const response = await apiClient.put(`/api/equipment/${id}`, data);
-    return response.data;
-  },
+	update: async (id: number, data: EquipmentUpdate) => {
+		const response = await apiClient.put(`/api/equipment/${id}`, data);
+		return response.data as Equipment;
+	},
 
-  delete: async (id: number): Promise<void> => {
-    await apiClient.delete(`/api/equipment/${id}`);
-  },
+	delete: async (id: number) => {
+		await apiClient.delete(`/api/equipment/${id}`);
+	},
 
-  // ============ MOVEMENTS ============
+	createMovement: async (data: MovementCreate) => {
+		const response = await apiClient.post("/api/equipment/movements", data);
+		return response.data as Movement;
+	},
 
-  createMovement: async (data: MovementCreate): Promise<Movement> => {
-    const response = await apiClient.post('/api/equipment/movements', data);
-    return response.data;
-  },
+	getMovementHistory: async (
+		equipmentId: number,
+		params?: { skip?: number; limit?: number },
+	) => {
+		const response = await apiClient.get(
+			`/api/equipment/${equipmentId}/movements`,
+			{ params },
+		);
+		return response.data as MovementListResponse;
+	},
 
-  getMovementHistory: async (
-    equipmentId: number,
-    params?: { skip?: number; limit?: number }
-  ): Promise<MovementListResponse> => {
-    const response = await apiClient.get(`/api/equipment/${equipmentId}/movements`, { params });
-    return response.data;
-  },
+	checkSeals: async (data: SealCheckRequest) => {
+		const response = await apiClient.post("/api/equipment/seals/check", data);
+		return response.data as SealCheckResponse;
+	},
 
-  // ============ SEALS ============
+	getStatistics: async () => {
+		const response = await apiClient.get("/api/equipment/stats");
+		return response.data as EquipmentStats;
+	},
 
-  checkSeals: async (data: SealCheckRequest): Promise<SealCheckResponse> => {
-    const response = await apiClient.post('/api/equipment/seals/check', data);
-    return response.data;
-  },
+	getStorageDevices: async (params?: {
+		skip?: number;
+		limit?: number;
+		equipment_id?: number;
+		status?: string;
+		search?: string;
+	}) => {
+		const response = await apiClient.get("/api/equipment/storage-devices/", {
+			params,
+		});
+		return response.data as StorageDeviceListResponse;
+	},
 
-  // ============ STATISTICS ============
+	getStorageDeviceById: async (id: number) => {
+		const response = await apiClient.get(
+			`/api/equipment/storage-devices/${id}`,
+		);
+		return response.data as StorageDevice;
+	},
 
-  getStatistics: async (): Promise<EquipmentStats> => {
-    const response = await apiClient.get('/api/equipment/stats');
-    return response.data;
-  },
+	createStorageDevice: async (data: StorageDeviceCreate) => {
+		const response = await apiClient.post(
+			"/api/equipment/storage-devices/",
+			data,
+		);
+		return response.data as StorageDevice;
+	},
 
-  // ============ STORAGE DEVICES ============
+	updateStorageDevice: async (id: number, data: StorageDeviceUpdate) => {
+		const response = await apiClient.put(
+			`/api/equipment/storage-devices/${id}`,
+			data,
+		);
+		return response.data as StorageDevice;
+	},
 
-  getStorageDevices: async (params?: {
-    skip?: number;
-    limit?: number;
-    equipment_id?: number;
-    status?: string;
-    search?: string;
-  }): Promise<StorageDeviceListResponse> => {
-    // ИСПРАВЛЕНО: Добавлен слеш в конце
-    const response = await apiClient.get('/api/equipment/storage-devices/', { params });
-    return response.data;
-  },
-
-  getStorageDeviceById: async (id: number): Promise<StorageDevice> => {
-    const response = await apiClient.get(`/api/equipment/storage-devices/${id}`);
-    return response.data;
-  },
-
-  createStorageDevice: async (data: StorageDeviceCreate): Promise<StorageDevice> => {
-    // ИСПРАВЛЕНО: Добавлен слеш в конце
-    const response = await apiClient.post('/api/equipment/storage-devices/', data);
-    return response.data;
-  },
-
-  updateStorageDevice: async (id: number, data: StorageDeviceUpdate): Promise<StorageDevice> => {
-    const response = await apiClient.put(`/api/equipment/storage-devices/${id}`, data);
-    return response.data;
-  },
-
-  deleteStorageDevice: async (id: number): Promise<void> => {
-    await apiClient.delete(`/api/equipment/storage-devices/${id}`);
-  },
+	deleteStorageDevice: async (id: number) => {
+		await apiClient.delete(`/api/equipment/storage-devices/${id}`);
+	},
 };
