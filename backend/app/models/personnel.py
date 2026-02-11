@@ -1,28 +1,29 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum as SQLEnum
 from sqlalchemy.sql import func
 from app.core.database import Base
-from sqlalchemy.orm import relationship
+import enum
+
+class PersonnelStatus(str, enum.Enum):
+    IN_SERVICE = "В строю"
+    ON_MISSION = "В командировке"
+    IN_HOSPITAL = "В госпитале"
+    ON_LEAVE = "В отпуске"
 
 class Personnel(Base):
     __tablename__ = "personnel"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    
-    # Core identification
-    full_name = Column(String(255), nullable=False, index=True)
-    rank = Column(String(100))
-    rank_priority = Column(Integer, index=True)
-    position = Column(String(255))
-    unit = Column(String(100))
-    personal_number = Column(String(50), unique=True, index=True)
-    
-    # Status
-    status = Column(String(50), default="active")
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
-    # Relationships
-    phones = relationship("Phone", back_populates="owner", cascade="all, delete-orphan")
-    equipment = relationship("Equipment", foreign_keys="Equipment.current_owner_id", back_populates="current_owner")
-    storage_items = relationship("StorageAndPass", back_populates="assigned_to", cascade="all, delete-orphan")
+    full_name = Column(String, nullable=False, index=True)
+    rank = Column(String, nullable=True)
+    rank_priority = Column(Integer, nullable=True)
+    position = Column(String, nullable=True)
+    platoon = Column(String, nullable=True)
+    personal_number = Column(String, unique=True, nullable=True, index=True)
+    service_number = Column(String, unique=True, nullable=True, index=True)
+    security_clearance_level = Column(Integer, nullable=True)
+    clearance_order_number = Column(String, nullable=True)
+    clearance_expiry_date = Column(DateTime, nullable=True)
+    status = Column(SQLEnum(PersonnelStatus), default=PersonnelStatus.IN_SERVICE, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

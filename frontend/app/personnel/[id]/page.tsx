@@ -23,11 +23,35 @@ import {
 } from "@/components/ui/select";
 import { personnelApi } from "@/lib/api/personnel";
 
+const RANKS = [
+	{ value: "Рядовой", priority: 20 },
+	{ value: "Ефрейтор", priority: 19 },
+	{ value: "Младший сержант", priority: 18 },
+	{ value: "Сержант", priority: 17 },
+	{ value: "Старший сержант", priority: 16 },
+	{ value: "Старшина", priority: 15 },
+	{ value: "Прапорщик", priority: 14 },
+	{ value: "Старший прапорщик", priority: 13 },
+	{ value: "Младший лейтенант", priority: 12 },
+	{ value: "Лейтенант", priority: 11 },
+	{ value: "Старший лейтенант", priority: 10 },
+	{ value: "Капитан", priority: 9 },
+	{ value: "Майор", priority: 8 },
+	{ value: "Подполковник", priority: 7 },
+	{ value: "Полковник", priority: 6 },
+	{ value: "Генерал-майор", priority: 5 },
+	{ value: "Генерал-лейтенант", priority: 4 },
+	{ value: "Генерал-полковник", priority: 3 },
+	{ value: "Генерал армии", priority: 2 },
+	{ value: "Маршал Российской Федерации", priority: 1 },
+];
+
 const personnelSchema = z.object({
 	full_name: z.string().min(1, "ФИО обязательно"),
 	rank: z.string().optional(),
+	rank_priority: z.number().optional(),
 	position: z.string().optional(),
-	unit: z.string().optional(),
+	platoon: z.string().optional(),
 	personal_number: z.string().optional(),
 	service_number: z.string().optional(),
 	security_clearance_level: z.number().min(1).max(3).optional(),
@@ -62,6 +86,7 @@ export default function PersonnelDetailPage() {
 		register,
 		handleSubmit,
 		setValue,
+		watch,
 		reset,
 		formState: { errors },
 	} = useForm<PersonnelFormData>({
@@ -73,8 +98,9 @@ export default function PersonnelDetailPage() {
 			reset({
 				full_name: personnel.full_name,
 				rank: personnel.rank || "",
+				rank_priority: personnel.rank_priority,
 				position: personnel.position || "",
-				unit: personnel.unit || "",
+				platoon: personnel.platoon || "",
 				personal_number: personnel.personal_number || "",
 				service_number: personnel.service_number || "",
 				security_clearance_level: personnel.security_clearance_level,
@@ -101,8 +127,18 @@ export default function PersonnelDetailPage() {
 
 	const onSubmit = (data: PersonnelFormData) => {
 		setError("");
-		updateMutation.mutate(data);
+		const submitData = { ...data };
+		if (data.position === "Командир роты") {
+			submitData.platoon = undefined;
+		}
+		updateMutation.mutate(submitData);
 	};
+
+	const currentRank = watch("rank");
+	const currentPosition = watch("position");
+	const currentPlatoon = watch("platoon");
+
+	const isCompanyCommander = currentPosition === "Командир роты";
 
 	if (isLoading) {
 		return (
@@ -142,7 +178,6 @@ export default function PersonnelDetailPage() {
 					</Button>
 				</div>
 
-				{/* Предупреждение об истекшем допуске */}
 				{clearanceCheck?.is_expired && (
 					<Alert variant="destructive" className="mb-6">
 						<AlertCircle className="h-4 w-4" />
@@ -154,7 +189,6 @@ export default function PersonnelDetailPage() {
 
 				<form onSubmit={handleSubmit(onSubmit)}>
 					<div className="grid gap-6">
-						{/* Основная информация */}
 						<Card>
 							<CardHeader>
 								<CardTitle>Основная информация</CardTitle>
@@ -182,12 +216,30 @@ export default function PersonnelDetailPage() {
 									</div>
 
 									<div className="space-y-2">
-										<Label htmlFor="rank">Звание</Label>
-										<Input
-											id="rank"
-											{...register("rank")}
-											disabled={!isEditing}
-										/>
+										<Label>Звание</Label>
+										{isEditing ? (
+											<Select
+												value={currentRank || ""}
+												onValueChange={(val) => {
+													setValue("rank", val);
+													const rank = RANKS.find((r) => r.value === val);
+													setValue("rank_priority", rank?.priority);
+												}}
+											>
+												<SelectTrigger>
+													<SelectValue placeholder="Выберите звание" />
+												</SelectTrigger>
+												<SelectContent>
+													{RANKS.map((rank) => (
+														<SelectItem key={rank.value} value={rank.value}>
+															{rank.value}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										) : (
+											<div className="text-sm">{personnel.rank || "—"}</div>
+										)}
 									</div>
 								</div>
 
@@ -202,12 +254,36 @@ export default function PersonnelDetailPage() {
 									</div>
 
 									<div className="space-y-2">
-										<Label htmlFor="unit">Подразделение</Label>
-										<Input
-											id="unit"
-											{...register("unit")}
-											disabled={!isEditing}
-										/>
+										<Label>Взвод</Label>
+										{isEditing ? (
+											<Select
+												value={currentPlatoon || ""}
+												onValueChange={(val) => setValue("platoon", val)}
+												disabled={isCompanyCommander}
+											>
+												<SelectTrigger
+													className={
+														isCompanyCommander
+															? "opacity-50 cursor-not-allowed"
+															: ""
+													}
+												>
+													<SelectValue
+														placeholder={
+															isCompanyCommander
+																? "Не применимо"
+																: "Выберите взвод"
+														}
+													/>
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value="1 взвод">1 взвод</SelectItem>
+													<SelectItem value="2 взвод">2 взвод</SelectItem>
+												</SelectContent>
+											</Select>
+										) : (
+											<div className="text-sm">{personnel.platoon || "—"}</div>
+										)}
 									</div>
 								</div>
 
@@ -233,7 +309,6 @@ export default function PersonnelDetailPage() {
 							</CardContent>
 						</Card>
 
-						{/* Допуск к ГТ */}
 						<Card>
 							<CardHeader>
 								<CardTitle>Допуск к государственной тайне</CardTitle>
@@ -323,7 +398,6 @@ export default function PersonnelDetailPage() {
 							</CardContent>
 						</Card>
 
-						{/* Статус */}
 						<Card>
 							<CardHeader>
 								<CardTitle>Текущий статус</CardTitle>

@@ -29,11 +29,35 @@ import {
 } from "@/components/ui/select";
 import { personnelApi } from "@/lib/api/personnel";
 
+const RANKS = [
+	{ value: "Рядовой", priority: 20 },
+	{ value: "Ефрейтор", priority: 19 },
+	{ value: "Младший сержант", priority: 18 },
+	{ value: "Сержант", priority: 17 },
+	{ value: "Старший сержант", priority: 16 },
+	{ value: "Старшина", priority: 15 },
+	{ value: "Прапорщик", priority: 14 },
+	{ value: "Старший прапорщик", priority: 13 },
+	{ value: "Младший лейтенант", priority: 12 },
+	{ value: "Лейтенант", priority: 11 },
+	{ value: "Старший лейтенант", priority: 10 },
+	{ value: "Капитан", priority: 9 },
+	{ value: "Майор", priority: 8 },
+	{ value: "Подполковник", priority: 7 },
+	{ value: "Полковник", priority: 6 },
+	{ value: "Генерал-майор", priority: 5 },
+	{ value: "Генерал-лейтенант", priority: 4 },
+	{ value: "Генерал-полковник", priority: 3 },
+	{ value: "Генерал армии", priority: 2 },
+	{ value: "Маршал Российской Федерации", priority: 1 },
+];
+
 const personnelSchema = z.object({
 	full_name: z.string().min(1, "ФИО обязательно"),
-	rank: z.string().default(""),
+	rank: z.string().optional(),
+	rank_priority: z.number().optional(),
 	position: z.string().default(""),
-	unit: z.string().default(""),
+	platoon: z.string().optional(),
 	personal_number: z.string().default(""),
 	service_number: z.string().default(""),
 	security_clearance_level: z.number().min(1).max(3).optional(),
@@ -77,11 +101,20 @@ export default function CreatePersonnelPage() {
 
 	const onSubmit = (data: PersonnelFormData) => {
 		setError("");
-		createMutation.mutate(data);
+		const submitData = { ...data };
+		if (data.position === "Командир роты") {
+			submitData.platoon = undefined;
+		}
+		createMutation.mutate(submitData);
 	};
 
 	const currentStatus = watch("status");
 	const currentClearance = watch("security_clearance_level");
+	const currentRank = watch("rank");
+	const currentPosition = watch("position");
+	const currentPlatoon = watch("platoon");
+
+	const isCompanyCommander = currentPosition === "Командир роты";
 
 	return (
 		<div className="min-h-screen bg-slate-50 p-8">
@@ -128,12 +161,26 @@ export default function CreatePersonnelPage() {
 
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 									<div className="space-y-2">
-										<Label htmlFor="rank">Звание</Label>
-										<Input
-											id="rank"
-											{...register("rank")}
-											placeholder="Сержант"
-										/>
+										<Label>Звание</Label>
+										<Select
+											value={currentRank || ""}
+											onValueChange={(val) => {
+												setValue("rank", val);
+												const rank = RANKS.find((r) => r.value === val);
+												setValue("rank_priority", rank?.priority);
+											}}
+										>
+											<SelectTrigger>
+												<SelectValue placeholder="Выберите звание" />
+											</SelectTrigger>
+											<SelectContent>
+												{RANKS.map((rank) => (
+													<SelectItem key={rank.value} value={rank.value}>
+														{rank.value}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
 									</div>
 
 									<div className="space-y-2">
@@ -147,12 +194,35 @@ export default function CreatePersonnelPage() {
 								</div>
 
 								<div className="space-y-2">
-									<Label htmlFor="unit">Подразделение</Label>
-									<Input
-										id="unit"
-										{...register("unit")}
-										placeholder="1-й взвод"
-									/>
+									<Label>Взвод</Label>
+									<Select
+										value={currentPlatoon || ""}
+										onValueChange={(val) => setValue("platoon", val)}
+										disabled={isCompanyCommander}
+									>
+										<SelectTrigger
+											className={
+												isCompanyCommander ? "opacity-50 cursor-not-allowed" : ""
+											}
+										>
+											<SelectValue
+												placeholder={
+													isCompanyCommander
+														? "Не применимо для командира роты"
+														: "Выберите взвод"
+												}
+											/>
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="1 взвод">1 взвод</SelectItem>
+											<SelectItem value="2 взвод">2 взвод</SelectItem>
+										</SelectContent>
+									</Select>
+									{isCompanyCommander && (
+										<p className="text-sm text-muted-foreground">
+											Для командира роты взвод не указывается
+										</p>
+									)}
 								</div>
 							</div>
 

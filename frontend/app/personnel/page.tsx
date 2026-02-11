@@ -18,30 +18,6 @@ import {
 } from "@/components/ui/table";
 import { personnelApi } from "@/lib/api/personnel";
 
-const RANK_PRIORITY: Record<string, number> = {
-	"Маршал Российской Федерации": 1,
-	"Генерал армии": 2,
-	"Генерал-полковник": 3,
-	"Генерал-лейтенант": 4,
-	"Генерал-майор": 5,
-	Полковник: 6,
-	Подполковник: 7,
-	Майор: 8,
-	Капитан: 9,
-	"Старший лейтенант": 10,
-	Лейтенант: 11,
-	"Младший лейтенант": 12,
-	"Старший прапорщик": 13,
-	Прапорщик: 14,
-	Старшина: 15,
-	"Старший сержант": 16,
-	Сержант: 17,
-	"Младший сержант": 18,
-	Ефрейтор: 19,
-	Рядовой: 20,
-	Курсант: 21,
-};
-
 const STATUS_VARIANTS = {
 	"В строю": "default",
 	"В командировке": "secondary",
@@ -62,10 +38,10 @@ export default function PersonnelPage() {
 		if (!data?.items.length) return [];
 
 		return [...data.items].sort((a, b) => {
-			const rankA = RANK_PRIORITY[a.rank?.trim() || ""] || 1000;
-			const rankB = RANK_PRIORITY[b.rank?.trim() || ""] || 1000;
+			const priorityA = a.rank_priority ?? 1000;
+			const priorityB = b.rank_priority ?? 1000;
 
-			if (rankA !== rankB) return rankA - rankB;
+			if (priorityA !== priorityB) return priorityA - priorityB;
 
 			const posA = a.position?.toLowerCase() || "";
 			const posB = b.position?.toLowerCase() || "";
@@ -150,7 +126,7 @@ export default function PersonnelPage() {
 											<TableHead>ФИО</TableHead>
 											<TableHead>Звание</TableHead>
 											<TableHead>Должность</TableHead>
-											<TableHead>Подразделение</TableHead>
+											<TableHead>Взвод</TableHead>
 											<TableHead>Допуск</TableHead>
 											<TableHead>Статус</TableHead>
 											<TableHead className="text-right">Действия</TableHead>
@@ -165,7 +141,7 @@ export default function PersonnelPage() {
 												</TableCell>
 												<TableCell>{person.rank || "—"}</TableCell>
 												<TableCell>{person.position || "—"}</TableCell>
-												<TableCell>{person.unit || "—"}</TableCell>
+												<TableCell>{person.platoon || "—"}</TableCell>
 												<TableCell>
 													{getClearanceBadge(person.security_clearance_level)}
 												</TableCell>

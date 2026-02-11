@@ -1,37 +1,45 @@
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional
+from pydantic import BaseModel, Field
 from datetime import datetime
-from app.core.validators import validate_date_range
+from typing import Optional, List
 
 class PersonnelBase(BaseModel):
-    full_name: str = Field(..., min_length=1, max_length=255)
-    rank: Optional[str] = Field(None, max_length=100)
-    position: Optional[str] = Field(None, max_length=255)
-    unit: Optional[str] = Field(None, max_length=100)
-    personal_number: Optional[str] = Field(None, max_length=50)
-    status: str = Field(default="active", max_length=50)
+    full_name: str
+    rank: Optional[str] = None
+    rank_priority: Optional[int] = None
+    position: Optional[str] = None
+    platoon: Optional[str] = None
+    personal_number: Optional[str] = None
+    service_number: Optional[str] = None
+    security_clearance_level: Optional[int] = Field(None, ge=1, le=3)
+    clearance_order_number: Optional[str] = None
+    clearance_expiry_date: Optional[datetime] = None
+    status: str = "В строю"
 
 class PersonnelCreate(PersonnelBase):
     pass
 
 class PersonnelUpdate(BaseModel):
-    full_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    full_name: Optional[str] = None
     rank: Optional[str] = None
+    rank_priority: Optional[int] = None
     position: Optional[str] = None
-    unit: Optional[str] = None
+    platoon: Optional[str] = None
     personal_number: Optional[str] = None
+    service_number: Optional[str] = None
+    security_clearance_level: Optional[int] = Field(None, ge=1, le=3)
+    clearance_order_number: Optional[str] = None
+    clearance_expiry_date: Optional[datetime] = None
     status: Optional[str] = None
 
 class PersonnelResponse(PersonnelBase):
     id: int
-    rank_priority: Optional[int] = None
     is_active: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None
-    
+    updated_at: datetime
+
     class Config:
         from_attributes = True
 
 class PersonnelListResponse(BaseModel):
     total: int
-    items: list[PersonnelResponse]
+    items: List[PersonnelResponse]

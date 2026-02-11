@@ -2,8 +2,9 @@ export interface Personnel {
 	id: number;
 	full_name: string;
 	rank?: string;
+	rank_priority?: number;
 	position?: string;
-	unit?: string;
+	platoon?: string;
 	personal_number?: string;
 	service_number?: string;
 	security_clearance_level?: number;
@@ -18,8 +19,9 @@ export interface Personnel {
 export interface PersonnelCreate {
 	full_name: string;
 	rank?: string;
+	rank_priority?: number;
 	position?: string;
-	unit?: string;
+	platoon?: string;
 	personal_number?: string;
 	service_number?: string;
 	security_clearance_level?: number;
