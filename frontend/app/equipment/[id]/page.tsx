@@ -119,7 +119,7 @@ export default function EquipmentDetailPage() {
 		if (equipment) {
 			reset({
 				equipment_type: equipment.equipment_type,
-				inventory_number: equipment.inventory_number,
+				inventory_number: equipment.inventory_number || "",
 				serial_number: equipment.serial_number || "",
 				mni_serial_number: equipment.mni_serial_number || "",
 				manufacturer: equipment.manufacturer || "",
