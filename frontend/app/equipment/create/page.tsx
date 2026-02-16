@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { type FieldErrors, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { PersonnelSelect } from "@/components/shared/personnel-select";
@@ -78,7 +78,8 @@ const equipmentSchema = z
 		}
 	});
 
-type EquipmentFormData = z.input<typeof equipmentSchema>;
+type EquipmentFormInput = z.input<typeof equipmentSchema>;
+type EquipmentFormData = z.output<typeof equipmentSchema>;
 
 export default function CreateEquipmentPage() {
 	const router = useRouter();
@@ -87,11 +88,13 @@ export default function CreateEquipmentPage() {
 	const {
 		register,
 		handleSubmit,
+		setFocus,
 		setValue,
 		watch,
 		formState: { errors },
-	} = useForm<EquipmentFormData>({
+	} = useForm<EquipmentFormInput, unknown, EquipmentFormData>({
 		resolver: zodResolver(equipmentSchema),
+		shouldFocusError: false,
 		defaultValues: {
 			equipment_type: "",
 			status: "В работе",
@@ -128,6 +131,18 @@ export default function CreateEquipmentPage() {
 		createMutation.mutate(cleanedData as EquipmentFormData);
 	};
 
+	const onInvalidSubmit = (formErrors: FieldErrors<EquipmentFormInput>) => {
+		toast.error("Проверьте обязательные поля формы");
+
+		const firstErrorField = Object.keys(formErrors)[0] as
+			| keyof EquipmentFormInput
+			| undefined;
+
+		if (firstErrorField && firstErrorField !== "inventory_number") {
+			setFocus(firstErrorField);
+		}
+	};
+	
 	const currentType = watch("equipment_type");
 	const currentStatus = watch("status");
 	const currentOwnerId = watch("current_owner_id");
@@ -159,383 +174,153 @@ export default function CreateEquipmentPage() {
 						<CardTitle>Добавить технику</CardTitle>
 					</CardHeader>
 
-					<form onSubmit={handleSubmit(onSubmit)}>
-						<CardContent className="space-y-6">
-							{error && (
-								<Alert variant="destructive">
-									<AlertDescription>{error}</AlertDescription>
-								</Alert>
-							)}
+					<form onSubmit={handleSubmit(onSubmit, onInvalidSubmit)}>						<CardContent className="space-y-6">
+						{error && (
+							<Alert variant="destructive">
+								<AlertDescription>{error}</AlertDescription>
+							</Alert>
+						)}
 
-							<div className="space-y-4">
-								<h3 className="font-semibold text-lg border-b pb-2">
-									Основная информация
-								</h3>
+						<div className="space-y-4">
+							<h3 className="font-semibold text-lg border-b pb-2">
+								Основная информация
+							</h3>
 
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									<div className="space-y-2">
-										<Label>Тип техники *</Label>
-										<Select
-											value={currentType}
-											onValueChange={(val) => setValue("equipment_type", val)}
-										>
-											<SelectTrigger
-												className={
-													errors.equipment_type ? "border-destructive" : ""
-												}
-											>
-												<SelectValue placeholder="Выберите тип" />
-											</SelectTrigger>
-											<SelectContent>
-												{EQUIPMENT_TYPES.map((type) => (
-													<SelectItem key={type} value={type}>
-														{type}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-										{errors.equipment_type && (
-											<p className="text-sm text-destructive">
-												{errors.equipment_type.message}
-											</p>
-										)}
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="inventory_number">
-											Учетный номер
-											{!(
-												currentType === "Ноутбук" &&
-												currentStatus !== "В работе"
-											)
-												? " *"
-												: ""}
-										</Label>
-										<Input
-											id="inventory_number"
-											{...register("inventory_number")}
-											placeholder="570/720/321"
-											className={
-												errors.inventory_number ? "border-destructive" : ""
-											}
-										/>
-										<p className="text-xs text-muted-foreground">
-											Пример формата: 570/720/321
-										</p>
-										{errors.inventory_number && (
-											<p className="text-sm text-destructive">
-												{errors.inventory_number.message}
-											</p>
-										)}
-									</div>
-								</div>
-
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									<div className="space-y-2">
-										<Label htmlFor="manufacturer">Производитель</Label>
-										<Input
-											id="manufacturer"
-											{...register("manufacturer")}
-											placeholder="Dell, HP, Lenovo..."
-										/>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="model">Модель</Label>
-										<Input
-											id="model"
-											{...register("model")}
-											placeholder="OptiPlex 7090"
-										/>
-									</div>
-								</div>
-
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div className="space-y-2">
-									<Label htmlFor="serial_number">Серийный номер</Label>
-									<Input
-										id="serial_number"
-										{...register("serial_number")}
-										placeholder="S/N: ABC123XYZ"
-									/>
-								</div>
-
-								<div className="space-y-2">
-									<Label htmlFor="mni_serial_number">Серийный номер МНИ</Label>
-									<Input
-										id="mni_serial_number"
-										{...register("mni_serial_number")}
-										placeholder="МНИ: MNI789456"
-									/>
-								</div>
-							</div>
-
-							<div className="space-y-4">
-								<h3 className="font-semibold text-lg border-b pb-2">
-									Характеристики
-								</h3>
-
-								<div className="space-y-2">
-									<Label htmlFor="cpu">Процессор</Label>
-									<Input
-										id="cpu"
-										{...register("cpu")}
-										placeholder="Intel Core i5-10400"
-									/>
-								</div>
-
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									<div className="space-y-2">
-										<Label htmlFor="ram_gb">Объём RAM (ГБ)</Label>
-										<Input
-											id="ram_gb"
-											type="number"
-											{...register("ram_gb", { valueAsNumber: true })}
-											placeholder="16"
-										/>
-									</div>
-
-									<div className="space-y-2">
-										<Label>Тип хранилища</Label>
-										<Select
-											value={currentStorageType}
-											onValueChange={(val) => setValue("storage_type", val)}
-										>
-											<SelectTrigger>
-												<SelectValue placeholder="Выберите тип" />
-											</SelectTrigger>
-											<SelectContent>
-												{STORAGE_TYPES.map((type) => (
-													<SelectItem key={type} value={type}>
-														{type}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-									</div>
-								</div>
-
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									<div className="space-y-2">
-										<Label htmlFor="storage_capacity_gb">
-											Объём хранилища (ГБ)
-										</Label>
-										<Input
-											id="storage_capacity_gb"
-											type="number"
-											{...register("storage_capacity_gb", {
-												valueAsNumber: true,
-											})}
-											placeholder="512"
-										/>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="operating_system">
-											Операционная система
-										</Label>
-										<Input
-											id="operating_system"
-											{...register("operating_system")}
-											placeholder="Windows 10 Pro"
-										/>
-									</div>
-								</div>
-
-								<div className="space-y-3">
-									<Label>Дополнительные устройства</Label>
-									<div className="flex flex-col gap-2">
-										<div className="flex items-center space-x-2">
-											<Checkbox
-												id="has_optical_drive"
-												checked={hasOpticalDrive}
-												onCheckedChange={(checked) =>
-													setValue("has_optical_drive", checked as boolean)
-												}
-											/>
-											<Label
-												htmlFor="has_optical_drive"
-												className="font-normal cursor-pointer"
-											>
-												Оптический привод
-											</Label>
-										</div>
-										<div className="flex items-center space-x-2">
-											<Checkbox
-												id="has_card_reader"
-												checked={hasCardReader}
-												onCheckedChange={(checked) =>
-													setValue("has_card_reader", checked as boolean)
-												}
-											/>
-											<Label
-												htmlFor="has_card_reader"
-												className="font-normal cursor-pointer"
-											>
-												Картридер
-											</Label>
-										</div>
-										<div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-											<div className="flex items-center space-x-2">
-												<Checkbox
-													id="has_laptop"
-													checked={hasLaptop}
-													onCheckedChange={(checked) =>
-														setValue("has_laptop", checked as boolean)
-													}
-												/>
-												<Label
-													htmlFor="has_laptop"
-													className="font-normal cursor-pointer"
-												>
-													Ноутбук (в наличии)
-												</Label>
-											</div>
-											<div className="flex items-center space-x-2">
-												<Checkbox
-													id="laptop_functional"
-													checked={laptopFunctional}
-													onCheckedChange={(checked) =>
-														setValue("laptop_functional", checked as boolean)
-													}
-												/>
-												<Label
-													htmlFor="laptop_functional"
-													className="font-normal cursor-pointer"
-												>
-													Ноутбук исправен
-												</Label>
-											</div>
-											<div className="flex items-center space-x-2">
-												<Checkbox
-													id="has_charger"
-													checked={hasCharger}
-													onCheckedChange={(checked) =>
-														setValue("has_charger", checked as boolean)
-													}
-												/>
-												<Label
-													htmlFor="has_charger"
-													className="font-normal cursor-pointer"
-												>
-													Зарядка (в наличии)
-												</Label>
-											</div>
-											<div className="flex items-center space-x-2">
-												<Checkbox
-													id="charger_functional"
-													checked={chargerFunctional}
-													onCheckedChange={(checked) =>
-														setValue("charger_functional", checked as boolean)
-													}
-												/>
-												<Label
-													htmlFor="charger_functional"
-													className="font-normal cursor-pointer"
-												>
-													Зарядка исправна
-												</Label>
-											</div>
-											<div className="flex items-center space-x-2">
-												<Checkbox
-													id="has_mouse"
-													checked={hasMouse}
-													onCheckedChange={(checked) =>
-														setValue("has_mouse", checked as boolean)
-													}
-												/>
-												<Label
-													htmlFor="has_mouse"
-													className="font-normal cursor-pointer"
-												>
-													Мышь (в наличии)
-												</Label>
-											</div>
-											<div className="flex items-center space-x-2">
-												<Checkbox
-													id="mouse_functional"
-													checked={mouseFunctional}
-													onCheckedChange={(checked) =>
-														setValue("mouse_functional", checked as boolean)
-													}
-												/>
-												<Label
-													htmlFor="mouse_functional"
-													className="font-normal cursor-pointer"
-												>
-													Мышь исправна
-												</Label>
-											</div>
-											<div className="flex items-center space-x-2">
-												<Checkbox
-													id="has_bag"
-													checked={hasBag}
-													onCheckedChange={(checked) =>
-														setValue("has_bag", checked as boolean)
-													}
-												/>
-												<Label
-													htmlFor="has_bag"
-													className="font-normal cursor-pointer"
-												>
-													Сумка (в наличии)
-												</Label>
-											</div>
-											<div className="flex items-center space-x-2">
-												<Checkbox
-													id="bag_functional"
-													checked={bagFunctional}
-													onCheckedChange={(checked) =>
-														setValue("bag_functional", checked as boolean)
-													}
-												/>
-												<Label
-													htmlFor="bag_functional"
-													className="font-normal cursor-pointer"
-												>
-													Сумка исправна
-												</Label>
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-
-							<div className="space-y-4">
-								<h3 className="font-semibold text-lg border-b pb-2">
-									Размещение
-								</h3>
-
-								<div className="space-y-2">
-									<Label>Ответственное лицо</Label>
-									<PersonnelSelect
-										value={currentOwnerId}
-										onValueChange={(val) => setValue("current_owner_id", val)}
-										placeholder="Выберите владельца (опционально)"
-									/>
-								</div>
-
-								<div className="space-y-2">
-									<Label htmlFor="current_location">Местоположение</Label>
-									<Input
-										id="current_location"
-										{...register("current_location")}
-										placeholder="Каб. 205, Склад №1"
-									/>
-								</div>
-
-								<div className="space-y-2">
-									<Label>Статус</Label>
+									<Label>Тип техники *</Label>
 									<Select
-										value={currentStatus}
-										onValueChange={(val) => setValue("status", val)}
+										value={currentType}
+										onValueChange={(val) => setValue("equipment_type", val)}
 									>
-										<SelectTrigger>
-											<SelectValue />
+										<SelectTrigger
+											className={
+												errors.equipment_type ? "border-destructive" : ""
+											}
+										>
+											<SelectValue placeholder="Выберите тип" />
 										</SelectTrigger>
 										<SelectContent>
-											{STATUSES.map((status) => (
-												<SelectItem key={status} value={status}>
-													{status}
+											{EQUIPMENT_TYPES.map((type) => (
+												<SelectItem key={type} value={type}>
+													{type}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									{errors.equipment_type && (
+										<p className="text-sm text-destructive">
+											{errors.equipment_type.message}
+										</p>
+									)}
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="inventory_number">
+										Учетный номер
+										{!(
+											currentType === "Ноутбук" &&
+											currentStatus !== "В работе"
+										)
+											? " *"
+											: ""}
+									</Label>
+									<Input
+										id="inventory_number"
+										{...register("inventory_number")}
+										placeholder="570/720/321"
+										className={
+											errors.inventory_number ? "border-destructive" : ""
+										}
+									/>
+									<p className="text-xs text-muted-foreground">
+										Пример формата: 570/720/321
+									</p>
+									{errors.inventory_number && (
+										<p className="text-sm text-destructive">
+											{errors.inventory_number.message}
+										</p>
+									)}
+								</div>
+							</div>
+
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div className="space-y-2">
+									<Label htmlFor="manufacturer">Производитель</Label>
+									<Input
+										id="manufacturer"
+										{...register("manufacturer")}
+										placeholder="Dell, HP, Lenovo..."
+									/>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="model">Модель</Label>
+									<Input
+										id="model"
+										{...register("model")}
+										placeholder="OptiPlex 7090"
+									/>
+								</div>
+							</div>
+
+							<div className="space-y-2">
+								<Label htmlFor="serial_number">Серийный номер</Label>
+								<Input
+									id="serial_number"
+									{...register("serial_number")}
+									placeholder="S/N: ABC123XYZ"
+								/>
+							</div>
+
+							<div className="space-y-2">
+								<Label htmlFor="mni_serial_number">Серийный номер МНИ</Label>
+								<Input
+									id="mni_serial_number"
+									{...register("mni_serial_number")}
+									placeholder="МНИ: MNI789456"
+								/>
+							</div>
+						</div>
+
+						<div className="space-y-4">
+							<h3 className="font-semibold text-lg border-b pb-2">
+								Характеристики
+							</h3>
+
+							<div className="space-y-2">
+								<Label htmlFor="cpu">Процессор</Label>
+								<Input
+									id="cpu"
+									{...register("cpu")}
+									placeholder="Intel Core i5-10400"
+								/>
+							</div>
+
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div className="space-y-2">
+									<Label htmlFor="ram_gb">Объём RAM (ГБ)</Label>
+									<Input
+										id="ram_gb"
+										type="number"
+										{...register("ram_gb", { valueAsNumber: true })}
+										placeholder="16"
+									/>
+								</div>
+
+								<div className="space-y-2">
+									<Label>Тип хранилища</Label>
+									<Select
+										value={currentStorageType}
+										onValueChange={(val) => setValue("storage_type", val)}
+									>
+										<SelectTrigger>
+											<SelectValue placeholder="Выберите тип" />
+										</SelectTrigger>
+										<SelectContent>
+											{STORAGE_TYPES.map((type) => (
+												<SelectItem key={type} value={type}>
+													{type}
 												</SelectItem>
 											))}
 										</SelectContent>
@@ -543,22 +328,251 @@ export default function CreateEquipmentPage() {
 								</div>
 							</div>
 
-							<div className="space-y-4">
-								<h3 className="font-semibold text-lg border-b pb-2">
-									Примечания
-								</h3>
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div className="space-y-2">
+									<Label htmlFor="storage_capacity_gb">
+										Объём хранилища (ГБ)
+									</Label>
+									<Input
+										id="storage_capacity_gb"
+										type="number"
+										{...register("storage_capacity_gb", {
+											valueAsNumber: true,
+										})}
+										placeholder="512"
+									/>
+								</div>
 
 								<div className="space-y-2">
-									<Label htmlFor="notes">Дополнительная информация</Label>
-									<Textarea
-										id="notes"
-										{...register("notes")}
-										placeholder="Дополнительные сведения о технике..."
-										rows={4}
+									<Label htmlFor="operating_system">
+										Операционная система
+									</Label>
+									<Input
+										id="operating_system"
+										{...register("operating_system")}
+										placeholder="Windows 10 Pro"
 									/>
 								</div>
 							</div>
-						</CardContent>
+
+							<div className="space-y-3">
+								<Label>Дополнительные устройства</Label>
+								<div className="flex flex-col gap-2">
+									<div className="flex items-center space-x-2">
+										<Checkbox
+											id="has_optical_drive"
+											checked={hasOpticalDrive}
+											onCheckedChange={(checked) =>
+												setValue("has_optical_drive", checked as boolean)
+											}
+										/>
+										<Label
+											htmlFor="has_optical_drive"
+											className="font-normal cursor-pointer"
+										>
+											Оптический привод
+										</Label>
+									</div>
+									<div className="flex items-center space-x-2">
+										<Checkbox
+											id="has_card_reader"
+											checked={hasCardReader}
+											onCheckedChange={(checked) =>
+												setValue("has_card_reader", checked as boolean)
+											}
+										/>
+										<Label
+											htmlFor="has_card_reader"
+											className="font-normal cursor-pointer"
+										>
+											Картридер
+										</Label>
+									</div>
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+										<div className="flex items-center space-x-2">
+											<Checkbox
+												id="has_laptop"
+												checked={hasLaptop}
+												onCheckedChange={(checked) =>
+													setValue("has_laptop", checked as boolean)
+												}
+											/>
+											<Label
+												htmlFor="has_laptop"
+												className="font-normal cursor-pointer"
+											>
+												Ноутбук (в наличии)
+											</Label>
+										</div>
+										<div className="flex items-center space-x-2">
+											<Checkbox
+												id="laptop_functional"
+												checked={laptopFunctional}
+												onCheckedChange={(checked) =>
+													setValue("laptop_functional", checked as boolean)
+												}
+											/>
+											<Label
+												htmlFor="laptop_functional"
+												className="font-normal cursor-pointer"
+											>
+												Ноутбук исправен
+											</Label>
+										</div>
+										<div className="flex items-center space-x-2">
+											<Checkbox
+												id="has_charger"
+												checked={hasCharger}
+												onCheckedChange={(checked) =>
+													setValue("has_charger", checked as boolean)
+												}
+											/>
+											<Label
+												htmlFor="has_charger"
+												className="font-normal cursor-pointer"
+											>
+												Зарядка (в наличии)
+											</Label>
+										</div>
+										<div className="flex items-center space-x-2">
+											<Checkbox
+												id="charger_functional"
+												checked={chargerFunctional}
+												onCheckedChange={(checked) =>
+													setValue("charger_functional", checked as boolean)
+												}
+											/>
+											<Label
+												htmlFor="charger_functional"
+												className="font-normal cursor-pointer"
+											>
+												Зарядка исправна
+											</Label>
+										</div>
+										<div className="flex items-center space-x-2">
+											<Checkbox
+												id="has_mouse"
+												checked={hasMouse}
+												onCheckedChange={(checked) =>
+													setValue("has_mouse", checked as boolean)
+												}
+											/>
+											<Label
+												htmlFor="has_mouse"
+												className="font-normal cursor-pointer"
+											>
+												Мышь (в наличии)
+											</Label>
+										</div>
+										<div className="flex items-center space-x-2">
+											<Checkbox
+												id="mouse_functional"
+												checked={mouseFunctional}
+												onCheckedChange={(checked) =>
+													setValue("mouse_functional", checked as boolean)
+												}
+											/>
+											<Label
+												htmlFor="mouse_functional"
+												className="font-normal cursor-pointer"
+											>
+												Мышь исправна
+											</Label>
+										</div>
+										<div className="flex items-center space-x-2">
+											<Checkbox
+												id="has_bag"
+												checked={hasBag}
+												onCheckedChange={(checked) =>
+													setValue("has_bag", checked as boolean)
+												}
+											/>
+											<Label
+												htmlFor="has_bag"
+												className="font-normal cursor-pointer"
+											>
+												Сумка (в наличии)
+											</Label>
+										</div>
+										<div className="flex items-center space-x-2">
+											<Checkbox
+												id="bag_functional"
+												checked={bagFunctional}
+												onCheckedChange={(checked) =>
+													setValue("bag_functional", checked as boolean)
+												}
+											/>
+											<Label
+												htmlFor="bag_functional"
+												className="font-normal cursor-pointer"
+											>
+												Сумка исправна
+											</Label>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div className="space-y-4">
+							<h3 className="font-semibold text-lg border-b pb-2">
+								Размещение
+							</h3>
+
+							<div className="space-y-2">
+								<Label>Ответственное лицо</Label>
+								<PersonnelSelect
+									value={currentOwnerId}
+									onValueChange={(val) => setValue("current_owner_id", val)}
+									placeholder="Выберите владельца (опционально)"
+								/>
+							</div>
+
+							<div className="space-y-2">
+								<Label htmlFor="current_location">Местоположение</Label>
+								<Input
+									id="current_location"
+									{...register("current_location")}
+									placeholder="Каб. 205, Склад №1"
+								/>
+							</div>
+
+							<div className="space-y-2">
+								<Label>Статус</Label>
+								<Select
+									value={currentStatus}
+									onValueChange={(val) => setValue("status", val)}
+								>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{STATUSES.map((status) => (
+											<SelectItem key={status} value={status}>
+												{status}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+
+						<div className="space-y-4">
+							<h3 className="font-semibold text-lg border-b pb-2">
+								Примечания
+							</h3>
+
+							<div className="space-y-2">
+								<Label htmlFor="notes">Дополнительная информация</Label>
+								<Textarea
+									id="notes"
+									{...register("notes")}
+									placeholder="Дополнительные сведения о технике..."
+									rows={4}
+								/>
+							</div>
+						</div>
+					</CardContent>
 
 						<CardFooter className="flex justify-between border-t mt-6 pt-6">
 							<Button type="button" variant="outline" asChild>

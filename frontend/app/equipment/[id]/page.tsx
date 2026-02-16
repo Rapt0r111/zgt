@@ -6,7 +6,7 @@ import { ArrowLeft, History, Save } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { type FieldErrors, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -74,7 +74,8 @@ const equipmentSchema = z
 		}
 	});
 
-type EquipmentFormData = z.infer<typeof equipmentSchema>;
+type EquipmentFormInput = z.input<typeof equipmentSchema>;
+type EquipmentFormData = z.output<typeof equipmentSchema>;
 
 export default function EquipmentDetailPage() {
 	const _router = useRouter();
@@ -101,8 +102,17 @@ export default function EquipmentDetailPage() {
 		enabled: !!equipment,
 	});
 
-	const { register, handleSubmit, setValue, watch, reset } = useForm({
+	const {
+		register,
+		handleSubmit,
+		setFocus,
+		setValue,
+		watch,
+		reset,
+		formState: { errors },
+	} = useForm<EquipmentFormInput, unknown, EquipmentFormData>({
 		resolver: zodResolver(equipmentSchema),
+		shouldFocusError: false,
 	});
 
 	useEffect(() => {
@@ -159,6 +169,18 @@ export default function EquipmentDetailPage() {
 		setError("");
 		const cleanedData = cleanEmptyStrings(data);
 		updateMutation.mutate(cleanedData as EquipmentFormData);
+	};
+
+	const onInvalidSubmit = (formErrors: FieldErrors<EquipmentFormInput>) => {
+		toast.error("Проверьте обязательные поля формы");
+
+		const firstErrorField = Object.keys(formErrors)[0] as
+			| keyof EquipmentFormInput
+			| undefined;
+
+		if (firstErrorField && firstErrorField !== "inventory_number") {
+			setFocus(firstErrorField);
+		}
 	};
 
 	const currentType = watch("equipment_type");
@@ -243,7 +265,7 @@ export default function EquipmentDetailPage() {
 					</TabsList>
 
 					<TabsContent value="details" className="space-y-6">
-						<form onSubmit={handleSubmit(onSubmit)}>
+						<form onSubmit={handleSubmit(onSubmit, onInvalidSubmit)}>
 							{error && (
 								<Alert variant="destructive">
 									<AlertDescription>{error}</AlertDescription>
@@ -260,23 +282,32 @@ export default function EquipmentDetailPage() {
 										<div className="space-y-2">
 											<Label>Тип техники *</Label>
 											{isEditing ? (
-												<Select
-													value={currentType}
-													onValueChange={(val) =>
-														setValue("equipment_type", val)
-													}
-												>
-													<SelectTrigger>
-														<SelectValue />
-													</SelectTrigger>
-													<SelectContent>
-														{EQUIPMENT_TYPES.map((type) => (
-															<SelectItem key={type} value={type}>
-																{type}
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
+												<>
+													<Select
+														value={currentType}
+														onValueChange={(val) =>
+															setValue("equipment_type", val)
+														}
+													>
+														<SelectTrigger
+															className={errors.equipment_type ? "border-destructive" : ""}
+														>
+															<SelectValue />
+														</SelectTrigger>
+														<SelectContent>
+															{EQUIPMENT_TYPES.map((type) => (
+																<SelectItem key={type} value={type}>
+																	{type}
+																</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+													{errors.equipment_type && (
+														<p className="text-sm text-destructive">
+															{errors.equipment_type.message}
+														</p>
+													)}
+												</>
 											) : (
 												<div className="text-sm">
 													{equipment.equipment_type}
@@ -298,6 +329,7 @@ export default function EquipmentDetailPage() {
 												id="inventory_number"
 												{...register("inventory_number")}
 												disabled={!isEditing}
+												className={errors.inventory_number ? "border-destructive" : ""}
 											/>
 										</div>
 									</div>
@@ -310,6 +342,11 @@ export default function EquipmentDetailPage() {
 												{...register("manufacturer")}
 												disabled={!isEditing}
 											/>
+											{isEditing && errors.inventory_number && (
+												<p className="text-sm text-destructive">
+													{errors.inventory_number.message}
+												</p>
+											)}
 										</div>
 
 										<div className="space-y-2">
