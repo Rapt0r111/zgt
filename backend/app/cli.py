@@ -1,12 +1,11 @@
 import argparse
-import os
 import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
-from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from app.core.config import settings

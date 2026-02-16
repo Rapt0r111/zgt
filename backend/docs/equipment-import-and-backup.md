@@ -63,22 +63,10 @@ python -m app.cli backup-db
 python -m app.cli backup-db --output ./backups/manual_backup.sql
 ```
 
-
-Если в `DATABASE_URL` используется драйвер SQLAlchemy вида `postgresql+psycopg2://...`, команда `backup-db` теперь корректно вызывает `pg_dump` через параметры `-h/-p/-U/-d` (без `+psycopg2` в строке подключения).
-
-При ошибках вида `password authentication failed` или `Permission denied` проверьте:
-
-- запущен ли PostgreSQL и слушает ли нужный хост/порт;
-- корректны ли логин/пароль в `DATABASE_URL`;
-- доступен ли `pg_dump` в `PATH`.
-
 ### Вариант B — вручную (PostgreSQL)
 
-Для SQLAlchemy URL вида `postgresql+psycopg2://...` не передавайте `DATABASE_URL` напрямую в `pg_dump`.
-Используйте параметры подключения:
-
 ```bash
-PGPASSWORD="<пароль>" pg_dump -h <host> -p <port> -U <user> -d <db_name> -f ./backups/zgt_backup.sql
+pg_dump "$DATABASE_URL" -f ./backups/zgt_backup.sql
 ```
 
 ### Вариант C — вручную (SQLite)
