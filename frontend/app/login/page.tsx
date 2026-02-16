@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import apiClient from "@/lib/api/client";
+import apiClient, { API_BASE_URL } from "@/lib/api/client";
 import { validateRedirectUrl } from "@/lib/utils/security";
 
 interface LoginError {
@@ -42,12 +42,22 @@ export default function LoginPage() {
 		e.preventDefault();
 		setError("");
 		setIsLoading(true);
+		const controller = new AbortController();
+		const timeoutId = window.setTimeout(() => {
+			controller.abort();
+		}, 10000);
 
 		try {
-			const response = await apiClient.post("/api/auth/login", {
-				username,
-				password,
-			});
+			const response = await apiClient.post(
+				"/api/auth/login",
+				{
+					username,
+					password,
+				},
+				{
+					signal: controller.signal,
+				},
+			);
 
 			if (response.data?.access_token) {
 				const safeRedirect = validateRedirectUrl(redirectTo);
@@ -58,12 +68,18 @@ export default function LoginPage() {
 		} catch (err: unknown) {
 			const errorData = err as LoginError;
 			if (
+				errorData.code === "ERR_CANCELED" ||
+				errorData.message?.includes("canceled")
+			) {
+				setError(
+					"Превышено время ожидания ответа сервера. Проверьте, что backend запущен на http://localhost:8000",
+				);
+			} else if (
 				errorData.code === "ECONNABORTED" ||
 				errorData.message?.includes("timeout")
 			) {
 				setError(
-					"Сервер не отвечает. Убедитесь, что backend запущен на http://localhost:8000",
-				);
+					`Сервер не отвечает. Проверьте доступность backend по адресу ${API_BASE_URL}`,);
 			} else if (
 				errorData.code === "ERR_NETWORK" ||
 				errorData.message?.includes("Network Error")
@@ -83,6 +99,7 @@ export default function LoginPage() {
 				setError("Ошибка входа в систему");
 			}
 		} finally {
+			window.clearTimeout(timeoutId);
 			setIsLoading(false);
 		}
 	};

@@ -2,14 +2,16 @@ import axios from "axios";
 import { toast } from "sonner";
 
 const CSRF_STORAGE_KEY = "zgt_csrf_token";
+export const API_BASE_URL =
+	process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const apiClient = axios.create({
-	baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
-	headers: {
+	baseURL: API_BASE_URL,
+		headers: {
 		"Content-Type": "application/json",
 	},
 	withCredentials: true,
-	timeout: 30000,
+	timeout: 10000,
 });
 
 const getStoredCsrfToken = (): string | null => {
@@ -38,6 +40,9 @@ apiClient.interceptors.response.use(
 		return response;
 	},
 	(error) => {
+		const requestUrl = error.config?.url as string | undefined;
+		const isAuthRequest =
+			typeof requestUrl === "string" && requestUrl.includes("/api/auth/");
 		if (error.response?.status === 422) {
 			console.error(
 				"Validation Error:",
@@ -45,7 +50,7 @@ apiClient.interceptors.response.use(
 			);
 		}
 
-		if (error.response?.status === 401) {
+		if (error.response?.status === 401 && !isAuthRequest) {
 			toast.error("Сессия истекла");
 			window.location.href = "/login";
 		}
