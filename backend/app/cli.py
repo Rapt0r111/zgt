@@ -69,30 +69,63 @@ def import_laptops(tsv_path: Path) -> None:
 
 def backup_database(output_path: Optional[Path]) -> None:
     db_url = settings.DATABASE_URL
-    parsed = urlparse(db_url)
+    parsed = make_url(db_url)
+    backend_name = parsed.get_backend_name()
 
     backups_dir = Path(__file__).resolve().parents[2] / "backups"
     backups_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    if parsed.scheme.startswith("postgresql"):
+    if backend_name == "postgresql":
         destination = output_path or backups_dir / f"zgt_{timestamp}.sql"
         destination.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(["pg_dump", db_url, "-f", str(destination)], check=True)
+        command = [
+            "pg_dump",
+            "-h",
+            parsed.host or "localhost",
+            "-p",
+            str(parsed.port or 5432),
+            "-U",
+            parsed.username or "postgres",
+            "-d",
+            parsed.database or "postgres",
+            "-f",
+            str(destination),
+        ]
+
+        env = None
+        if parsed.password:
+            env = dict(os.environ, PGPASSWORD=parsed.password)
+
+        try:
+            subprocess.run(command, check=True, env=env)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                "Команда pg_dump не найдена. Установите PostgreSQL client tools "
+                "и убедитесь, что pg_dump доступен в PATH."
+            ) from exc
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError(
+                "Не удалось создать backup через pg_dump. "
+                "Проверьте, что PostgreSQL запущен, логин/пароль в DATABASE_URL верные, "
+                "и что pg_dump доступен в PATH."
+            ) from exc
         print(f"✅ Backup PostgreSQL создан: {destination}")
         return
 
-    if parsed.scheme.startswith("sqlite"):
-        raw_path = db_url.replace("sqlite:///", "", 1)
-        source = Path(raw_path)
+    if backend_name == "sqlite":
+        if not parsed.database:
+            raise ValueError("Для SQLite не найден путь к файлу базы в DATABASE_URL")
+
+        source = Path(parsed.database)
         destination = output_path or backups_dir / f"zgt_{timestamp}.sqlite3"
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
         print(f"✅ Backup SQLite создан: {destination}")
         return
 
-    raise ValueError(f"Неподдерживаемый тип БД для backup: {parsed.scheme}")
+    raise ValueError(f"Неподдерживаемый тип БД для backup: {backend_name}")
 
 
 def build_parser() -> argparse.ArgumentParser:
