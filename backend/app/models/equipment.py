@@ -67,6 +67,8 @@ class EquipmentMovement(Base):
     to_location = Column(String(255))
     from_person_id = Column(Integer, ForeignKey('personnel.id'), nullable=True, index=True)
     to_person_id = Column(Integer, ForeignKey('personnel.id'), nullable=True, index=True)
+    from_person = relationship("Personnel", foreign_keys=[from_person_id])
+    to_person = relationship("Personnel", foreign_keys=[to_person_id])
     
     movement_type = Column(String(50))
     document_number = Column(String(100))
@@ -75,6 +77,7 @@ class EquipmentMovement(Base):
     
     created_at = Column(DateTime(timezone=True), server_default=text("timezone('UTC', now())"), nullable=False)
     created_by_id = Column(Integer, ForeignKey('users.id'))
+    created_by = relationship("User", foreign_keys=[created_by_id])
 
 
 class StorageDevice(Base):

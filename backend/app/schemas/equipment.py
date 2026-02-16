@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional
 from datetime import datetime
 
@@ -6,7 +6,7 @@ from datetime import datetime
 
 class EquipmentBase(BaseModel):
     equipment_type: str = Field(..., max_length=50)
-    inventory_number: str = Field(..., max_length=100)
+    inventory_number: Optional[str] = Field(None, max_length=100)
     serial_number: Optional[str] = Field(None, max_length=100)
     mni_serial_number: Optional[str] = Field(None, max_length=100)
     manufacturer: Optional[str] = Field(None, max_length=100)
@@ -30,6 +30,18 @@ class EquipmentBase(BaseModel):
     current_location: Optional[str] = Field(None, max_length=255)
     status: str = Field(default="В работе", max_length=50)
     notes: Optional[str] = None
+
+
+    @model_validator(mode="after")
+    def validate_inventory_number(self):
+        is_laptop_not_in_use = (
+            self.equipment_type == "Ноутбук" and self.status != "В работе"
+        )
+
+        if not is_laptop_not_in_use and not (self.inventory_number or "").strip():
+            raise ValueError("Учетный номер обязателен")
+
+        return self
 
 class EquipmentCreate(EquipmentBase):
     pass

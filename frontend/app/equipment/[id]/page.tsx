@@ -33,33 +33,46 @@ const EQUIPMENT_TYPES = ["АРМ", "Ноутбук", "Сервер", "Принт
 const STATUSES = ["В работе", "На складе", "В ремонте", "Списан"];
 const STORAGE_TYPES = ["HDD", "SSD", "NVMe", "Другое"];
 
-const equipmentSchema = z.object({
-	equipment_type: z.string().min(1),
-	inventory_number: z.string().min(1),
-	serial_number: z.string().default(""),
-	mni_serial_number: z.string().default(""),
-	manufacturer: z.string().default(""),
-	model: z.string().default(""),
-	cpu: z.string().default(""),
-	ram_gb: z.number().optional(),
-	storage_type: z.string().default(""),
-	storage_capacity_gb: z.number().optional(),
-	has_optical_drive: z.boolean().default(false),
-	has_card_reader: z.boolean().default(false),
-	has_laptop: z.boolean().default(false),
-	laptop_functional: z.boolean().default(true),
-	has_charger: z.boolean().default(false),
-	charger_functional: z.boolean().default(true),
-	has_mouse: z.boolean().default(false),
-	mouse_functional: z.boolean().default(true),
-	has_bag: z.boolean().default(false),
-	bag_functional: z.boolean().default(true),
-	operating_system: z.string().default(""),
-	current_owner_id: z.number().optional(),
-	current_location: z.string().default(""),
-	status: z.string().default("В работе"),
-	notes: z.string().default(""),
-});
+const equipmentSchema = z
+	.object({
+		equipment_type: z.string().min(1),
+		inventory_number: z.string().default(""),
+		serial_number: z.string().default(""),
+		mni_serial_number: z.string().default(""),
+		manufacturer: z.string().default(""),
+		model: z.string().default(""),
+		cpu: z.string().default(""),
+		ram_gb: z.number().optional(),
+		storage_type: z.string().default(""),
+		storage_capacity_gb: z.number().optional(),
+		has_optical_drive: z.boolean().default(false),
+		has_card_reader: z.boolean().default(false),
+		has_laptop: z.boolean().default(false),
+		laptop_functional: z.boolean().default(true),
+		has_charger: z.boolean().default(false),
+		charger_functional: z.boolean().default(true),
+		has_mouse: z.boolean().default(false),
+		mouse_functional: z.boolean().default(true),
+		has_bag: z.boolean().default(false),
+		bag_functional: z.boolean().default(true),
+		operating_system: z.string().default(""),
+		current_owner_id: z.number().optional(),
+		current_location: z.string().default(""),
+		status: z.string().default("В работе"),
+		notes: z.string().default(""),
+	})
+	.superRefine((data, ctx) => {
+		const isLaptopNotInUse =
+			data.equipment_type === "Ноутбук" && data.status !== "В работе";
+
+		if (!isLaptopNotInUse && !data.inventory_number.trim()) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["inventory_number"],
+				message: "Учетный номер обязателен",
+			});
+		}
+	});
 
 type EquipmentFormData = z.infer<typeof equipmentSchema>;
 
@@ -272,7 +285,16 @@ export default function EquipmentDetailPage() {
 										</div>
 
 										<div className="space-y-2">
-											<Label htmlFor="inventory_number">Учетный номер *</Label>											<Input
+											<Label htmlFor="inventory_number">
+												Учетный номер
+												{!(
+													currentType === "Ноутбук" &&
+													currentStatus !== "В работе"
+												)
+													? " *"
+													: ""}
+											</Label>
+											<Input
 												id="inventory_number"
 												{...register("inventory_number")}
 												disabled={!isEditing}
@@ -577,11 +599,11 @@ export default function EquipmentDetailPage() {
 										<Label>Ответственное лицо</Label>
 										{isEditing ? (
 											<Select
-												value={currentOwnerId?.toString() || ""}
+												value={currentOwnerId?.toString() || "__none__"}
 												onValueChange={(val) =>
 													setValue(
 														"current_owner_id",
-														val ? parseInt(val, 10) : undefined,
+														val === "__none__" ? undefined : parseInt(val, 10),
 													)
 												}
 											>
@@ -589,6 +611,7 @@ export default function EquipmentDetailPage() {
 													<SelectValue placeholder="Выберите владельца (опционально)" />
 												</SelectTrigger>
 												<SelectContent>
+													<SelectItem value="__none__">—</SelectItem>
 													{personnelData?.items.map((person) => (
 														<SelectItem
 															key={person.id}

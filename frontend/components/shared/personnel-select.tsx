@@ -14,6 +14,7 @@ interface PersonnelSelectProps {
 	value?: number;
 	onValueChange: (value: number | undefined) => void;
 	placeholder?: string;
+	emptyOptionLabel?: string;
 	disabled?: boolean;
 	error?: boolean;
 }
@@ -22,6 +23,7 @@ export function PersonnelSelect({
 	value,
 	onValueChange,
 	placeholder = "Выберите сотрудника",
+	emptyOptionLabel = "—",
 	disabled = false,
 	error = false,
 }: PersonnelSelectProps) {
@@ -32,16 +34,16 @@ export function PersonnelSelect({
 
 	return (
 		<Select
-			value={value?.toString() || ""}
+			value={value?.toString() || "__none__"}
 			onValueChange={(val) =>
-				onValueChange(val ? parseInt(val, 10) : undefined)
-			}
+				onValueChange(val === "__none__" ? undefined : parseInt(val, 10))}
 			disabled={disabled}
 		>
 			<SelectTrigger className={error ? "border-destructive" : ""}>
 				<SelectValue placeholder={placeholder} />
 			</SelectTrigger>
 			<SelectContent>
+				<SelectItem value="__none__">{emptyOptionLabel}</SelectItem>
 				{personnelData?.items.map((person) => (
 					<SelectItem key={person.id} value={person.id.toString()}>
 						{person.rank && `${person.rank} `}
