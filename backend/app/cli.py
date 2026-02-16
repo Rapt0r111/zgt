@@ -1,3 +1,4 @@
+import os
 import argparse
 import shutil
 import subprocess
@@ -13,7 +14,9 @@ from app.core.database import SessionLocal
 from app.core.security import generate_secure_password, get_password_hash
 from app.importers.laptops_import import DEFAULT_IMPORT_FILE, import_laptops_to_equipment
 from app.models.user import User
-
+from app.models.equipment import Equipment 
+from app.models.personnel import Personnel
+from app.models.phone import Phone 
 
 def create_admin() -> None:
     db: Session = SessionLocal()
@@ -76,10 +79,31 @@ def backup_database(output_path: Optional[Path]) -> None:
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
+    # Проверяем схему (postgresql, postgresql+psycopg2 и т.д.)
     if parsed.scheme.startswith("postgresql"):
         destination = output_path or backups_dir / f"zgt_{timestamp}.sql"
         destination.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(["pg_dump", db_url, "-f", str(destination)], check=True)
+        
+        # Подготовка окружения с паролем
+        env = os.environ.copy()
+        if parsed.password:
+            env["PGPASSWORD"] = parsed.password
+            
+        # Формируем команду с явными флагами
+        # .path обычно возвращает "/db_name", поэтому используем lstrip("/")
+        db_name = parsed.path.lstrip("/")
+        
+        cmd = [
+            "pg_dump",
+            "-h", parsed.hostname or "localhost",
+            "-p", str(parsed.port or 5432),
+            "-U", parsed.username or "postgres",
+            "-d", db_name,
+            "-f", str(destination)
+        ]
+
+        # Запускаем с передачей env (где лежит пароль)
+        subprocess.run(cmd, check=True, env=env)
         print(f"✅ Backup PostgreSQL создан: {destination}")
         return
 
