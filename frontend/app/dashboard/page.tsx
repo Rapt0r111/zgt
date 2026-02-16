@@ -3,191 +3,229 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { 
+  Users, Phone, Laptop, Shield, FileText, 
+  AlertCircle, TrendingUp 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { GlassCard } from "@/components/glass/GlassCard";
+import { StatCard } from "@/components/glass/StatCard";
 import apiClient from "@/lib/api/client";
 
 interface User {
-	id: number;
-	username: string;
-	full_name: string;
-	role: string;
+  id: number;
+  username: string;
+  full_name: string;
+  role: string;
 }
 
-// Тип для ошибок API
-interface ApiError {
-	response?: {
-		data?: {
-			detail?: string;
-		};
-		status?: number;
-	};
-	message?: string;
-}
+const container = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const item = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 }
+};
 
 export default function DashboardPage() {
-	const router = useRouter();
-	const [user, setUser] = useState<User | null>(null);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-	useEffect(() => {
-		const fetchUser = async () => {
-			try {
-				const response = await apiClient.get("/api/auth/me");
-				setUser(response.data);
-				setError(null);
-			} catch (err: unknown) {
-				const error = err as ApiError;
-				setError(
-					error.response?.data?.detail ||
-						error.message ||
-						"Ошибка загрузки данных",
-				);
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await apiClient.get("/api/auth/me");
+        setUser(response.data);
+      } catch (error) {
+        router.push("/login");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchUser();
+  }, [router]);
 
-				if (error.response?.status === 401) {
-					router.push("/login");
-				}
-			} finally {
-				setIsLoading(false);
-			}
-		};
+  const handleLogout = async () => {
+    try {
+      await apiClient.post("/api/auth/logout");
+    } finally {
+      router.push("/login");
+    }
+  };
 
-		fetchUser();
-	}, [router]);
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full"
+        />
+      </div>
+    );
+  }
 
-	const handleLogout = async () => {
-		try {
-			await apiClient.post("/api/auth/logout");
-		} catch (error) {
-			console.error("Logout error:", error);
-		} finally {
-			router.push("/login");
-		}
-	};
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex justify-between items-center mb-8"
+        >
+          <div>
+            <h1 className="text-4xl font-bold text-white mb-2">
+              Command Center
+            </h1>
+            <p className="text-slate-400">
+              Добро пожаловать, <span className="text-blue-400">{user?.full_name}</span>
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={handleLogout}
+            className="glass border-white/20 text-white hover:bg-white/10"
+          >
+            Выход
+          </Button>
+        </motion.div>
 
-	if (isLoading) {
-		return (
-			<div className="min-h-screen flex items-center justify-center bg-slate-50">
-				<div className="text-center">
-					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4" />
-					<p className="text-lg">Загрузка...</p>
-				</div>
-			</div>
-		);
-	}
+        {/* Module Grid */}
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          <motion.div variants={item}>
+            <Link href="/personnel">
+              <GlassCard className="p-6 cursor-pointer group">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+                    <Users className="h-8 w-8 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-white mb-1">
+                      Личный состав
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      Учёт и допуски
+                    </p>
+                  </div>
+                </div>
+              </GlassCard>
+            </Link>
+          </motion.div>
 
-	if (error) {
-		return (
-			<div className="min-h-screen flex items-center justify-center bg-slate-50">
-				<Card className="w-[400px]">
-					<CardHeader>
-						<CardTitle className="text-red-600">Ошибка</CardTitle>
-						<CardDescription>{error}</CardDescription>
-					</CardHeader>
-					<div className="p-6 space-y-4">
-						<div className="flex gap-2">
-							<Button
-								onClick={() => window.location.reload()}
-								variant="outline"
-								className="flex-1"
-							>
-								Обновить
-							</Button>
-							<Button onClick={() => router.push("/login")} className="flex-1">
-								На страницу входа
-							</Button>
-						</div>
-					</div>
-				</Card>
-			</div>
-		);
-	}
+          <motion.div variants={item}>
+            <Link href="/phones">
+              <GlassCard className="p-6 cursor-pointer group">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-green-500/10 group-hover:bg-green-500/20 transition-colors">
+                    <Phone className="h-8 w-8 text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-white mb-1">
+                      Средства связи
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      Хранение телефонов
+                    </p>
+                  </div>
+                </div>
+              </GlassCard>
+            </Link>
+          </motion.div>
 
-	return (
-		<div className="min-h-screen bg-slate-50 p-8">
-			<div className="max-w-7xl mx-auto">
-				<div className="flex justify-between items-center mb-8">
-					<div>
-						<h1 className="text-3xl font-bold">Система учёта ЗГТ</h1>
-						<p className="text-slate-600 mt-1">
-							Добро пожаловать, {user?.full_name}
-						</p>
-					</div>
-					<Button variant="outline" onClick={handleLogout}>
-						Выход
-					</Button>
-				</div>
+          <motion.div variants={item}>
+            <Link href="/equipment">
+              <GlassCard className="p-6 cursor-pointer group">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
+                    <Laptop className="h-8 w-8 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-white mb-1">
+                      Вычислительная техника
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      АРМ и ноутбуки
+                    </p>
+                  </div>
+                </div>
+              </GlassCard>
+            </Link>
+          </motion.div>
 
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-					<Link href="/personnel">
-						<Card className="hover:shadow-lg transition-shadow cursor-pointer">
-							<CardHeader>
-								<CardTitle>Личный состав</CardTitle>
-								<CardDescription>
-									Учёт военнослужащих и их допусков
-								</CardDescription>
-							</CardHeader>
-						</Card>
-					</Link>
+          <motion.div variants={item}>
+            <Link href="/storage-and-passes">
+              <GlassCard className="p-6 cursor-pointer group">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-yellow-500/10 group-hover:bg-yellow-500/20 transition-colors">
+                    <Shield className="h-8 w-8 text-yellow-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-white mb-1">
+                      Носители и пропуска
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      Флешки и допуски
+                    </p>
+                  </div>
+                </div>
+              </GlassCard>
+            </Link>
+          </motion.div>
 
-					<Link href="/phones">
-						<Card className="hover:shadow-lg transition-shadow cursor-pointer">
-							<CardHeader>
-								<CardTitle>Средства связи</CardTitle>
-								<CardDescription>Учёт личных телефонов</CardDescription>
-							</CardHeader>
-						</Card>
-					</Link>
+          {user?.role === "admin" && (
+            <motion.div variants={item}>
+              <Link href="/users">
+                <GlassCard className="p-6 cursor-pointer group">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-red-500/10 group-hover:bg-red-500/20 transition-colors">
+                      <Shield className="h-8 w-8 text-red-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold text-white mb-1">
+                        Пользователи
+                      </h3>
+                      <p className="text-sm text-slate-400">
+                        Управление доступом
+                      </p>
+                    </div>
+                  </div>
+                </GlassCard>
+              </Link>
+            </motion.div>
+          )}
 
-					<Link href="/equipment">
-						<Card className="hover:shadow-lg transition-shadow cursor-pointer">
-							<CardHeader>
-								<CardTitle>Вычислительная техника</CardTitle>
-								<CardDescription>
-									Учёт АРМ, ноутбуков и носителей информации
-								</CardDescription>
-							</CardHeader>
-						</Card>
-					</Link>
-
-					{user?.role === "admin" && (
-						<Link href="/users">
-							<Card className="hover:shadow-lg transition-shadow cursor-pointer">
-								<CardHeader>
-									<CardTitle>Пользователи</CardTitle>
-									<CardDescription>
-										Управление пользователями системы
-									</CardDescription>
-								</CardHeader>
-							</Card>
-						</Link>
-					)}
-
-					<Link href="/storage-and-passes">
-						<Card className="hover:shadow-lg transition-shadow cursor-pointer">
-							<CardHeader>
-								<CardTitle>Носители и пропуска</CardTitle>
-								<CardDescription>
-									Учёт флешек и электронных пропусков
-								</CardDescription>
-							</CardHeader>
-						</Card>
-					</Link>
-
-					<Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-50">
-						<CardHeader>
-							<CardTitle>Генератор документов</CardTitle>
-							<CardDescription>Создание актов и описей</CardDescription>
-						</CardHeader>
-					</Card>
-				</div>
-			</div>
-		</div>
-	);
+          <motion.div variants={item}>
+            <GlassCard className="p-6 cursor-pointer group opacity-60">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-lg bg-slate-500/10">
+                  <FileText className="h-8 w-8 text-slate-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-white mb-1">
+                    Генератор документов
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    Скоро...
+                  </p>
+                </div>
+              </div>
+            </GlassCard>
+          </motion.div>
+        </motion.div>
+      </div>
+    </div>
+  );
 }
