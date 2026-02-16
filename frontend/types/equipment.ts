@@ -21,7 +21,7 @@ export interface Equipment {
 	has_bag?: boolean;
 	bag_functional?: boolean;
 	operating_system?: string;
-	current_owner_id?: number;
+	current_owner_id?: number | null;
 	current_location?: string;
 	status: string;
 	notes?: string;
@@ -54,7 +54,7 @@ export interface EquipmentCreate {
 	has_bag?: boolean;
 	bag_functional?: boolean;
 	operating_system?: string;
-	current_owner_id?: number;
+	current_owner_id?: number | null;
 	current_location?: string;
 	status?: string;
 	notes?: string;

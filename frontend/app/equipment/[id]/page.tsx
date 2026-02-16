@@ -56,7 +56,7 @@ const equipmentSchema = z
 		has_bag: z.boolean().default(false),
 		bag_functional: z.boolean().default(true),
 		operating_system: z.string().default(""),
-		current_owner_id: z.number().optional(),
+		current_owner_id: z.number().nullable().optional(),
 		current_location: z.string().default(""),
 		status: z.string().default("В работе"),
 		notes: z.string().default(""),
@@ -599,11 +599,11 @@ export default function EquipmentDetailPage() {
 										<Label>Ответственное лицо</Label>
 										{isEditing ? (
 											<Select
-												value={currentOwnerId?.toString() || "__none__"}
+												value={currentOwnerId != null ? currentOwnerId.toString() : "__no_person__"}
 												onValueChange={(val) =>
 													setValue(
 														"current_owner_id",
-														val === "__none__" ? undefined : parseInt(val, 10),
+														val === "__no_person__" ? null : parseInt(val, 10),
 													)
 												}
 											>
@@ -611,7 +611,7 @@ export default function EquipmentDetailPage() {
 													<SelectValue placeholder="Выберите владельца (опционально)" />
 												</SelectTrigger>
 												<SelectContent>
-													<SelectItem value="__none__">—</SelectItem>
+													<SelectItem value="__no_person__">—</SelectItem>
 													{personnelData?.items.map((person) => (
 														<SelectItem
 															key={person.id}

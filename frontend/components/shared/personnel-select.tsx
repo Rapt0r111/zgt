@@ -19,6 +19,8 @@ interface PersonnelSelectProps {
 	error?: boolean;
 }
 
+const NO_PERSON_VALUE = "__no_person__";
+
 export function PersonnelSelect({
 	value,
 	onValueChange,
@@ -34,16 +36,17 @@ export function PersonnelSelect({
 
 	return (
 		<Select
-			value={value?.toString() || "__none__"}
+			value={value != null ? value.toString() : NO_PERSON_VALUE}
 			onValueChange={(val) =>
-				onValueChange(val === "__none__" ? undefined : parseInt(val, 10))}
+				onValueChange(val === NO_PERSON_VALUE ? undefined : parseInt(val, 10))
+			}
 			disabled={disabled}
 		>
 			<SelectTrigger className={error ? "border-destructive" : ""}>
 				<SelectValue placeholder={placeholder} />
 			</SelectTrigger>
 			<SelectContent>
-				<SelectItem value="__none__">{emptyOptionLabel}</SelectItem>
+				<SelectItem value={NO_PERSON_VALUE}>—</SelectItem>
 				{personnelData?.items.map((person) => (
 					<SelectItem key={person.id} value={person.id.toString()}>
 						{person.rank && `${person.rank} `}
