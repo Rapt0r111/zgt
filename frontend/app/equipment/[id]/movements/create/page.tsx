@@ -39,7 +39,6 @@ const MOVEMENT_TYPES = [
 	"Ремонт",
 	"Перемещение",
 ];
-const SEAL_STATUSES = ["Исправна", "Повреждена", "Отсутствует"];
 
 const movementSchema = z.object({
 	from_location: z.string().default(""),
@@ -50,9 +49,6 @@ const movementSchema = z.object({
 	document_number: z.string().default(""),
 	document_date: z.string().default(""),
 	reason: z.string().default(""),
-	seal_number_before: z.string().default(""),
-	seal_number_after: z.string().default(""),
-	seal_status: z.string().default(""),
 });
 
 type MovementFormData = z.infer<typeof movementSchema>;
@@ -90,9 +86,6 @@ export default function CreateMovementPage() {
 			document_number: "",
 			document_date: "",
 			reason: "",
-			seal_number_before: "",
-			seal_number_after: "",
-			seal_status: "",
 		},
 	});
 
@@ -124,7 +117,6 @@ export default function CreateMovementPage() {
 	const currentMovementType = watch("movement_type");
 	const currentFromPersonId = watch("from_person_id");
 	const currentToPersonId = watch("to_person_id");
-	const currentSealStatus = watch("seal_status");
 
 	if (!equipment) {
 		return (
@@ -314,49 +306,7 @@ export default function CreateMovementPage() {
 								</div>
 							</div>
 
-							{/* Пломба */}
-							<div className="space-y-4">
-								<h3 className="font-semibold text-lg border-b pb-2">Пломба</h3>
-
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									<div className="space-y-2">
-										<Label htmlFor="seal_number_before">Номер до</Label>
-										<Input
-											id="seal_number_before"
-											{...register("seal_number_before")}
-											placeholder={equipment.seal_number || "Старый номер"}
-										/>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="seal_number_after">Номер после</Label>
-										<Input
-											id="seal_number_after"
-											{...register("seal_number_after")}
-											placeholder="Новый номер пломбы"
-										/>
-									</div>
-								</div>
-
-								<div className="space-y-2">
-									<Label>Состояние пломбы</Label>
-									<Select
-										value={currentSealStatus}
-										onValueChange={(val) => setValue("seal_status", val)}
-									>
-										<SelectTrigger>
-											<SelectValue placeholder="Выберите состояние" />
-										</SelectTrigger>
-										<SelectContent>
-											{SEAL_STATUSES.map((status) => (
-												<SelectItem key={status} value={status}>
-													{status}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-							</div>
+							
 
 							{/* Причина */}
 							<div className="space-y-2">

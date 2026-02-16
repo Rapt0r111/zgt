@@ -39,7 +39,7 @@ const STORAGE_TYPES = ["HDD", "SSD", "NVMe", "Другое"];
 
 const equipmentSchema = z.object({
 	equipment_type: z.string().min(1, "Выберите тип техники"),
-	inventory_number: z.string().min(1, "Инвентарный номер обязателен"),
+	inventory_number: z.string().min(1, "Учетный номер обязателен"),
 	serial_number: z.string().default(""),
 	mni_serial_number: z.string().default(""),
 	manufacturer: z.string().default(""),
@@ -61,8 +61,6 @@ const equipmentSchema = z.object({
 	operating_system: z.string().default(""),
 	current_owner_id: z.number().optional(),
 	current_location: z.string().default(""),
-	seal_number: z.string().default(""),
-	seal_status: z.string().default("Исправна"),
 	status: z.string().default("В работе"),
 	notes: z.string().default(""),
 });
@@ -84,7 +82,6 @@ export default function CreateEquipmentPage() {
 		defaultValues: {
 			equipment_type: "",
 			status: "В работе",
-			seal_status: "Исправна",
 			has_optical_drive: false,
 			has_card_reader: false,
 			has_laptop: false,
@@ -132,7 +129,7 @@ export default function CreateEquipmentPage() {
 	const mouseFunctional = watch("mouse_functional");
 	const hasBag = watch("has_bag");
 	const bagFunctional = watch("bag_functional");
-	
+
 
 	return (
 		<div className="min-h-screen bg-slate-50 p-8">
@@ -192,17 +189,18 @@ export default function CreateEquipmentPage() {
 									</div>
 
 									<div className="space-y-2">
-										<Label htmlFor="inventory_number">
-											Инвентарный номер *
-										</Label>
+										<Label htmlFor="inventory_number">Учетный номер *</Label>
 										<Input
 											id="inventory_number"
 											{...register("inventory_number")}
-											placeholder="ИНВ-001"
+											placeholder="570/720/321"
 											className={
 												errors.inventory_number ? "border-destructive" : ""
 											}
 										/>
+										<p className="text-xs text-muted-foreground">
+											Пример формата: 570/720/321
+										</p>
 										{errors.inventory_number && (
 											<p className="text-sm text-destructive">
 												{errors.inventory_number.message}
@@ -521,19 +519,6 @@ export default function CreateEquipmentPage() {
 											))}
 										</SelectContent>
 									</Select>
-								</div>
-							</div>
-
-							<div className="space-y-4">
-								<h3 className="font-semibold text-lg border-b pb-2">Пломба</h3>
-
-								<div className="space-y-2">
-									<Label htmlFor="seal_number">Номер пломбы</Label>
-									<Input
-										id="seal_number"
-										{...register("seal_number")}
-										placeholder="П-123456"
-									/>
 								</div>
 							</div>
 

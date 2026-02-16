@@ -38,12 +38,6 @@ class Equipment(Base):
     current_owner = relationship("Personnel", foreign_keys=[current_owner_id], back_populates="equipment")
     current_location = Column(String(255))
     
-    # Seals
-    seal_number = Column(String(100))
-    seal_install_date = Column(DateTime(timezone=True))
-    seal_status = Column(String(50), default="Исправна")
-    seal_check_date = Column(DateTime(timezone=True))
-    
     # Status
     status = Column(String(50), default="В работе")
     notes = Column(Text)
@@ -78,10 +72,6 @@ class EquipmentMovement(Base):
     document_number = Column(String(100))
     document_date = Column(DateTime(timezone=True))
     reason = Column(Text)
-    
-    seal_number_before = Column(String(100))
-    seal_number_after = Column(String(100))
-    seal_status = Column(String(50))
     
     created_at = Column(DateTime(timezone=True), server_default=text("timezone('UTC', now())"), nullable=False)
     created_by_id = Column(Integer, ForeignKey('users.id'))

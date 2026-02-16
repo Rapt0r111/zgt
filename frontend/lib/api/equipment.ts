@@ -7,8 +7,6 @@ import type {
 	Movement,
 	MovementCreate,
 	MovementListResponse,
-	SealCheckRequest,
-	SealCheckResponse,
 	StorageDevice,
 	StorageDeviceCreate,
 	StorageDeviceListResponse,
@@ -61,11 +59,6 @@ export const equipmentApi = {
 			{ params },
 		);
 		return response.data as MovementListResponse;
-	},
-
-	checkSeals: async (data: SealCheckRequest) => {
-		const response = await apiClient.post("/api/equipment/seals/check", data);
-		return response.data as SealCheckResponse;
 	},
 
 	getStatistics: async () => {

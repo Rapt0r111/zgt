@@ -23,10 +23,6 @@ export interface Equipment {
 	operating_system?: string;
 	current_owner_id?: number;
 	current_location?: string;
-	seal_number?: string;
-	seal_install_date?: string;
-	seal_status: string;
-	seal_check_date?: string;
 	status: string;
 	notes?: string;
 	is_active: boolean;
@@ -60,10 +56,6 @@ export interface EquipmentCreate {
 	operating_system?: string;
 	current_owner_id?: number;
 	current_location?: string;
-	seal_number?: string;
-	seal_install_date?: string;
-	seal_status?: string;
-	seal_check_date?: string;
 	status?: string;
 	notes?: string;
 }
@@ -86,9 +78,6 @@ export interface Movement {
 	document_number?: string;
 	document_date?: string;
 	reason?: string;
-	seal_number_before?: string;
-	seal_number_after?: string;
-	seal_status?: string;
 	created_at: string;
 	from_person_name?: string;
 	to_person_name?: string;
@@ -105,9 +94,6 @@ export interface MovementCreate {
 	document_number?: string;
 	document_date?: string;
 	reason?: string;
-	seal_number_before?: string;
-	seal_number_after?: string;
-	seal_status?: string;
 }
 
 export interface MovementListResponse {
@@ -155,23 +141,9 @@ export interface StorageDeviceListResponse {
 	items: StorageDevice[];
 }
 
-export interface SealCheckRequest {
-	equipment_ids: number[];
-	seal_status: string;
-	notes?: string;
-}
-
-export interface SealCheckResponse {
-	checked_count: number;
-	damaged_count: number;
-	missing_count: number;
-	message: string;
-}
-
 export interface EquipmentStats {
 	total_equipment: number;
 	by_type: Record<string, number>;
 	by_status: Record<string, number>;
-	seal_issues: number;
 	pending_movements: number;
 }

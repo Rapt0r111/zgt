@@ -37,11 +37,6 @@ const STATUS_VARIANTS = {
 	Списан: "destructive",
 } as const;
 
-const SEAL_VARIANTS = {
-	Исправна: "default",
-	Повреждена: "destructive",
-	Отсутствует: "outline",
-} as const;
 
 export default function EquipmentPage() {
 	const queryClient = useQueryClient();
@@ -100,7 +95,7 @@ export default function EquipmentPage() {
 					</div>
 
 					{stats && (
-						<div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+						<div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
 							<Card>
 								<CardContent className="pt-4 pb-4 px-4 text-center md:text-left">
 									<div className="text-xl font-bold">
@@ -125,16 +120,6 @@ export default function EquipmentPage() {
 										{stats.by_status["На складе"] || 0}
 									</div>
 									<div className="text-xs text-muted-foreground">На складе</div>
-								</CardContent>
-							</Card>
-							<Card>
-								<CardContent className="pt-4 pb-4 px-4 text-center md:text-left">
-									<div className="text-xl font-bold text-red-600">
-										{stats.seal_issues}
-									</div>
-									<div className="text-xs text-muted-foreground">
-										Проблемы с пломбами
-									</div>
 								</CardContent>
 							</Card>
 						</div>
@@ -225,9 +210,6 @@ export default function EquipmentPage() {
 											Место
 										</TableHead>
 										<TableHead className="text-[11px] uppercase font-bold px-2 h-10">
-											Пломба
-										</TableHead>
-										<TableHead className="text-[11px] uppercase font-bold px-2 h-10">
 											Статус
 										</TableHead>
 										<TableHead className="text-right text-[11px] uppercase font-bold px-2 h-10">
@@ -238,14 +220,14 @@ export default function EquipmentPage() {
 								<TableBody>
 									{isLoading ? (
 										<TableRow>
-											<TableCell colSpan={10} className="text-center py-8">
+											<TableCell colSpan={9} className="text-center py-8">
 												Загрузка...
 											</TableCell>
 										</TableRow>
 									) : data?.items.length === 0 ? (
 										<TableRow>
 											<TableCell
-												colSpan={10}
+												colSpan={9}
 												className="text-center py-8 text-muted-foreground"
 											>
 												Нет данных.
@@ -298,31 +280,10 @@ export default function EquipmentPage() {
 													{equipment.current_location || "—"}
 												</TableCell>
 												<TableCell className="px-2 py-2">
-													{equipment.seal_number ? (
-														<div className="flex flex-col items-start gap-0.5">
-															<span className="text-[9px] font-mono font-bold leading-none">
-																{equipment.seal_number}
-															</span>
-															<Badge
-																variant={
-																	SEAL_VARIANTS[
-																		equipment.seal_status as keyof typeof SEAL_VARIANTS
-																	] || "outline"
-																}
-																className="text-[10px] px-1 py-0 h-4"
-															>
-																{equipment.seal_status}
-															</Badge>
-														</div>
-													) : (
-														"—"
-													)}
-												</TableCell>
-												<TableCell className="px-2 py-2">
 													<Badge
 														variant={
 															STATUS_VARIANTS[
-																equipment.status as keyof typeof STATUS_VARIANTS
+															equipment.status as keyof typeof STATUS_VARIANTS
 															] || "default"
 														}
 														className="whitespace-nowrap text-[10px] px-1.5 py-0"

@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ArrowLeft, History, Save } from "lucide-react";
+import { ArrowLeft, History, Save } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -32,7 +32,6 @@ import { cleanEmptyStrings } from "@/lib/utils/transform";
 const EQUIPMENT_TYPES = ["АРМ", "Ноутбук", "Сервер", "Принтер", "Другое"];
 const STATUSES = ["В работе", "На складе", "В ремонте", "Списан"];
 const STORAGE_TYPES = ["HDD", "SSD", "NVMe", "Другое"];
-const SEAL_STATUSES = ["Исправна", "Повреждена", "Отсутствует"];
 
 const equipmentSchema = z.object({
 	equipment_type: z.string().min(1),
@@ -58,8 +57,6 @@ const equipmentSchema = z.object({
 	operating_system: z.string().default(""),
 	current_owner_id: z.number().optional(),
 	current_location: z.string().default(""),
-	seal_number: z.string().default(""),
-	seal_status: z.string().default("Исправна"),
 	status: z.string().default("В работе"),
 	notes: z.string().default(""),
 });
@@ -121,8 +118,6 @@ export default function EquipmentDetailPage() {
 				operating_system: equipment.operating_system || "",
 				current_owner_id: equipment.current_owner_id,
 				current_location: equipment.current_location || "",
-				seal_number: equipment.seal_number || "",
-				seal_status: equipment.seal_status,
 				status: equipment.status,
 				notes: equipment.notes || "",
 			});
@@ -157,7 +152,6 @@ export default function EquipmentDetailPage() {
 	const currentStatus = watch("status");
 	const currentOwnerId = watch("current_owner_id");
 	const currentStorageType = watch("storage_type");
-	const currentSealStatus = watch("seal_status");
 	const hasOpticalDrive = watch("has_optical_drive");
 	const hasCardReader = watch("has_card_reader");
 	const hasLaptop = watch("has_laptop");
@@ -198,15 +192,6 @@ export default function EquipmentDetailPage() {
 		return <Badge variant={variants[status] || "default"}>{status}</Badge>;
 	};
 
-	const getSealBadge = (sealStatus: string) => {
-		if (sealStatus === "Исправна") {
-			return <Badge variant="default">Исправна</Badge>;
-		} else if (sealStatus === "Повреждена") {
-			return <Badge variant="destructive">Повреждена</Badge>;
-		} else {
-			return <Badge variant="outline">Отсутствует</Badge>;
-		}
-	};
 
 	return (
 		<div className="min-h-screen bg-slate-50 p-8">
@@ -246,17 +231,6 @@ export default function EquipmentDetailPage() {
 
 					<TabsContent value="details" className="space-y-6">
 						<form onSubmit={handleSubmit(onSubmit)}>
-							{/* Предупреждение о проблемной пломбе */}
-							{equipment.seal_status !== "Исправна" && (
-								<Alert variant="destructive">
-									<AlertCircle className="h-4 w-4" />
-									<AlertDescription>
-										Пломба {equipment.seal_status.toLowerCase()}! Требуется
-										проверка.
-									</AlertDescription>
-								</Alert>
-							)}
-
 							{error && (
 								<Alert variant="destructive">
 									<AlertDescription>{error}</AlertDescription>
@@ -298,10 +272,7 @@ export default function EquipmentDetailPage() {
 										</div>
 
 										<div className="space-y-2">
-											<Label htmlFor="inventory_number">
-												Инвентарный номер *
-											</Label>
-											<Input
+											<Label htmlFor="inventory_number">Учетный номер *</Label>											<Input
 												id="inventory_number"
 												{...register("inventory_number")}
 												disabled={!isEditing}
@@ -678,71 +649,6 @@ export default function EquipmentDetailPage() {
 								</CardContent>
 							</Card>
 
-							{/* Пломба */}
-							<Card>
-								<CardHeader>
-									<CardTitle>Пломбировка</CardTitle>
-								</CardHeader>
-								<CardContent className="space-y-4">
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div className="space-y-2">
-											<Label htmlFor="seal_number">Номер пломбы</Label>
-											<Input
-												id="seal_number"
-												{...register("seal_number")}
-												disabled={!isEditing}
-											/>
-										</div>
-
-										<div className="space-y-2">
-											<Label>Состояние пломбы</Label>
-											{isEditing ? (
-												<Select
-													value={currentSealStatus}
-													onValueChange={(val) => setValue("seal_status", val)}
-												>
-													<SelectTrigger>
-														<SelectValue />
-													</SelectTrigger>
-													<SelectContent>
-														{SEAL_STATUSES.map((status) => (
-															<SelectItem key={status} value={status}>
-																{status}
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-											) : (
-												<div>{getSealBadge(equipment.seal_status)}</div>
-											)}
-										</div>
-									</div>
-
-									{!isEditing && (
-										<div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
-											{equipment.seal_install_date && (
-												<div>
-													<span className="font-medium">Дата установки:</span>{" "}
-													{new Date(
-														equipment.seal_install_date,
-													).toLocaleDateString("ru-RU")}
-												</div>
-											)}
-											{equipment.seal_check_date && (
-												<div>
-													<span className="font-medium">
-														Последняя проверка:
-													</span>{" "}
-													{new Date(
-														equipment.seal_check_date,
-													).toLocaleDateString("ru-RU")}
-												</div>
-											)}
-										</div>
-									)}
-								</CardContent>
-							</Card>
-
 							{/* Примечания */}
 							<Card>
 								<CardHeader>
@@ -880,15 +786,7 @@ export default function EquipmentDetailPage() {
 													</div>
 												)}
 
-												{(movement.seal_number_before ||
-													movement.seal_number_after) && (
-													<div className="mt-2 text-sm text-muted-foreground">
-														Пломба: {movement.seal_number_before || "—"} →{" "}
-														{movement.seal_number_after || "—"}
-														{movement.seal_status &&
-															` (${movement.seal_status})`}
-													</div>
-												)}
+
 
 												{movement.created_by_username && (
 													<div className="mt-2 text-xs text-muted-foreground">

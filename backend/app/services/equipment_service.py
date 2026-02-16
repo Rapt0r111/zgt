@@ -119,10 +119,6 @@ class EquipmentService:
                 equipment.current_location = movement_data.to_location
                 equipment.current_owner_id = movement_data.to_person_id
                 
-                if movement_data.seal_number_after:
-                    equipment.seal_number = movement_data.seal_number_after
-                    equipment.seal_install_date = datetime.now()
-                    equipment.seal_status = movement_data.seal_status or "Исправна"
                 
                 self.db.flush()
             
@@ -145,23 +141,7 @@ class EquipmentService:
         items = query.order_by(EquipmentMovement.created_at.desc()).offset(skip).limit(limit).all()
         return items, total
     
-    def check_seals(self, equipment_ids: List[int], seal_status: str, notes: Optional[str] = None) -> dict:
-        checked = damaged = missing = 0
-        
-        for eq_id in equipment_ids:
-            equipment = self.get_by_id(eq_id)
-            if equipment:
-                equipment.seal_status = seal_status
-                equipment.seal_check_date = datetime.now()
-                checked += 1
-                if seal_status == "Повреждена":
-                    damaged += 1
-                elif seal_status == "Отсутствует":
-                    missing += 1
-        
-        self.db.commit()
-        return {"checked_count": checked, "damaged_count": damaged, "missing_count": missing}
-    
+  
     def get_statistics(self) -> dict:
         total = self.db.query(Equipment).filter(Equipment.is_active == True).count()
         
@@ -173,16 +153,11 @@ class EquipmentService:
             Equipment.status, func.count(Equipment.id)
         ).filter(Equipment.is_active == True).group_by(Equipment.status).all())
         
-        seal_issues = self.db.query(Equipment).filter(
-            Equipment.is_active == True,
-            Equipment.seal_status.in_(["Повреждена", "Отсутствует"])
-        ).count()
         
         return {
             "total_equipment": total,
             "by_type": by_type,
             "by_status": by_status,
-            "seal_issues": seal_issues,
             "pending_movements": 0
         }
 

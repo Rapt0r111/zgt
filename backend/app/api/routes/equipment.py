@@ -9,7 +9,7 @@ from app.schemas.equipment import (
     EquipmentCreate, EquipmentUpdate, EquipmentResponse, EquipmentListResponse,
     MovementCreate, MovementResponse, MovementListResponse,
     StorageDeviceCreate, StorageDeviceUpdate, StorageDeviceResponse, StorageDeviceListResponse,
-    SealCheckRequest, SealCheckResponse, EquipmentStats
+    EquipmentStats
 )
 from app.services.equipment_service import EquipmentService, StorageDeviceService
 
@@ -145,15 +145,6 @@ async def get_statistics(
     service = EquipmentService(db)
     return service.get_statistics()
 
-@router.post("/seals/check", response_model=SealCheckResponse)
-async def check_seals(
-    request: SealCheckRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(verify_csrf)
-):
-    service = EquipmentService(db)
-    result = service.check_seals(equipment_ids=request.equipment_ids, seal_status=request.seal_status, notes=request.notes)
-    return {**result, "message": f"Проверено {result['checked_count']} единиц техники"}
 
 @router.post("/movements", response_model=MovementResponse, status_code=status.HTTP_201_CREATED)
 async def create_movement(
