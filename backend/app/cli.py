@@ -101,6 +101,11 @@ def backup_database(output_path: Optional[Path]) -> None:
 
         try:
             subprocess.run(command, check=True, env=env)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                "Команда pg_dump не найдена. Установите PostgreSQL client tools "
+                "и убедитесь, что pg_dump доступен в PATH."
+            ) from exc
         except subprocess.CalledProcessError as exc:
             raise RuntimeError(
                 "Не удалось создать backup через pg_dump. "

@@ -74,8 +74,11 @@ python -m app.cli backup-db --output ./backups/manual_backup.sql
 
 ### Вариант B — вручную (PostgreSQL)
 
+Для SQLAlchemy URL вида `postgresql+psycopg2://...` не передавайте `DATABASE_URL` напрямую в `pg_dump`.
+Используйте параметры подключения:
+
 ```bash
-pg_dump "$DATABASE_URL" -f ./backups/zgt_backup.sql
+PGPASSWORD="<пароль>" pg_dump -h <host> -p <port> -U <user> -d <db_name> -f ./backups/zgt_backup.sql
 ```
 
 ### Вариант C — вручную (SQLite)
