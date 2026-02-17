@@ -10,6 +10,7 @@ from app.schemas.storage_and_passes import (
     StorageAndPassListResponse, AssignmentRequest
 )
 from app.services.storage_and_passes_service import StorageAndPassService
+from app.schemas.storage_and_passes import StorageAndPassStats # не забудьте импорт
 
 router = APIRouter(prefix="/storage-and-passes", tags=["storage-and-passes"])
 
@@ -45,6 +46,17 @@ async def create_asset(
         return _asset_response(service.create(asset))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@router.get("/stats", response_model=StorageAndPassStats)
+async def get_stats(
+    asset_type: Optional[str] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    service = StorageAndPassService(db)
+    return service.get_statistics(asset_type=asset_type, status=status, search=search)
 
 @router.get("/{asset_id}", response_model=StorageAndPassResponse)
 async def get_asset(

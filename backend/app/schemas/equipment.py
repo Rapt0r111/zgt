@@ -18,13 +18,13 @@ class EquipmentBase(BaseModel):
     has_optical_drive: bool = False
     has_card_reader: bool = False
     has_laptop: bool = False
-    laptop_functional: bool = True
+    laptop_functional: bool = False
     has_charger: bool = False
-    charger_functional: bool = True
+    charger_functional: bool = False
     has_mouse: bool = False
-    mouse_functional: bool = True
+    mouse_functional: bool = False
     has_bag: bool = False
-    bag_functional: bool = True
+    bag_functional: bool = False
     operating_system: Optional[str] = Field(None, max_length=100)
     current_owner_id: Optional[int] = None
     current_location: Optional[str] = Field(None, max_length=255)

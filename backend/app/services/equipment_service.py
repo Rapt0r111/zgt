@@ -17,18 +17,7 @@ class EquipmentService:
     def __init__(self, db: Session):
         self.db = db
     
-    def get_list(
-        self,
-        skip: int = 0,
-        limit: int = 100,
-        equipment_type: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None
-    ) -> tuple[List[Equipment], int]:
-        query = self.db.query(Equipment).options(
-            joinedload(Equipment.current_owner)
-        ).filter(Equipment.is_active == True)
-        
+    def _apply_filters(self, query, equipment_type=None, status=None, search=None):
         if equipment_type:
             query = query.filter(Equipment.equipment_type == equipment_type)
         if status:
@@ -42,6 +31,11 @@ class EquipmentService:
                 Equipment.model.ilike(f"%{search}%"),
                 Equipment.current_location.ilike(f"%{search}%")
             ))
+        return query
+
+    def get_list(self, skip=0, limit=100, equipment_type=None, status=None, search=None):
+        query = self.db.query(Equipment).options(joinedload(Equipment.current_owner)).filter(Equipment.is_active == True)
+        query = self._apply_filters(query, equipment_type, status, search)
         
         total = query.count()
         items = query.order_by(Equipment.inventory_number).offset(skip).limit(limit).all()
@@ -142,17 +136,29 @@ class EquipmentService:
         return items, total
     
   
-    def get_statistics(self) -> dict:
-        total = self.db.query(Equipment).filter(Equipment.is_active == True).count()
+    def get_statistics(self, equipment_type=None, status=None, search=None) -> dict:
+        # Базовый запрос для фильтрации
+        base_query = self.db.query(Equipment).filter(Equipment.is_active == True)
+        base_query = self._apply_filters(base_query, equipment_type, status, search)
+
+        # Общее количество по текущим фильтрам
+        total = base_query.count()
         
-        by_type = dict(self.db.query(
-            Equipment.equipment_type, func.count(Equipment.id)
-        ).filter(Equipment.is_active == True).group_by(Equipment.equipment_type).all())
+        # Расчет статистики по статусам (с учетом фильтра по типу и поиска)
+        # Мы убираем фильтр по статусу для этой конкретной группировки, чтобы видеть общую картину
+        status_query = self.db.query(Equipment.status, func.count(Equipment.id)).filter(Equipment.is_active == True)
+        if equipment_type: status_query = status_query.filter(Equipment.equipment_type == equipment_type)
+        if search: 
+            search_clean = sanitize_html(search)
+            status_query = status_query.filter(Equipment.inventory_number.ilike(f"%{search_clean}%")) # упрощенно для примера
         
-        by_status = dict(self.db.query(
-            Equipment.status, func.count(Equipment.id)
-        ).filter(Equipment.is_active == True).group_by(Equipment.status).all())
+        by_status = dict(status_query.group_by(Equipment.status).all())
+
+        # Расчет статистики по типам
+        type_query = self.db.query(Equipment.equipment_type, func.count(Equipment.id)).filter(Equipment.is_active == True)
+        if status: type_query = type_query.filter(Equipment.status == status)
         
+        by_type = dict(type_query.group_by(Equipment.equipment_type).all())
         
         return {
             "total_equipment": total,

@@ -29,8 +29,8 @@ import { equipmentApi } from "@/lib/api/equipment";
 import { personnelApi } from "@/lib/api/personnel";
 import { cleanEmptyStrings } from "@/lib/utils/transform";
 
-const EQUIPMENT_TYPES = ["АРМ", "Ноутбук", "Сервер", "Принтер", "Другое"];
-const STATUSES = ["В работе", "На складе", "В ремонте", "Списан"];
+const EQUIPMENT_TYPES = ["АРМ", "ПЭВМ", "Ноутбук", "Сервер", "Принтер", "Другое"];
+const STATUSES = ["В работе", "На складе", "В ремонте", "Сломан"];
 const STORAGE_TYPES = ["HDD", "SSD", "NVMe", "Другое"];
 
 const equipmentSchema = z
@@ -48,13 +48,13 @@ const equipmentSchema = z
 		has_optical_drive: z.boolean().default(false),
 		has_card_reader: z.boolean().default(false),
 		has_laptop: z.boolean().default(false),
-		laptop_functional: z.boolean().default(true),
+		laptop_functional: z.boolean().default(false),
 		has_charger: z.boolean().default(false),
-		charger_functional: z.boolean().default(true),
+		charger_functional: z.boolean().default(false),
 		has_mouse: z.boolean().default(false),
-		mouse_functional: z.boolean().default(true),
+		mouse_functional: z.boolean().default(false),
 		has_bag: z.boolean().default(false),
-		bag_functional: z.boolean().default(true),
+		bag_functional: z.boolean().default(false),
 		operating_system: z.string().default(""),
 		current_owner_id: z.number().nullable().optional(),
 		current_location: z.string().default(""),
@@ -219,7 +219,7 @@ export default function EquipmentDetailPage() {
 			"В работе": "default",
 			"На складе": "secondary",
 			"В ремонте": "outline",
-			Списан: "destructive",
+			"Сломан": "destructive",
 		};
 		return <Badge variant={variants[status] || "default"} className="px-3 shadow-sm">{status}</Badge>;
 	};

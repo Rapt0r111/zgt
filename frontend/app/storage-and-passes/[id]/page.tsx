@@ -102,9 +102,10 @@ export default function StorageAndPassDetailPage() {
 				model: asset.model || "",
 				manufacturer: asset.manufacturer || "",
 				status: asset.status,
-				assigned_to_id: asset.assigned_to_id,
-				capacity_gb: asset.capacity_gb,
-				access_level: asset.access_level,
+				// Исправляем здесь: заменяем null на undefined для всех полей
+				assigned_to_id: asset.assigned_to_id ?? undefined,
+				capacity_gb: asset.capacity_gb ?? undefined,   // Было: asset.capacity_gb
+				access_level: asset.access_level ?? undefined, // Было: asset.access_level
 				notes: asset.notes || "",
 			});
 		}
@@ -166,7 +167,12 @@ export default function StorageAndPassDetailPage() {
 		setError("");
 		updateMutation.mutate(data);
 	};
-
+	const onInvalid = (errors: any) => {
+		console.error("Ошибки валидации:", errors);
+		toast.error("Проверьте правильность заполнения полей", {
+			description: Object.values(errors).map((e: any) => e.message).join(", ")
+		});
+	};
 	const handleAssign = () => {
 		if (selectedPersonnelId) {
 			assignMutation.mutate(selectedPersonnelId);
@@ -300,8 +306,8 @@ export default function StorageAndPassDetailPage() {
 								{revokeMutation.isPending ? "Возврат..." : "Вернуть"}
 							</Button>
 						)}
-						<Button 
-							variant={isEditing ? "outline" : "secondary"} 
+						<Button
+							variant={isEditing ? "outline" : "secondary"}
 							onClick={() => setIsEditing(!isEditing)}
 							className={!isEditing ? "bg-white/10 hover:bg-white/20 border-0" : "bg-transparent border-white/20"}
 						>
@@ -314,7 +320,7 @@ export default function StorageAndPassDetailPage() {
 					</div>
 				</div>
 
-				<form onSubmit={handleSubmit(onSubmit)}>
+				<form onSubmit={handleSubmit(onSubmit, onInvalid)}>
 					<div className="grid gap-6">
 						{error && (
 							<Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive-foreground">
@@ -525,8 +531,8 @@ export default function StorageAndPassDetailPage() {
 								>
 									Отмена
 								</Button>
-								<Button 
-									type="submit" 
+								<Button
+									type="submit"
 									disabled={updateMutation.isPending}
 									className="gradient-primary border-0 shadow-lg px-6 font-semibold"
 								>

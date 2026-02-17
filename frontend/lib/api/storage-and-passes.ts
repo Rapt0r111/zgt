@@ -21,6 +21,15 @@ export const storageAndPassesApi = {
 		return response.data;
 	},
 
+	getStatistics: async (params?: {
+        asset_type?: string;
+        status?: string;
+        search?: string;
+    }): Promise<{ total_assets: number; by_type: any; by_status: any }> => {
+        const response = await apiClient.get("/api/storage-and-passes/stats", { params });
+        return response.data;
+    },
+
 	getById: async (id: number): Promise<StorageAndPass> => {
 		const response = await apiClient.get(`/api/storage-and-passes/${id}`);
 		return response.data;

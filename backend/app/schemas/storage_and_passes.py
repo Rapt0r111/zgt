@@ -61,3 +61,8 @@ class StorageAndPassResponse(StorageAndPassBase):
 class StorageAndPassListResponse(BaseModel):
     total: int
     items: list[StorageAndPassResponse]
+
+class StorageAndPassStats(BaseModel):
+    total_assets: int
+    by_type: dict[str, int]
+    by_status: dict[str, int]

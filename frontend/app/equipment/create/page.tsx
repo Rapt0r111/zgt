@@ -33,8 +33,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { equipmentApi } from "@/lib/api/equipment";
 import { cleanEmptyStrings } from "@/lib/utils/transform";
 
-const EQUIPMENT_TYPES = ["АРМ", "Ноутбук", "Сервер", "Принтер", "Другое"];
-const STATUSES = ["В работе", "На складе", "В ремонте", "Списан"];
+const EQUIPMENT_TYPES = ["АРМ", "ПЭВМ", "Ноутбук", "Сервер", "Принтер", "Другое"];
+const STATUSES = ["В работе", "На складе", "В ремонте", "Сломан"];
 const STORAGE_TYPES = ["HDD", "SSD", "NVMe", "Другое"];
 
 const equipmentSchema = z
@@ -52,13 +52,13 @@ const equipmentSchema = z
 		has_optical_drive: z.boolean().default(false),
 		has_card_reader: z.boolean().default(false),
 		has_laptop: z.boolean().default(false),
-		laptop_functional: z.boolean().default(true),
+		laptop_functional: z.boolean().default(false),
 		has_charger: z.boolean().default(false),
-		charger_functional: z.boolean().default(true),
+		charger_functional: z.boolean().default(false),
 		has_mouse: z.boolean().default(false),
-		mouse_functional: z.boolean().default(true),
+		mouse_functional: z.boolean().default(false),
 		has_bag: z.boolean().default(false),
-		bag_functional: z.boolean().default(true),
+		bag_functional: z.boolean().default(false),
 		operating_system: z.string().default(""),
 		current_owner_id: z.number().optional(),
 		current_location: z.string().default(""),
@@ -101,13 +101,13 @@ export default function CreateEquipmentPage() {
 			has_optical_drive: false,
 			has_card_reader: false,
 			has_laptop: false,
-			laptop_functional: true,
+			laptop_functional: false,
 			has_charger: false,
-			charger_functional: true,
+			charger_functional: false,
 			has_mouse: false,
-			mouse_functional: true,
+			mouse_functional: false,
 			has_bag: false,
-			bag_functional: true,
+			bag_functional: false,
 		},
 	});
 

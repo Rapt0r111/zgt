@@ -39,13 +39,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column("equipment", sa.Column("has_laptop", sa.Boolean(), nullable=False, server_default=sa.false()))
-    op.add_column("equipment", sa.Column("laptop_functional", sa.Boolean(), nullable=False, server_default=sa.true()))
+    op.add_column("equipment", sa.Column("laptop_functional", sa.Boolean(), nullable=False, server_default=sa.false()))
     op.add_column("equipment", sa.Column("has_charger", sa.Boolean(), nullable=False, server_default=sa.false()))
-    op.add_column("equipment", sa.Column("charger_functional", sa.Boolean(), nullable=False, server_default=sa.true()))
+    op.add_column("equipment", sa.Column("charger_functional", sa.Boolean(), nullable=False, server_default=sa.false()))
     op.add_column("equipment", sa.Column("has_mouse", sa.Boolean(), nullable=False, server_default=sa.false()))
-    op.add_column("equipment", sa.Column("mouse_functional", sa.Boolean(), nullable=False, server_default=sa.true()))
+    op.add_column("equipment", sa.Column("mouse_functional", sa.Boolean(), nullable=False, server_default=sa.false()))
     op.add_column("equipment", sa.Column("has_bag", sa.Boolean(), nullable=False, server_default=sa.false()))
-    op.add_column("equipment", sa.Column("bag_functional", sa.Boolean(), nullable=False, server_default=sa.true()))
+    op.add_column("equipment", sa.Column("bag_functional", sa.Boolean(), nullable=False, server_default=sa.false()))
 
 
 def downgrade() -> None:

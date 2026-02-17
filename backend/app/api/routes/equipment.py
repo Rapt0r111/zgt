@@ -139,11 +139,18 @@ async def create_equipment(
 
 @router.get("/stats", response_model=EquipmentStats)
 async def get_statistics(
+    equipment_type: Optional[str] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     service = EquipmentService(db)
-    return service.get_statistics()
+    return service.get_statistics(
+        equipment_type=equipment_type,
+        status=status,
+        search=search
+    )
 
 
 @router.post("/movements", response_model=MovementResponse, status_code=status.HTTP_201_CREATED)

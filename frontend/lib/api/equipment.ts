@@ -61,8 +61,12 @@ export const equipmentApi = {
 		return response.data as MovementListResponse;
 	},
 
-	getStatistics: async () => {
-		const response = await apiClient.get("/api/equipment/stats");
+	getStatistics: async (params?: {
+		equipment_type?: string;
+		status?: string;
+		search?: string;
+	}) => {
+		const response = await apiClient.get("/api/equipment/stats", { params });
 		return response.data as EquipmentStats;
 	},
 

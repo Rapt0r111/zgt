@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from typing import Optional, List
 from datetime import datetime
@@ -14,6 +14,53 @@ class StorageAndPassService:
     def __init__(self, db: Session):
         self.db = db
     
+    def get_statistics(
+        self,
+        asset_type: Optional[str] = None,
+        status: Optional[str] = None,
+        search: Optional[str] = None
+    ) -> dict:
+        # 1. Базовый запрос с учетом активности
+        base_query = self.db.query(StorageAndPass).filter(StorageAndPass.is_active == True)
+        
+        # 2. Применяем фильтры для общего количества
+        if asset_type:
+            base_query = base_query.filter(StorageAndPass.asset_type == asset_type)
+        if status:
+            base_query = base_query.filter(StorageAndPass.status == status)
+        if search:
+            base_query = base_query.filter(or_(
+                StorageAndPass.serial_number.ilike(f"%{search}%"),
+                StorageAndPass.model.ilike(f"%{search}%"),
+                StorageAndPass.manufacturer.ilike(f"%{search}%")
+            ))
+
+        total_assets = base_query.count()
+
+        # 3. Группировка по статусу (учитываем фильтр типа и поиска)
+        status_q = self.db.query(StorageAndPass.status, func.count(StorageAndPass.id)).filter(StorageAndPass.is_active == True)
+        if asset_type:
+            status_q = status_q.filter(StorageAndPass.asset_type == asset_type)
+        if search:
+            status_q = status_q.filter(StorageAndPass.serial_number.ilike(f"%{search}%"))
+        
+        by_status = dict(status_q.group_by(StorageAndPass.status).all())
+
+        # 4. Группировка по типу (учитываем фильтр статуса и поиска)
+        type_q = self.db.query(StorageAndPass.asset_type, func.count(StorageAndPass.id)).filter(StorageAndPass.is_active == True)
+        if status:
+            type_q = type_q.filter(StorageAndPass.status == status)
+        if search:
+            type_q = type_q.filter(StorageAndPass.serial_number.ilike(f"%{search}%"))
+            
+        by_type = dict(type_q.group_by(StorageAndPass.asset_type).all())
+
+        return {
+            "total_assets": total_assets,
+            "by_type": by_type,
+            "by_status": by_status
+        }
+
     def get_list(
         self,
         skip: int = 0,
