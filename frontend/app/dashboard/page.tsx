@@ -2,15 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { 
-  Users, Phone, Laptop, Shield, FileText, 
-  AlertCircle, TrendingUp 
-} from "lucide-react";
+import { Users, Phone, Laptop, Shield, FileText } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/glass/GlassCard";
-import { StatCard } from "@/components/glass/StatCard";
+import { useInactivityLogout } from "@/hooks/useInactivityLogout";
 import apiClient from "@/lib/api/client";
 
 interface User {
@@ -22,35 +21,38 @@ interface User {
 
 const container = {
   hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 }
-  }
+  show: { opacity: 1, transition: { staggerChildren: 0.1 } },
 };
-
-const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 }
-};
+const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
+  // Авто-выход при бездействии
+  useInactivityLogout();
+
+  // Показываем уведомление если был редирект из middleware
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await apiClient.get("/api/auth/me");
-        setUser(response.data);
-      } catch (error) {
-        router.push("/login");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchUser();
-  }, [router]);
+    const notice = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith("auth_redirect_notice="));
+    if (notice) {
+      toast.info("Вы уже авторизованы в системе");
+      // Удаляем cookie
+      document.cookie = "auth_redirect_notice=; max-age=0; path=/";
+    }
+  }, []);
+
+  // Middleware уже гарантирует авторизацию — просто получаем данные пользователя
+  const { data: user, isLoading } = useQuery<User>({
+    queryKey: ["current-user"],
+    queryFn: async () => {
+      const res = await apiClient.get("/api/auth/me");
+      return res.data;
+    },
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const handleLogout = async () => {
     try {
@@ -75,22 +77,20 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex justify-between items-center mb-8"
         >
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
-              Command Center
-            </h1>
+            <h1 className="text-4xl font-bold text-white mb-2">Система защиты государственной тайны</h1>
             <p className="text-slate-400">
-              Добро пожаловать, <span className="text-blue-400">{user?.full_name}</span>
+              Добро пожаловать,{" "}
+              <span className="text-blue-400">{user?.full_name}</span>  
             </p>
           </div>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleLogout}
             className="glass border-white/20 text-white hover:bg-white/10"
           >
@@ -98,7 +98,6 @@ export default function DashboardPage() {
           </Button>
         </motion.div>
 
-        {/* Module Grid */}
         <motion.div
           variants={container}
           initial="hidden"
@@ -113,12 +112,8 @@ export default function DashboardPage() {
                     <Users className="h-8 w-8 text-blue-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-white mb-1">
-                      Личный состав
-                    </h3>
-                    <p className="text-sm text-slate-400">
-                      Учёт и допуски
-                    </p>
+                    <h3 className="text-xl font-semibold text-white mb-1">Личный состав</h3>
+                    <p className="text-sm text-slate-400">Учёт и допуски</p>
                   </div>
                 </div>
               </GlassCard>
@@ -133,12 +128,8 @@ export default function DashboardPage() {
                     <Phone className="h-8 w-8 text-green-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-white mb-1">
-                      Средства связи
-                    </h3>
-                    <p className="text-sm text-slate-400">
-                      Хранение телефонов
-                    </p>
+                    <h3 className="text-xl font-semibold text-white mb-1">Средства связи</h3>
+                    <p className="text-sm text-slate-400">Хранение телефонов</p>
                   </div>
                 </div>
               </GlassCard>
@@ -153,12 +144,8 @@ export default function DashboardPage() {
                     <Laptop className="h-8 w-8 text-purple-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-white mb-1">
-                      Вычислительная техника
-                    </h3>
-                    <p className="text-sm text-slate-400">
-                      АРМ и ноутбуки
-                    </p>
+                    <h3 className="text-xl font-semibold text-white mb-1">Вычислительная техника</h3>
+                    <p className="text-sm text-slate-400">АРМ и ноутбуки</p>
                   </div>
                 </div>
               </GlassCard>
@@ -173,12 +160,8 @@ export default function DashboardPage() {
                     <Shield className="h-8 w-8 text-yellow-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-white mb-1">
-                      Носители и пропуска
-                    </h3>
-                    <p className="text-sm text-slate-400">
-                      Флешки и допуски
-                    </p>
+                    <h3 className="text-xl font-semibold text-white mb-1">Носители и пропуска</h3>
+                    <p className="text-sm text-slate-400">Флешки и допуски</p>
                   </div>
                 </div>
               </GlassCard>
@@ -194,12 +177,8 @@ export default function DashboardPage() {
                       <Shield className="h-8 w-8 text-red-400" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-semibold text-white mb-1">
-                        Пользователи
-                      </h3>
-                      <p className="text-sm text-slate-400">
-                        Управление доступом
-                      </p>
+                      <h3 className="text-xl font-semibold text-white mb-1">Пользователи</h3>
+                      <p className="text-sm text-slate-400">Управление доступом</p>
                     </div>
                   </div>
                 </GlassCard>
@@ -214,12 +193,8 @@ export default function DashboardPage() {
                   <FileText className="h-8 w-8 text-slate-400" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-white mb-1">
-                    Генератор документов
-                  </h3>
-                  <p className="text-sm text-slate-400">
-                    Скоро...
-                  </p>
+                  <h3 className="text-xl font-semibold text-white mb-1">Генератор документов</h3>
+                  <p className="text-sm text-slate-400">Скоро...</p>
                 </div>
               </div>
             </GlassCard>

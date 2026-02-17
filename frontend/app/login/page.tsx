@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ShieldCheck, Lock, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import apiClient, { API_BASE_URL } from "@/lib/api/client";
 import { validateRedirectUrl } from "@/lib/utils/security";
+import { toast } from "sonner";
 
 interface LoginError {
 	code?: string;
@@ -34,10 +35,18 @@ export default function LoginPage() {
 	const searchParams = useSearchParams();
 	const redirectTo = searchParams.get("redirect");
 
+	useEffect(() => {
+		const reason = searchParams.get("reason");
+		if (reason === "inactivity") {
+			toast.warning("Вы были автоматически выйдены из системы из-за неактивности");
+		}
+	}, []); // eslint-disable-line react-hooks/exhaustive-deps
+
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
+
 
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -62,7 +71,9 @@ export default function LoginPage() {
 
 			if (response.data?.access_token) {
 				const safeRedirect = validateRedirectUrl(redirectTo);
-				router.push(safeRedirect);
+				// Защита от петли: если redirect указывает на /login — идём на dashboard
+				const finalRedirect = safeRedirect === "/login" ? "/dashboard" : safeRedirect;
+				router.push(finalRedirect);
 			} else {
 				throw new Error("Токен не получен");
 			}
@@ -113,7 +124,7 @@ export default function LoginPage() {
 			<Card className="w-full max-w-md glass-elevated border-white/10 shadow-2xl overflow-hidden">
 				{/* Декоративная линия сверху */}
 				<div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-primary/50 to-transparent" />
-				
+
 				<CardHeader className="text-center space-y-2 pt-8">
 					<div className="mx-auto w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center mb-2">
 						<Lock className="h-6 w-6 text-primary" />
@@ -174,9 +185,9 @@ export default function LoginPage() {
 					</CardContent>
 
 					<CardFooter className="pb-8 pt-2">
-						<Button 
-							type="submit" 
-							className="w-full h-11 font-bold gradient-primary border-0 shadow-lg active:scale-[0.98] transition-all" 
+						<Button
+							type="submit"
+							className="w-full h-11 font-bold gradient-primary border-0 shadow-lg active:scale-[0.98] transition-all"
 							disabled={isLoading}
 						>
 							{isLoading ? (
@@ -190,7 +201,7 @@ export default function LoginPage() {
 						</Button>
 					</CardFooter>
 				</form>
-				
+
 				<div className="bg-white/5 border-t border-white/5 p-4 text-center">
 					<div className="flex items-center justify-center gap-2 opacity-40">
 						<ShieldCheck className="h-3 w-3" />

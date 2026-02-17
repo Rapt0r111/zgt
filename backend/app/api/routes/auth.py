@@ -73,5 +73,10 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 
 @router.post("/logout")
 async def logout(response: Response):
-    response.delete_cookie("access_token")
-    return {"message": "Успешный выход"}
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite="lax",
+        secure=False,  # True в проде с HTTPS
+    )
+    return {"message": "Выход выполнен"}
