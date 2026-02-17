@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Usb, ShieldCheck, HardDrive, Save, FileText, Settings, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -135,192 +135,256 @@ export default function CreateStorageAndPassPage() {
 	const currentOwnerId = watch("assigned_to_id");
 
 	return (
-		<div className="min-h-screen bg-slate-50 p-8">
+		<div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-foreground">
 			<div className="max-w-3xl mx-auto">
-				<Button variant="ghost" asChild className="mb-4">
+				<Button 
+					variant="ghost" 
+					asChild 
+					className="mb-6 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+				>
 					<Link href="/storage-and-passes">
 						<ArrowLeft className="mr-2 h-4 w-4" />
 						Назад к списку
 					</Link>
 				</Button>
 
-				<Card>
-					<CardHeader>
-						<CardTitle>Добавить носитель или пропуск</CardTitle>
+				<div className="mb-8">
+					<h1 className="text-3xl font-bold tracking-tight">Регистрация актива</h1>
+					<p className="text-muted-foreground mt-1">Добавление нового USB-носителя или электронного пропуска в базу</p>
+				</div>
+
+				<Card className="glass-elevated border-white/10 shadow-2xl overflow-hidden">
+					<CardHeader className="bg-white/5 border-b border-white/10 py-6">
+						<CardTitle className="text-lg font-semibold flex items-center gap-2">
+							{currentType === "electronic_pass" ? (
+								<ShieldCheck className="h-5 w-5 text-primary" />
+							) : (
+								<Usb className="h-5 w-5 text-primary" />
+							)}
+							Карточка учета
+						</CardTitle>
 					</CardHeader>
 
 					<form onSubmit={handleSubmit(onSubmit)}>
-						<CardContent className="space-y-6">
+						<CardContent className="p-8 space-y-10">
 							{error && (
-								<Alert variant="destructive">
+								<Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive-foreground">
 									<AlertDescription>{error}</AlertDescription>
 								</Alert>
 							)}
 
-							<div className="space-y-2">
-								<Label>Тип устройства *</Label>
-								<Select
-									value={currentType}
-									onValueChange={(val) =>
-										setValue("asset_type", val as AssetFormData["asset_type"], {
-											shouldValidate: true,
-										})
-									}
-								>
-									<SelectTrigger
-										className={errors.asset_type ? "border-destructive" : ""}
-									>
-										<SelectValue placeholder="Выберите тип" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="flash_drive">USB-флешка</SelectItem>
-										<SelectItem value="electronic_pass">
-											Электронный пропуск
-										</SelectItem>
-									</SelectContent>
-								</Select>
-								{errors.asset_type && (
-									<p className="text-sm text-destructive">
-										{errors.asset_type.message}
+							{/* Секция: Тип и идентификация */}
+							<div className="space-y-6">
+								<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary/70 pb-2 border-b border-white/5">
+									<Settings className="h-3.5 w-3.5" /> Тип устройства
+								</div>
+								
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<div className="space-y-2">
+										<Label className="text-muted-foreground">Тип актива *</Label>
+										<Select
+											value={currentType}
+											onValueChange={(val) =>
+												setValue("asset_type", val as AssetFormData["asset_type"], {
+													shouldValidate: true,
+												})
+											}
+										>
+											<SelectTrigger
+												className={`bg-background/50 border-white/10 focus:border-primary/50 ${errors.asset_type ? "border-destructive/50" : ""}`}
+											>
+												<SelectValue placeholder="Выберите тип" />
+											</SelectTrigger>
+											<SelectContent className="glass border-white/10">
+												<SelectItem value="flash_drive">USB-флешка</SelectItem>
+												<SelectItem value="electronic_pass">
+													Электронный пропуск
+												</SelectItem>
+											</SelectContent>
+										</Select>
+										{errors.asset_type && (
+											<p className="text-xs text-destructive mt-1">
+												{errors.asset_type.message}
+											</p>
+										)}
+									</div>
+
+									<div className="space-y-2">
+										<Label htmlFor="serial_number" className="text-muted-foreground">Серийный номер *</Label>
+										<Input
+											id="serial_number"
+											{...register("serial_number")}
+											placeholder="ABC123XYZ"
+											className={`bg-background/50 border-white/10 font-mono focus:border-primary/50 ${errors.serial_number ? "border-destructive/50" : ""}`}
+										/>
+										{errors.serial_number && (
+											<p className="text-xs text-destructive mt-1">
+												{errors.serial_number.message}
+											</p>
+										)}
+									</div>
+								</div>
+							</div>
+
+							{/* Секция: Технические данные */}
+							<div className="space-y-6">
+								<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary/70 pb-2 border-b border-white/5">
+									<FileText className="h-3.5 w-3.5" /> Характеристики
+								</div>
+
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<div className="space-y-2">
+										<Label htmlFor="manufacturer" className="text-muted-foreground">Производитель</Label>
+										<Input
+											id="manufacturer"
+											{...register("manufacturer")}
+											placeholder="Kingston, Transcend..."
+											className="bg-background/50 border-white/10 focus:border-primary/50"
+										/>
+									</div>
+
+									<div className="space-y-2">
+										<Label htmlFor="model" className="text-muted-foreground">Модель</Label>
+										<Input
+											id="model"
+											{...register("model")}
+											placeholder="DataTraveler 100 G3"
+											className="bg-background/50 border-white/10 focus:border-primary/50"
+										/>
+									</div>
+								</div>
+
+								{currentType === "flash_drive" && (
+									<div className="space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
+										<Label htmlFor="capacity_gb" className="text-muted-foreground flex items-center gap-2">
+											<HardDrive className="h-3 w-3" /> Объём (ГБ) *
+										</Label>
+										<Input
+											id="capacity_gb"
+											type="number"
+											{...register("capacity_gb", { valueAsNumber: true })}
+											placeholder="16"
+											className={`bg-background/50 border-white/10 focus:border-primary/50 ${errors.capacity_gb ? "border-destructive/50" : ""}`}
+										/>
+										{errors.capacity_gb && (
+											<p className="text-xs text-destructive mt-1">
+												{errors.capacity_gb.message}
+											</p>
+										)}
+									</div>
+								)}
+
+								{currentType === "electronic_pass" && (
+									<div className="space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
+										<Label htmlFor="access_level" className="text-muted-foreground flex items-center gap-2">
+											<ShieldCheck className="h-3 w-3" /> Уровень доступа (1-10) *
+										</Label>
+										<Input
+											id="access_level"
+											type="number"
+											{...register("access_level", { valueAsNumber: true })}
+											placeholder="3"
+											min="1"
+											max="10"
+											className={`bg-background/50 border-white/10 focus:border-primary/50 ${errors.access_level ? "border-destructive/50" : ""}`}
+										/>
+										{errors.access_level && (
+											<p className="text-xs text-destructive mt-1">
+												{errors.access_level.message}
+											</p>
+										)}
+									</div>
+								)}
+							</div>
+
+							{/* Секция: Статус и принадлежность */}
+							<div className="space-y-6">
+								<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary/70 pb-2 border-b border-white/5">
+									<UserIcon className="h-3.5 w-3.5" /> Статус и владение
+								</div>
+
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<div className="space-y-2">
+										<Label className="text-muted-foreground">Текущий статус</Label>
+										<Select
+											value={currentStatus}
+											onValueChange={(val) =>
+												setValue("status", val as AssetFormData["status"], {
+													shouldValidate: true,
+												})
+											}
+										>
+											<SelectTrigger className="bg-background/50 border-white/10 focus:border-primary/50">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent className="glass border-white/10">
+												<SelectItem value="stock">На складе</SelectItem>
+												<SelectItem value="in_use">Используется</SelectItem>
+												<SelectItem value="broken">Сломан</SelectItem>
+												<SelectItem value="lost">Утерян</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+
+									{currentStatus === "in_use" && (
+										<div className="space-y-2 animate-in zoom-in-95 duration-200">
+											<Label className="text-muted-foreground">Владелец *</Label>
+											<PersonnelSelect
+												value={currentOwnerId}
+												onValueChange={(val) =>
+													setValue("assigned_to_id", val, { shouldValidate: true })
+												}
+												placeholder="Выберите сотрудника"
+												error={!!errors.assigned_to_id}
+											/>
+											{errors.assigned_to_id && (
+												<p className="text-xs text-destructive mt-1">
+													{errors.assigned_to_id.message}
+												</p>
+											)}
+										</div>
+									)}
+								</div>
+								
+								{currentStatus === "in_use" && (
+									<p className="text-[10px] text-primary/60 italic">
+										При статусе "Используется" необходимо обязательно закрепить актив за сотрудником.
 									</p>
 								)}
 							</div>
 
 							<div className="space-y-2">
-								<Label htmlFor="serial_number">Серийный номер *</Label>
-								<Input
-									id="serial_number"
-									{...register("serial_number")}
-									placeholder="ABC123XYZ"
-									className={errors.serial_number ? "border-destructive" : ""}
-								/>
-								{errors.serial_number && (
-									<p className="text-sm text-destructive">
-										{errors.serial_number.message}
-									</p>
-								)}
-							</div>
-
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-								<div className="space-y-2">
-									<Label htmlFor="manufacturer">Производитель</Label>
-									<Input
-										id="manufacturer"
-										{...register("manufacturer")}
-										placeholder="Kingston, Transcend..."
-									/>
-								</div>
-
-								<div className="space-y-2">
-									<Label htmlFor="model">Модель</Label>
-									<Input
-										id="model"
-										{...register("model")}
-										placeholder="DataTraveler 100 G3"
-									/>
-								</div>
-							</div>
-
-							{currentType === "flash_drive" && (
-								<div className="space-y-2">
-									<Label htmlFor="capacity_gb">Объём (ГБ) *</Label>
-									<Input
-										id="capacity_gb"
-										type="number"
-										{...register("capacity_gb", { valueAsNumber: true })}
-										placeholder="16"
-										className={errors.capacity_gb ? "border-destructive" : ""}
-									/>
-									{errors.capacity_gb && (
-										<p className="text-sm text-destructive">
-											{errors.capacity_gb.message}
-										</p>
-									)}
-								</div>
-							)}
-
-							{currentType === "electronic_pass" && (
-								<div className="space-y-2">
-									<Label htmlFor="access_level">Уровень доступа (1-10) *</Label>
-									<Input
-										id="access_level"
-										type="number"
-										{...register("access_level", { valueAsNumber: true })}
-										placeholder="3"
-										min="1"
-										max="10"
-										className={errors.access_level ? "border-destructive" : ""}
-									/>
-									{errors.access_level && (
-										<p className="text-sm text-destructive">
-											{errors.access_level.message}
-										</p>
-									)}
-								</div>
-							)}
-
-							<div className="space-y-2">
-								<Label>Статус</Label>
-								<Select
-									value={currentStatus}
-									onValueChange={(val) =>
-										setValue("status", val as AssetFormData["status"], {
-											shouldValidate: true,
-										})
-									}
-								>
-									<SelectTrigger>
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="stock">На складе</SelectItem>
-										<SelectItem value="in_use">Используется</SelectItem>
-										<SelectItem value="broken">Сломан</SelectItem>
-										<SelectItem value="lost">Утерян</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-
-							{currentStatus === "in_use" && (
-								<div className="space-y-2">
-									<Label>Владелец *</Label>
-									<PersonnelSelect
-										value={currentOwnerId}
-										onValueChange={(val) =>
-											setValue("assigned_to_id", val, { shouldValidate: true })
-										}
-										placeholder="Выберите сотрудника"
-										error={!!errors.assigned_to_id}
-									/>
-									{errors.assigned_to_id && (
-										<p className="text-sm text-destructive">
-											{errors.assigned_to_id.message}
-										</p>
-									)}
-									<p className="text-sm text-muted-foreground">
-										При статусе &quot;Используется&quot; необходимо указать
-										владельца
-									</p>
-								</div>
-							)}
-
-							<div className="space-y-2">
-								<Label htmlFor="notes">Примечания</Label>
+								<Label htmlFor="notes" className="text-muted-foreground">Примечания</Label>
 								<Textarea
 									id="notes"
 									{...register("notes")}
-									placeholder="Дополнительная информация..."
+									placeholder="Дополнительная информация о состоянии или месте хранения..."
 									rows={3}
+									className="bg-background/50 border-white/10 focus:border-primary/50 resize-none"
 								/>
 							</div>
 						</CardContent>
 
-						<CardFooter className="flex justify-between border-t mt-6 pt-6">
-							<Button type="button" variant="outline" asChild>
+						<CardFooter className="bg-white/5 border-t border-white/10 p-8 flex justify-between">
+							<Button type="button" variant="ghost" asChild className="hover:bg-white/10 text-muted-foreground">
 								<Link href="/storage-and-passes">Отмена</Link>
 							</Button>
-							<Button type="submit" disabled={createMutation.isPending}>
-								{createMutation.isPending ? "Сохранение..." : "Создать"}
+							<Button 
+								type="submit" 
+								disabled={createMutation.isPending}
+								className="gradient-primary border-0 shadow-lg px-8 font-semibold"
+							>
+								{createMutation.isPending ? (
+									<div className="flex items-center gap-2">
+										<div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+										Сохранение...
+									</div>
+								) : (
+									<div className="flex items-center gap-2">
+										<Save className="h-4 w-4" />
+										Создать запись
+									</div>
+								)}
 							</Button>
 						</CardFooter>
 					</form>

@@ -7,8 +7,10 @@ import {
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
+	SelectSearch,
 } from "@/components/ui/select";
 import { personnelApi } from "@/lib/api/personnel";
+import { cn } from "@/lib/utils";
 
 interface PersonnelSelectProps {
 	value?: number;
@@ -29,7 +31,7 @@ export function PersonnelSelect({
 	disabled = false,
 	error = false,
 }: PersonnelSelectProps) {
-	const { data: personnelData } = useQuery({
+	const { data: personnelData, isLoading } = useQuery({
 		queryKey: ["personnel"],
 		queryFn: () => personnelApi.getList({ limit: 1000 }),
 	});
@@ -42,11 +44,19 @@ export function PersonnelSelect({
 			}
 			disabled={disabled}
 		>
-			<SelectTrigger className={error ? "border-destructive" : ""}>
-				<SelectValue placeholder={placeholder} />
+			<SelectTrigger 
+				className={cn(
+					error && "border-destructive/50 ring-destructive/20 text-destructive-foreground"
+				)}
+			>
+				<SelectValue placeholder={isLoading ? "Загрузка..." : placeholder} />
 			</SelectTrigger>
+			
 			<SelectContent>
-				<SelectItem value={NO_PERSON_VALUE}>—</SelectItem>
+				<SelectSearch placeholder="Введите фамилию или звание..." />
+				
+				<SelectItem value={NO_PERSON_VALUE}>{emptyOptionLabel}</SelectItem>
+				
 				{personnelData?.items.map((person) => (
 					<SelectItem key={person.id} value={person.id.toString()}>
 						{person.rank && `${person.rank} `}

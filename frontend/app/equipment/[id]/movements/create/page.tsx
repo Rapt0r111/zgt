@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Save, MapPin, User as UserIcon, FileText, Calendar, Info, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -120,93 +120,118 @@ export default function CreateMovementPage() {
 
 	if (!equipment) {
 		return (
-			<div className="min-h-screen flex items-center justify-center">
-				<p>Загрузка...</p>
+			<div className="min-h-screen bg-slate-900 flex items-center justify-center">
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="min-h-screen bg-slate-50 p-8">
+		<div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-foreground">
 			<div className="max-w-3xl mx-auto">
-				<Button variant="ghost" asChild className="mb-4">
+				<Button 
+					variant="ghost" 
+					asChild 
+					className="mb-6 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+				>
 					<Link href={`/equipment/${equipmentId}`}>
 						<ArrowLeft className="mr-2 h-4 w-4" />
 						Назад к технике
 					</Link>
 				</Button>
 
-				<Card>
-					<CardHeader>
-						<CardTitle>Создать перемещение</CardTitle>
-						<p className="text-sm text-muted-foreground">
-							{equipment.inventory_number} • {equipment.equipment_type}
-						</p>
+				<div className="mb-8">
+					<h1 className="text-3xl font-bold tracking-tight">Регистрация перемещения</h1>
+					<div className="flex items-center gap-2 mt-2 text-primary/80 font-mono text-sm">
+						<span className="px-2 py-0.5 bg-primary/10 rounded border border-primary/20">
+							{equipment.inventory_number}
+						</span>
+						<span className="text-muted-foreground">•</span>
+						<span className="text-muted-foreground">{equipment.equipment_type}</span>
+					</div>
+				</div>
+
+				<Card className="glass-elevated border-white/10 shadow-2xl overflow-hidden">
+					<CardHeader className="bg-white/5 border-b border-white/10 py-6">
+						<CardTitle className="text-lg flex items-center gap-2">
+							<RefreshCw className="h-5 w-5 text-primary" />
+							Детали операции
+						</CardTitle>
 					</CardHeader>
 
 					<form onSubmit={handleSubmit(onSubmit)}>
-						<CardContent className="space-y-6">
+						<CardContent className="p-8 space-y-10">
 							{error && (
-								<Alert variant="destructive">
+								<Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive-foreground">
 									<AlertDescription>{error}</AlertDescription>
 								</Alert>
 							)}
 
 							{/* Тип перемещения */}
-							<div className="space-y-2">
-								<Label>Тип перемещения *</Label>
-								<Select
-									value={currentMovementType}
-									onValueChange={(val) => setValue("movement_type", val)}
-								>
-									<SelectTrigger
-										className={errors.movement_type ? "border-destructive" : ""}
+							<div className="space-y-4">
+								<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary/70">
+									<Info className="h-3.5 w-3.5" /> Общая информация
+								</div>
+								<div className="space-y-2">
+									<Label className="text-muted-foreground">Тип перемещения *</Label>
+									<Select
+										value={currentMovementType}
+										onValueChange={(val) => setValue("movement_type", val)}
 									>
-										<SelectValue placeholder="Выберите тип" />
-									</SelectTrigger>
-									<SelectContent>
-										{MOVEMENT_TYPES.map((type) => (
-											<SelectItem key={type} value={type}>
-												{type}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								{errors.movement_type && (
-									<p className="text-sm text-destructive">
-										{errors.movement_type.message as string}
-									</p>
-								)}
+										<SelectTrigger
+											className={`bg-background/50 border-white/10 focus:border-primary/50 ${
+												errors.movement_type ? "border-destructive/50" : ""
+											}`}
+										>
+											<SelectValue placeholder="Выберите тип" />
+										</SelectTrigger>
+										<SelectContent className="glass border-white/10">
+											{MOVEMENT_TYPES.map((type) => (
+												<SelectItem key={type} value={type}>
+													{type}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									{errors.movement_type && (
+										<p className="text-xs text-destructive mt-1">
+											{errors.movement_type.message as string}
+										</p>
+									)}
+								</div>
 							</div>
 
 							{/* Местоположение */}
 							<div className="space-y-4">
-								<h3 className="font-semibold text-lg border-b pb-2">
-									Местоположение
-								</h3>
+								<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2">
+									<MapPin className="h-3.5 w-3.5" /> Локация
+								</div>
 
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
-										<Label htmlFor="from_location">Откуда</Label>
+										<Label htmlFor="from_location" className="text-muted-foreground">Откуда (прежнее)</Label>
 										<Input
 											id="from_location"
 											{...register("from_location")}
 											placeholder={
 												equipment.current_location || "Текущее местоположение"
 											}
+											className="bg-background/50 border-white/10 focus:border-primary/50"
 										/>
 									</div>
 
 									<div className="space-y-2">
-										<Label htmlFor="to_location">Куда *</Label>
+										<Label htmlFor="to_location" className="text-muted-foreground">Куда (новое) *</Label>
 										<Input
 											id="to_location"
 											{...register("to_location")}
 											placeholder="Новое местоположение"
-											className={errors.to_location ? "border-destructive" : ""}
+											className={`bg-background/50 border-white/10 focus:border-primary/50 ${
+												errors.to_location ? "border-destructive/50" : ""
+											}`}
 										/>
 										{errors.to_location && (
-											<p className="text-sm text-destructive">
+											<p className="text-xs text-destructive mt-1">
 												{errors.to_location.message as string}
 											</p>
 										)}
@@ -216,13 +241,13 @@ export default function CreateMovementPage() {
 
 							{/* Ответственные лица */}
 							<div className="space-y-4">
-								<h3 className="font-semibold text-lg border-b pb-2">
-									Ответственные лица
-								</h3>
+								<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2">
+									<UserIcon className="h-3.5 w-3.5" /> Ответственные лица
+								</div>
 
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
-										<Label>От кого</Label>
+										<Label className="text-muted-foreground">Передающий (От кого)</Label>
 										<Select
 											value={currentFromPersonId?.toString() || ""}
 											onValueChange={(val) =>
@@ -232,10 +257,10 @@ export default function CreateMovementPage() {
 												)
 											}
 										>
-											<SelectTrigger>
+											<SelectTrigger className="bg-background/50 border-white/10 focus:border-primary/50">
 												<SelectValue placeholder="Выберите (опционально)" />
 											</SelectTrigger>
-											<SelectContent>
+											<SelectContent className="glass border-white/10">
 												{personnelData?.items.map((person) => (
 													<SelectItem
 														key={person.id}
@@ -250,7 +275,7 @@ export default function CreateMovementPage() {
 									</div>
 
 									<div className="space-y-2">
-										<Label>Кому</Label>
+										<Label className="text-muted-foreground">Принимающий (Кому)</Label>
 										<Select
 											value={currentToPersonId?.toString() || ""}
 											onValueChange={(val) =>
@@ -260,10 +285,10 @@ export default function CreateMovementPage() {
 												)
 											}
 										>
-											<SelectTrigger>
+											<SelectTrigger className="bg-background/50 border-white/10 focus:border-primary/50">
 												<SelectValue placeholder="Выберите (опционально)" />
 											</SelectTrigger>
-											<SelectContent>
+											<SelectContent className="glass border-white/10">
 												{personnelData?.items.map((person) => (
 													<SelectItem
 														key={person.id}
@@ -281,53 +306,68 @@ export default function CreateMovementPage() {
 
 							{/* Документ */}
 							<div className="space-y-4">
-								<h3 className="font-semibold text-lg border-b pb-2">
-									Документ
-								</h3>
+								<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2">
+									<FileText className="h-3.5 w-3.5" /> Основание (документ)
+								</div>
 
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
-										<Label htmlFor="document_number">Номер документа</Label>
+										<Label htmlFor="document_number" className="text-muted-foreground">Номер документа</Label>
 										<Input
 											id="document_number"
 											{...register("document_number")}
-											placeholder="№123 от 01.01.2024"
+											placeholder="Приказ №123"
+											className="bg-background/50 border-white/10 focus:border-primary/50 font-mono"
 										/>
 									</div>
 
 									<div className="space-y-2">
-										<Label htmlFor="document_date">Дата документа</Label>
+										<Label htmlFor="document_date" className="text-muted-foreground flex items-center gap-2">
+											<Calendar className="h-3 w-3" /> Дата документа
+										</Label>
 										<Input
 											id="document_date"
 											type="date"
 											{...register("document_date")}
+											className="bg-background/50 border-white/10 focus:border-primary/50 dark:[color-scheme:dark]"
 										/>
 									</div>
 								</div>
 							</div>
 
-							
-
 							{/* Причина */}
 							<div className="space-y-2">
-								<Label htmlFor="reason">Причина перемещения</Label>
+								<Label htmlFor="reason" className="text-muted-foreground">Обоснование / Причина</Label>
 								<Textarea
 									id="reason"
 									{...register("reason")}
-									placeholder="Укажите причину перемещения..."
+									placeholder="Опишите причину перемещения..."
 									rows={3}
+									className="bg-background/50 border-white/10 focus:border-primary/50 resize-none"
 								/>
 							</div>
 						</CardContent>
 
-						<CardFooter className="flex justify-between border-t mt-6 pt-6">
-							<Button type="button" variant="outline" asChild>
+						<CardFooter className="bg-white/5 border-t border-white/10 p-8 flex justify-between">
+							<Button type="button" variant="ghost" asChild className="hover:bg-white/10">
 								<Link href={`/equipment/${equipmentId}`}>Отмена</Link>
 							</Button>
-							<Button type="submit" disabled={createMutation.isPending}>
-								{createMutation.isPending
-									? "Создание..."
-									: "Создать перемещение"}
+							<Button 
+								type="submit" 
+								disabled={createMutation.isPending}
+								className="gradient-primary border-0 shadow-lg px-8 font-semibold"
+							>
+								{createMutation.isPending ? (
+									<div className="flex items-center gap-2">
+										<div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+										Регистрация...
+									</div>
+								) : (
+									<div className="flex items-center gap-2">
+										<Save className="h-4 w-4" />
+										Создать перемещение
+									</div>
+								)}
 							</Button>
 						</CardFooter>
 					</form>

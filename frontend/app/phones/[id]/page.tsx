@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, Save, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Save, XCircle, Smartphone, User as UserIcon, Calendar, Info, Shield, Hash, Edit3, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -118,15 +118,15 @@ export default function PhoneDetailPage() {
 
 	if (isLoading) {
 		return (
-			<div className="min-h-screen flex items-center justify-center">
-				<p>Загрузка...</p>
+			<div className="min-h-screen bg-slate-900 flex items-center justify-center">
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
 			</div>
 		);
 	}
 
 	if (!phone) {
 		return (
-			<div className="min-h-screen flex items-center justify-center">
+			<div className="min-h-screen bg-slate-900 flex items-center justify-center text-foreground">
 				<p>Телефон не найден</p>
 			</div>
 		);
@@ -134,62 +134,75 @@ export default function PhoneDetailPage() {
 
 	const getStatusBadge = (status: string) => {
 		return status === "Выдан" ? (
-			<Badge variant="default" className="gap-1">
-				<CheckCircle2 className="h-3 w-3" />
+			<Badge variant="default" className="gap-1.5 bg-emerald-500/20 text-emerald-400 border-emerald-500/20 px-3 py-1">
+				<CheckCircle2 className="h-3.5 w-3.5" />
 				Выдан
 			</Badge>
 		) : (
-			<Badge variant="secondary" className="gap-1">
-				<XCircle className="h-3 w-3" />
+			<Badge variant="secondary" className="gap-1.5 bg-orange-500/20 text-orange-400 border-orange-500/20 px-3 py-1">
+				<XCircle className="h-3.5 w-3.5" />
 				Сдан
 			</Badge>
 		);
 	};
 
 	return (
-		<div className="min-h-screen bg-slate-50 p-8">
+		<div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-foreground">
 			<div className="max-w-4xl mx-auto">
-				<Button variant="ghost" asChild className="mb-4">
+				<Button variant="ghost" asChild className="mb-6 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors">
 					<Link href="/phones">
 						<ArrowLeft className="mr-2 h-4 w-4" />
 						Назад к списку
 					</Link>
 				</Button>
 
-				<div className="flex justify-between items-start mb-6">
+				<div className="flex flex-wrap justify-between items-start mb-8 gap-4">
 					<div>
-						<h1 className="text-3xl font-bold">
-							{phone.model || "Телефон без модели"}
+						<h1 className="text-3xl font-bold tracking-tight">
+							{phone.model || "Модель не указана"}
 						</h1>
-						<p className="text-muted-foreground mt-1">
-							Владелец: {phone.owner_full_name || "Не указан"}
-							{phone.owner_rank && ` • ${phone.owner_rank}`}
-						</p>
+						<div className="flex items-center gap-2 mt-2 text-muted-foreground">
+							<UserIcon className="h-4 w-4 opacity-50" />
+							<span>
+								{phone.owner_rank && `${phone.owner_rank} `}
+								{phone.owner_full_name || "Владелец не указан"}
+							</span>
+						</div>
 					</div>
-					<div className="flex gap-2 items-center">
+					<div className="flex gap-3 items-center">
 						{getStatusBadge(phone.status)}
-						<Button onClick={() => setIsEditing(!isEditing)}>
-							{isEditing ? "Отменить" : "Редактировать"}
+						<Button 
+							variant={isEditing ? "outline" : "secondary"} 
+							onClick={() => setIsEditing(!isEditing)}
+							className={!isEditing ? "bg-white/10 hover:bg-white/20 border-0" : "bg-transparent border-white/20"}
+						>
+							{isEditing ? (
+								<><X className="mr-2 h-4 w-4" /> Отменить</>
+							) : (
+								<><Edit3 className="mr-2 h-4 w-4" /> Редактировать</>
+							)}
 						</Button>
 					</div>
 				</div>
 
 				<form onSubmit={handleSubmit(onSubmit)}>
 					<div className="grid gap-6">
-						{/* Владелец */}
-						<Card>
-							<CardHeader>
-								<CardTitle>Владелец</CardTitle>
-							</CardHeader>
-							<CardContent className="space-y-4">
-								{error && (
-									<Alert variant="destructive">
-										<AlertDescription>{error}</AlertDescription>
-									</Alert>
-								)}
+						{error && (
+							<Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive-foreground">
+								<AlertDescription>{error}</AlertDescription>
+							</Alert>
+						)}
 
+						{/* Владелец */}
+						<Card className="glass-elevated border-white/10 overflow-hidden">
+							<CardHeader className="bg-white/5 border-b border-white/10">
+								<CardTitle className="text-lg flex items-center gap-2">
+									<UserIcon className="h-4 w-4 text-primary" /> Владелец устройства
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="p-6">
 								<div className="space-y-2">
-									<Label>Военнослужащий *</Label>
+									<Label className="text-muted-foreground">Военнослужащий *</Label>
 									{isEditing ? (
 										<Select
 											value={currentOwnerId?.toString() || ""}
@@ -198,11 +211,11 @@ export default function PhoneDetailPage() {
 											}
 										>
 											<SelectTrigger
-												className={errors.owner_id ? "border-destructive" : ""}
+												className={`bg-background/50 border-white/10 focus:border-primary/50 ${errors.owner_id ? "border-destructive/50" : ""}`}
 											>
 												<SelectValue placeholder="Выберите владельца" />
 											</SelectTrigger>
-											<SelectContent>
+											<SelectContent className="glass border-white/10">
 												{personnelData?.items.map((person) => (
 													<SelectItem
 														key={person.id}
@@ -215,13 +228,13 @@ export default function PhoneDetailPage() {
 											</SelectContent>
 										</Select>
 									) : (
-										<div className="text-sm">
-											{phone.owner_rank && `${phone.owner_rank} `}
+										<div className="p-3 rounded-md bg-white/5 border border-transparent font-medium">
+											{phone.owner_rank && <span className="text-muted-foreground mr-1">{phone.owner_rank}</span>}
 											{phone.owner_full_name || "Не указан"}
 										</div>
 									)}
 									{errors.owner_id && (
-										<p className="text-sm text-destructive">
+										<p className="text-xs text-destructive mt-1">
 											{errors.owner_id.message as string}
 										</p>
 									)}
@@ -230,72 +243,80 @@ export default function PhoneDetailPage() {
 						</Card>
 
 						{/* Данные телефона */}
-						<Card>
-							<CardHeader>
-								<CardTitle>Данные телефона</CardTitle>
+						<Card className="glass-elevated border-white/10 overflow-hidden">
+							<CardHeader className="bg-white/5 border-b border-white/10">
+								<CardTitle className="text-lg flex items-center gap-2">
+									<Smartphone className="h-4 w-4 text-primary" /> Сведения об устройстве
+								</CardTitle>
 							</CardHeader>
-							<CardContent className="space-y-4">
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<CardContent className="p-6 space-y-6">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
-										<Label htmlFor="model">Модель</Label>
+										<Label htmlFor="model" className="text-muted-foreground">Модель</Label>
 										<Input
 											id="model"
 											{...register("model")}
 											disabled={!isEditing}
 											placeholder="iPhone 14 Pro"
+											className="bg-background/50 border-white/10 focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5"
 										/>
 									</div>
 
 									<div className="space-y-2">
-										<Label htmlFor="color">Цвет</Label>
+										<Label htmlFor="color" className="text-muted-foreground">Цвет</Label>
 										<Input
 											id="color"
 											{...register("color")}
 											disabled={!isEditing}
 											placeholder="Чёрный"
+											className="bg-background/50 border-white/10 focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5"
 										/>
 									</div>
 								</div>
 
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
-										<Label htmlFor="imei_1">IMEI 1</Label>
+										<Label htmlFor="imei_1" className="text-muted-foreground">IMEI 1</Label>
 										<Input
 											id="imei_1"
 											{...register("imei_1")}
 											disabled={!isEditing}
 											placeholder="123456789012345"
 											maxLength={15}
+											className="bg-background/50 border-white/10 font-mono focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5"
 										/>
 									</div>
 
 									<div className="space-y-2">
-										<Label htmlFor="imei_2">IMEI 2</Label>
+										<Label htmlFor="imei_2" className="text-muted-foreground">IMEI 2</Label>
 										<Input
 											id="imei_2"
 											{...register("imei_2")}
 											disabled={!isEditing}
 											placeholder="123456789012345"
 											maxLength={15}
+											className="bg-background/50 border-white/10 font-mono focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5"
 										/>
 									</div>
 								</div>
 
 								<div className="space-y-2">
-									<Label htmlFor="serial_number">Серийный номер</Label>
+									<Label htmlFor="serial_number" className="text-muted-foreground">Серийный номер (S/N)</Label>
 									<Input
 										id="serial_number"
 										{...register("serial_number")}
 										disabled={!isEditing}
 										placeholder="ABC123DEF456"
+										className="bg-background/50 border-white/10 font-mono focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5"
 									/>
 								</div>
 
 								{/* Функции */}
-								<div className="space-y-3">
-									<Label>Функции устройства</Label>
-									<div className="flex flex-col gap-2">
-										<div className="flex items-center space-x-2">
+								<div className="space-y-4">
+									<Label className="text-xs font-bold uppercase tracking-widest text-primary/70">Разрешенные функции</Label>
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+										<div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${hasCamera ? 'bg-primary/5 border-primary/20' : 'bg-white/5 border-white/5 opacity-60'}`}>
+											<Label htmlFor="has_camera" className="font-medium cursor-pointer">Камера</Label>
 											<Checkbox
 												id="has_camera"
 												checked={hasCamera}
@@ -303,15 +324,11 @@ export default function PhoneDetailPage() {
 													setValue("has_camera", checked as boolean)
 												}
 												disabled={!isEditing}
+												className="data-[state=checked]:bg-primary"
 											/>
-											<Label
-												htmlFor="has_camera"
-												className="font-normal cursor-pointer"
-											>
-												Есть камера
-											</Label>
 										</div>
-										<div className="flex items-center space-x-2">
+										<div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${hasRecorder ? 'bg-primary/5 border-primary/20' : 'bg-white/5 border-white/5 opacity-60'}`}>
+											<Label htmlFor="has_recorder" className="font-medium cursor-pointer">Диктофон</Label>
 											<Checkbox
 												id="has_recorder"
 												checked={hasRecorder}
@@ -319,13 +336,8 @@ export default function PhoneDetailPage() {
 													setValue("has_recorder", checked as boolean)
 												}
 												disabled={!isEditing}
+												className="data-[state=checked]:bg-primary"
 											/>
-											<Label
-												htmlFor="has_recorder"
-												className="font-normal cursor-pointer"
-											>
-												Есть диктофон
-											</Label>
 										</div>
 									</div>
 								</div>
@@ -333,68 +345,83 @@ export default function PhoneDetailPage() {
 						</Card>
 
 						{/* Хранение */}
-						<Card>
-							<CardHeader>
-								<CardTitle>Хранение и статус</CardTitle>
+						<Card className="glass-elevated border-white/10 overflow-hidden">
+							<CardHeader className="bg-white/5 border-b border-white/10">
+								<CardTitle className="text-lg flex items-center gap-2">
+									<Shield className="h-4 w-4 text-primary" /> Хранение и статус
+								</CardTitle>
 							</CardHeader>
-							<CardContent className="space-y-4">
+							<CardContent className="p-6 space-y-6">
 								<div className="space-y-2">
-									<Label htmlFor="storage_location">Ячейка хранения</Label>
+									<Label htmlFor="storage_location" className="text-muted-foreground">Ячейка хранения</Label>
 									<Input
 										id="storage_location"
 										{...register("storage_location")}
 										disabled={!isEditing}
 										placeholder="Ячейка 15"
+										className="bg-background/50 border-white/10 focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5"
 									/>
 								</div>
 
 								<div className="space-y-2">
-									<Label>Статус</Label>
+									<Label className="text-muted-foreground">Статус</Label>
 									{isEditing ? (
 										<Select
 											value={currentStatus}
 											onValueChange={(val) => setValue("status", val)}
 										>
-											<SelectTrigger>
+											<SelectTrigger className="bg-background/50 border-white/10 focus:border-primary/50">
 												<SelectValue />
 											</SelectTrigger>
-											<SelectContent>
+											<SelectContent className="glass border-white/10">
 												<SelectItem value="Выдан">Выдан</SelectItem>
 												<SelectItem value="Сдан">Сдан</SelectItem>
 											</SelectContent>
 										</Select>
 									) : (
-										<div>{getStatusBadge(phone.status)}</div>
+										<div className="pt-1">{getStatusBadge(phone.status)}</div>
 									)}
 								</div>
 							</CardContent>
 						</Card>
 
 						{/* Метаданные */}
-						<Card>
-							<CardHeader>
-								<CardTitle>Служебная информация</CardTitle>
-							</CardHeader>
-							<CardContent className="space-y-2 text-sm text-muted-foreground">
-								<div>
-									<span className="font-medium">Создан:</span>{" "}
-									{new Date(phone.created_at).toLocaleString("ru-RU")}
+						<Card className="bg-white/5 border-white/10">
+							<CardContent className="p-5 space-y-3 text-xs text-muted-foreground">
+								<div className="flex justify-between items-center">
+									<span className="flex items-center gap-1.5"><Hash className="h-3 w-3" /> ID устройства</span>
+									<span className="font-mono text-foreground/70">{phoneId}</span>
 								</div>
-								<div>
-									<span className="font-medium">Обновлён:</span>{" "}
-									{new Date(phone.updated_at).toLocaleString("ru-RU")}
+								<div className="flex justify-between items-center">
+									<span className="flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Добавлено</span>
+									<span className="text-foreground/70">{new Date(phone.created_at).toLocaleString("ru-RU")}</span>
+								</div>
+								<div className="flex justify-between items-center">
+									<span className="flex items-center gap-1.5"><Info className="h-3 w-3" /> Обновлено</span>
+									<span className="text-foreground/70">{new Date(phone.updated_at).toLocaleString("ru-RU")}</span>
 								</div>
 							</CardContent>
 						</Card>
 					</div>
 
 					{isEditing && (
-						<div className="mt-6 flex justify-end">
-							<Button type="submit" disabled={updateMutation.isPending}>
-								<Save className="mr-2 h-4 w-4" />
-								{updateMutation.isPending
-									? "Сохранение..."
-									: "Сохранить изменения"}
+						<div className="fixed bottom-8 right-8 z-50 animate-in fade-in slide-in-from-bottom-4">
+							<Button 
+								type="submit" 
+								disabled={updateMutation.isPending}
+								className="gradient-primary border-0 shadow-2xl px-8 h-12 rounded-full font-bold"
+							>
+								{updateMutation.isPending ? (
+									<div className="flex items-center gap-2">
+										<div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+										Сохранение...
+									</div>
+								) : (
+									<div className="flex items-center gap-2">
+										<Save className="h-5 w-5" />
+										Сохранить изменения
+									</div>
+								)}
 							</Button>
 						</div>
 					)}

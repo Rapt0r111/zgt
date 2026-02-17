@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, History, Save } from "lucide-react";
+import { ArrowLeft, History, Save, Monitor, Cpu, MapPin, Info, Edit3, X, FileText, User as UserIcon, Calendar, Hash } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -200,564 +200,359 @@ export default function EquipmentDetailPage() {
 
 	if (isLoading) {
 		return (
-			<div className="min-h-screen flex items-center justify-center">
-				<p>Загрузка...</p>
+			<div className="min-h-screen bg-slate-900 flex items-center justify-center">
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
 			</div>
 		);
 	}
 
 	if (!equipment) {
 		return (
-			<div className="min-h-screen flex items-center justify-center">
+			<div className="min-h-screen bg-slate-900 flex items-center justify-center text-foreground">
 				<p>Техника не найдена</p>
 			</div>
 		);
 	}
 
 	const getStatusBadge = (status: string) => {
-		const variants: Record<
-			string,
-			"default" | "secondary" | "destructive" | "outline"
-		> = {
+		const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
 			"В работе": "default",
 			"На складе": "secondary",
 			"В ремонте": "outline",
 			Списан: "destructive",
 		};
-		return <Badge variant={variants[status] || "default"}>{status}</Badge>;
+		return <Badge variant={variants[status] || "default"} className="px-3 shadow-sm">{status}</Badge>;
 	};
 
-
 	return (
-		<div className="min-h-screen bg-slate-50 p-8">
+		<div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-foreground">
 			<div className="max-w-6xl mx-auto">
-				<Button variant="ghost" asChild className="mb-4">
+				<Button variant="ghost" asChild className="mb-6 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors">
 					<Link href="/equipment">
 						<ArrowLeft className="mr-2 h-4 w-4" />
 						Назад к списку
 					</Link>
 				</Button>
 
-				<div className="flex justify-between items-start mb-6">
+				<div className="flex flex-wrap justify-between items-start mb-8 gap-4">
 					<div>
-						<h1 className="text-3xl font-bold">{equipment.inventory_number}</h1>
-						<p className="text-muted-foreground mt-1">
-							{equipment.equipment_type}
-							{equipment.model &&
-								` • ${equipment.manufacturer} ${equipment.model}`}
+						<div className="flex items-center gap-3 mb-1">
+							<h1 className="text-3xl font-bold tracking-tight">{equipment.inventory_number}</h1>
+							{getStatusBadge(equipment.status)}
+						</div>
+						<p className="text-muted-foreground flex items-center gap-2">
+							<span className="font-medium text-primary/80">{equipment.equipment_type}</span>
+							{equipment.model && (
+								<>
+									<span className="opacity-30">•</span>
+									<span>{equipment.manufacturer} {equipment.model}</span>
+								</>
+							)}
 						</p>
 					</div>
-					<div className="flex gap-2 items-center">
-						{getStatusBadge(equipment.status)}
-						<Button onClick={() => setIsEditing(!isEditing)}>
-							{isEditing ? "Отменить" : "Редактировать"}
+					<div className="flex gap-3">
+						<Button 
+							variant={isEditing ? "outline" : "secondary"} 
+							onClick={() => setIsEditing(!isEditing)}
+							className={!isEditing ? "bg-white/10 hover:bg-white/20 border-0" : "bg-transparent border-white/20"}
+						>
+							{isEditing ? (
+								<><X className="mr-2 h-4 w-4" /> Отменить</>
+							) : (
+								<><Edit3 className="mr-2 h-4 w-4" /> Редактировать</>
+							)}
 						</Button>
 					</div>
 				</div>
 
 				<Tabs defaultValue="details" className="space-y-6">
-					<TabsList>
-						<TabsTrigger value="details">Детали</TabsTrigger>
-						<TabsTrigger value="movements">
+					<TabsList className="bg-background/50 border border-white/5 p-1">
+						<TabsTrigger value="details" className="data-[state=active]:bg-primary/20">Детали устройства</TabsTrigger>
+						<TabsTrigger value="movements" className="data-[state=active]:bg-primary/20">
 							<History className="mr-2 h-4 w-4" />
-							История перемещений ({movementHistory?.total || 0})
+							История ({movementHistory?.total || 0})
 						</TabsTrigger>
 					</TabsList>
 
 					<TabsContent value="details" className="space-y-6">
 						<form onSubmit={handleSubmit(onSubmit, onInvalidSubmit)}>
-							{error && (
-								<Alert variant="destructive">
-									<AlertDescription>{error}</AlertDescription>
-								</Alert>
-							)}
+							<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+								{/* Основная колонка */}
+								<div className="lg:col-span-2 space-y-6">
+									{error && (
+										<Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive-foreground">
+											<AlertDescription>{error}</AlertDescription>
+										</Alert>
+									)}
 
-							{/* Основная информация */}
-							<Card>
-								<CardHeader>
-									<CardTitle>Основная информация</CardTitle>
-								</CardHeader>
-								<CardContent className="space-y-4">
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div className="space-y-2">
-											<Label>Тип техники *</Label>
-											{isEditing ? (
-												<>
+									{/* Основная информация */}
+									<Card className="glass-elevated border-white/10 overflow-hidden">
+										<CardHeader className="bg-white/5 border-b border-white/10">
+											<CardTitle className="text-lg flex items-center gap-2">
+												<FileText className="h-4 w-4 text-primary" /> Основные данные
+											</CardTitle>
+										</CardHeader>
+										<CardContent className="p-6 space-y-6">
+											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+												<div className="space-y-2">
+													<Label className="text-muted-foreground">Тип техники *</Label>
+													{isEditing ? (
+														<Select value={currentType} onValueChange={(val) => setValue("equipment_type", val)}>
+															<SelectTrigger className={`bg-background/50 border-white/10 ${errors.equipment_type ? "border-destructive/50" : ""}`}>
+																<SelectValue />
+															</SelectTrigger>
+															<SelectContent className="glass border-white/10">
+																{EQUIPMENT_TYPES.map((type) => (
+																	<SelectItem key={type} value={type}>{type}</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													) : (
+														<div className="p-2.5 rounded-md bg-white/5 border border-transparent font-medium">{equipment.equipment_type}</div>
+													)}
+												</div>
+
+												<div className="space-y-2">
+													<Label htmlFor="inventory_number" className="text-muted-foreground">Учетный номер *</Label>
+													<Input
+														id="inventory_number"
+														{...register("inventory_number")}
+														disabled={!isEditing}
+														className="bg-background/50 border-white/10 font-mono focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5"
+													/>
+												</div>
+											</div>
+
+											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+												<div className="space-y-2">
+													<Label htmlFor="manufacturer" className="text-muted-foreground">Производитель</Label>
+													<Input id="manufacturer" {...register("manufacturer")} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
+												</div>
+												<div className="space-y-2">
+													<Label htmlFor="model" className="text-muted-foreground">Модель</Label>
+													<Input id="model" {...register("model")} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
+												</div>
+											</div>
+
+											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+												<div className="space-y-2">
+													<Label htmlFor="serial_number" className="text-muted-foreground">Серийный номер (S/N)</Label>
+													<Input id="serial_number" {...register("serial_number")} disabled={!isEditing} className="bg-background/50 border-white/10 font-mono text-sm disabled:opacity-100 disabled:bg-white/5" />
+												</div>
+												<div className="space-y-2">
+													<Label htmlFor="mni_serial_number" className="text-muted-foreground">Серийный номер МНИ</Label>
+													<Input id="mni_serial_number" {...register("mni_serial_number")} disabled={!isEditing} className="bg-background/50 border-white/10 font-mono text-sm disabled:opacity-100 disabled:bg-white/5" />
+												</div>
+											</div>
+										</CardContent>
+									</Card>
+
+									{/* Технические характеристики */}
+									<Card className="glass-elevated border-white/10 overflow-hidden">
+										<CardHeader className="bg-white/5 border-b border-white/10">
+											<CardTitle className="text-lg flex items-center gap-2">
+												<Cpu className="h-4 w-4 text-primary" /> Спецификация
+											</CardTitle>
+										</CardHeader>
+										<CardContent className="p-6 space-y-6">
+											<div className="space-y-2">
+												<Label htmlFor="cpu" className="text-muted-foreground">Процессор</Label>
+												<Input id="cpu" {...register("cpu")} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
+											</div>
+
+											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+												<div className="space-y-2">
+													<Label htmlFor="ram_gb" className="text-muted-foreground">RAM (ГБ)</Label>
+													<Input id="ram_gb" type="number" {...register("ram_gb", { valueAsNumber: true })} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
+												</div>
+												<div className="space-y-2">
+													<Label className="text-muted-foreground">Тип хранилища</Label>
+													{isEditing ? (
+														<Select value={currentStorageType} onValueChange={(val) => setValue("storage_type", val)}>
+															<SelectTrigger className="bg-background/50 border-white/10">
+																<SelectValue placeholder="Выберите тип" />
+															</SelectTrigger>
+															<SelectContent className="glass border-white/10">
+																{STORAGE_TYPES.map((type) => (
+																	<SelectItem key={type} value={type}>{type}</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													) : (
+														<div className="p-2.5 rounded-md bg-white/5 border border-transparent">{equipment.storage_type || "—"}</div>
+													)}
+												</div>
+											</div>
+
+											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+												<div className="space-y-2">
+													<Label htmlFor="storage_capacity_gb" className="text-muted-foreground">Объём (ГБ)</Label>
+													<Input id="storage_capacity_gb" type="number" {...register("storage_capacity_gb", { valueAsNumber: true })} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
+												</div>
+												<div className="space-y-2">
+													<Label htmlFor="operating_system" className="text-muted-foreground">ОС</Label>
+													<Input id="operating_system" {...register("operating_system")} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
+												</div>
+											</div>
+
+											<div className="space-y-4">
+												<Label className="text-xs font-bold uppercase tracking-widest text-primary/70">Периферия и аксессуары</Label>
+												<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+													{/* Индивидуальные блоки для ноутбучных аксессуаров */}
+													{[
+														{ id: "has_optical_drive", label: "Оптический привод", type: "check" },
+														{ id: "has_card_reader", label: "Картридер", type: "check" },
+														{ id: "has_laptop", label: "Ноутбук", subId: "laptop_functional", subLabel: "Исправен" },
+														{ id: "has_charger", label: "Зарядка", subId: "charger_functional", subLabel: "Исправна" },
+														{ id: "has_mouse", label: "Мышь", subId: "mouse_functional", subLabel: "Исправна" },
+														{ id: "has_bag", label: "Сумка", subId: "bag_functional", subLabel: "Исправна" },
+													].map((item: any) => (
+														<div key={item.id} className="rounded-xl border border-white/5 bg-white/5 p-4 flex flex-col justify-center">
+															<div className="flex items-center justify-between">
+																<Label htmlFor={item.id} className="font-medium cursor-pointer">{item.label}</Label>
+																<Checkbox
+																	id={item.id}
+																	checked={watch(item.id as any)}
+																	onCheckedChange={(val) => setValue(item.id as any, val as boolean)}
+																	disabled={!isEditing}
+																/>
+															</div>
+															{item.subId && watch(item.id as any) && (
+																<div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-muted-foreground">
+																	<span>{item.subLabel}</span>
+																	<Checkbox
+																		id={item.subId}
+																		checked={watch(item.subId as any)}
+																		onCheckedChange={(val) => setValue(item.subId as any, val as boolean)}
+																		disabled={!isEditing}
+																	/>
+																</div>
+															)}
+														</div>
+													))}
+												</div>
+											</div>
+										</CardContent>
+									</Card>
+								</div>
+
+								{/* Боковая колонка */}
+								<div className="space-y-6">
+									{/* Размещение */}
+									<Card className="glass-elevated border-white/10 overflow-hidden">
+										<CardHeader className="bg-white/5 border-b border-white/10">
+											<CardTitle className="text-lg flex items-center gap-2">
+												<MapPin className="h-4 w-4 text-primary" /> Размещение
+											</CardTitle>
+										</CardHeader>
+										<CardContent className="p-6 space-y-6">
+											<div className="space-y-2">
+												<Label className="text-muted-foreground flex items-center gap-1.5">
+													<UserIcon className="h-3 w-3" /> Владелец
+												</Label>
+												{isEditing ? (
 													<Select
-														value={currentType}
+														value={currentOwnerId != null ? currentOwnerId.toString() : "__no_person__"}
 														onValueChange={(val) =>
-															setValue("equipment_type", val)
+															setValue("current_owner_id", val === "__no_person__" ? null : parseInt(val, 10))
 														}
 													>
-														<SelectTrigger
-															className={errors.equipment_type ? "border-destructive" : ""}
-														>
+														<SelectTrigger className="bg-background/50 border-white/10">
 															<SelectValue />
 														</SelectTrigger>
-														<SelectContent>
-															{EQUIPMENT_TYPES.map((type) => (
-																<SelectItem key={type} value={type}>
-																	{type}
+														<SelectContent className="glass border-white/10">
+															<SelectItem value="__no_person__">—</SelectItem>
+															{personnelData?.items.map((person) => (
+																<SelectItem key={person.id} value={person.id.toString()}>
+																	{person.rank ? `${person.rank} ` : ""}{person.full_name}
 																</SelectItem>
 															))}
 														</SelectContent>
 													</Select>
-													{errors.equipment_type && (
-														<p className="text-sm text-destructive">
-															{errors.equipment_type.message}
-														</p>
-													)}
-												</>
-											) : (
-												<div className="text-sm">
-													{equipment.equipment_type}
-												</div>
-											)}
-										</div>
-
-										<div className="space-y-2">
-											<Label htmlFor="inventory_number">
-												Учетный номер
-												{!(
-													currentType === "Ноутбук" &&
-													currentStatus !== "В работе"
-												)
-													? " *"
-													: ""}
-											</Label>
-											<Input
-												id="inventory_number"
-												{...register("inventory_number")}
-												disabled={!isEditing}
-												className={errors.inventory_number ? "border-destructive" : ""}
-											/>
-										</div>
-									</div>
-
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div className="space-y-2">
-											<Label htmlFor="manufacturer">Производитель</Label>
-											<Input
-												id="manufacturer"
-												{...register("manufacturer")}
-												disabled={!isEditing}
-											/>
-											{isEditing && errors.inventory_number && (
-												<p className="text-sm text-destructive">
-													{errors.inventory_number.message}
-												</p>
-											)}
-										</div>
-
-										<div className="space-y-2">
-											<Label htmlFor="model">Модель</Label>
-											<Input
-												id="model"
-												{...register("model")}
-												disabled={!isEditing}
-											/>
-										</div>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="serial_number">Серийный номер</Label>
-										<Input
-											id="serial_number"
-											{...register("serial_number")}
-											disabled={!isEditing}
-										/>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="mni_serial_number">
-											Серийный номер МНИ
-										</Label>
-										<Input
-											id="mni_serial_number"
-											{...register("mni_serial_number")}
-											disabled={!isEditing}
-										/>
-									</div>
-								</CardContent>
-							</Card>
-
-							{/* Характеристики */}
-							<Card>
-								<CardHeader>
-									<CardTitle>Технические характеристики</CardTitle>
-								</CardHeader>
-								<CardContent className="space-y-4">
-									<div className="space-y-2">
-										<Label htmlFor="cpu">Процессор</Label>
-										<Input
-											id="cpu"
-											{...register("cpu")}
-											disabled={!isEditing}
-										/>
-									</div>
-
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div className="space-y-2">
-											<Label htmlFor="ram_gb">Объём RAM (ГБ)</Label>
-											<Input
-												id="ram_gb"
-												type="number"
-												{...register("ram_gb", { valueAsNumber: true })}
-												disabled={!isEditing}
-											/>
-										</div>
-
-										<div className="space-y-2">
-											<Label>Тип хранилища</Label>
-											{isEditing ? (
-												<Select
-													value={currentStorageType}
-													onValueChange={(val) => setValue("storage_type", val)}
-												>
-													<SelectTrigger>
-														<SelectValue placeholder="Выберите тип" />
-													</SelectTrigger>
-													<SelectContent>
-														{STORAGE_TYPES.map((type) => (
-															<SelectItem key={type} value={type}>
-																{type}
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-											) : (
-												<div className="text-sm">
-													{equipment.storage_type || "—"}
-												</div>
-											)}
-										</div>
-									</div>
-
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div className="space-y-2">
-											<Label htmlFor="storage_capacity_gb">
-												Объём хранилища (ГБ)
-											</Label>
-											<Input
-												id="storage_capacity_gb"
-												type="number"
-												{...register("storage_capacity_gb", {
-													valueAsNumber: true,
-												})}
-												disabled={!isEditing}
-											/>
-										</div>
-
-										<div className="space-y-2">
-											<Label htmlFor="operating_system">
-												Операционная система
-											</Label>
-											<Input
-												id="operating_system"
-												{...register("operating_system")}
-												disabled={!isEditing}
-											/>
-										</div>
-									</div>
-
-									<div className="space-y-3">
-										<Label>Дополнительные устройства</Label>
-										<div className="flex flex-col gap-2">
-											<div className="flex items-center space-x-2">
-												<Checkbox
-													id="has_optical_drive"
-													checked={hasOpticalDrive}
-													onCheckedChange={(checked) =>
-														setValue("has_optical_drive", checked as boolean)
-													}
-													disabled={!isEditing}
-												/>
-												<Label
-													htmlFor="has_optical_drive"
-													className="font-normal"
-												>
-													Оптический привод
-												</Label>
-											</div>
-											<div className="flex items-center space-x-2">
-												<Checkbox
-													id="has_card_reader"
-													checked={hasCardReader}
-													onCheckedChange={(checked) =>
-														setValue("has_card_reader", checked as boolean)
-													}
-													disabled={!isEditing}
-												/>
-												<Label
-													htmlFor="has_card_reader"
-													className="font-normal"
-												>
-													Картридер
-												</Label>
-											</div>
-											<div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-												<div className="rounded-md border px-3 py-2">
-													<div className="flex items-center justify-between">
-														<Label htmlFor="has_laptop" className="font-normal">
-															Ноутбук
-														</Label>
-														<Checkbox
-															id="has_laptop"
-															checked={hasLaptop}
-															onCheckedChange={(checked) =>
-																setValue("has_laptop", checked as boolean)
-															}
-															disabled={!isEditing}
-														/>
-													</div>
-													{hasLaptop && (
-														<div className="mt-2 flex items-center justify-between text-sm">
-															<span>Исправен</span>
-															<Checkbox
-																id="laptop_functional"
-																checked={laptopFunctional}
-																onCheckedChange={(checked) =>
-																	setValue(
-																		"laptop_functional",
-																		checked as boolean,
-																	)
-																}
-																disabled={!isEditing}
-															/>
-														</div>
-													)}
-												</div>
-												<div className="rounded-md border px-3 py-2">
-													<div className="flex items-center justify-between">
-														<Label
-															htmlFor="has_charger"
-															className="font-normal"
-														>
-															Зарядное устройство
-														</Label>
-														<Checkbox
-															id="has_charger"
-															checked={hasCharger}
-															onCheckedChange={(checked) =>
-																setValue("has_charger", checked as boolean)
-															}
-															disabled={!isEditing}
-														/>
-													</div>
-													{hasCharger && (
-														<div className="mt-2 flex items-center justify-between text-sm">
-															<span>Исправно</span>
-															<Checkbox
-																id="charger_functional"
-																checked={chargerFunctional}
-																onCheckedChange={(checked) =>
-																	setValue(
-																		"charger_functional",
-																		checked as boolean,
-																	)
-																}
-																disabled={!isEditing}
-															/>
-														</div>
-													)}
-												</div>
-												<div className="rounded-md border px-3 py-2">
-													<div className="flex items-center justify-between">
-														<Label htmlFor="has_mouse" className="font-normal">
-															Мышь
-														</Label>
-														<Checkbox
-															id="has_mouse"
-															checked={hasMouse}
-															onCheckedChange={(checked) =>
-																setValue("has_mouse", checked as boolean)
-															}
-															disabled={!isEditing}
-														/>
-													</div>
-													{hasMouse && (
-														<div className="mt-2 flex items-center justify-between text-sm">
-															<span>Исправна</span>
-															<Checkbox
-																id="mouse_functional"
-																checked={mouseFunctional}
-																onCheckedChange={(checked) =>
-																	setValue(
-																		"mouse_functional",
-																		checked as boolean,
-																	)
-																}
-																disabled={!isEditing}
-															/>
-														</div>
-													)}
-												</div>
-												<div className="rounded-md border px-3 py-2">
-													<div className="flex items-center justify-between">
-														<Label htmlFor="has_bag" className="font-normal">
-															Сумка
-														</Label>
-														<Checkbox
-															id="has_bag"
-															checked={hasBag}
-															onCheckedChange={(checked) =>
-																setValue("has_bag", checked as boolean)
-															}
-															disabled={!isEditing}
-														/>
-													</div>
-													{hasBag && (
-														<div className="mt-2 flex items-center justify-between text-sm">
-															<span>Исправна</span>
-															<Checkbox
-																id="bag_functional"
-																checked={bagFunctional}
-																onCheckedChange={(checked) =>
-																	setValue("bag_functional", checked as boolean)
-																}
-																disabled={!isEditing}
-															/>
-														</div>
-													)}
-												</div>
-											</div>
-										</div>
-									</div>
-								</CardContent>
-							</Card>
-
-							{/* Размещение */}
-							<Card>
-								<CardHeader>
-									<CardTitle>Размещение</CardTitle>
-								</CardHeader>
-								<CardContent className="space-y-4">
-									<div className="space-y-2">
-										<Label>Ответственное лицо</Label>
-										{isEditing ? (
-											<Select
-												value={currentOwnerId != null ? currentOwnerId.toString() : "__no_person__"}
-												onValueChange={(val) =>
-													setValue(
-														"current_owner_id",
-														val === "__no_person__" ? null : parseInt(val, 10),
-													)
-												}
-											>
-												<SelectTrigger>
-													<SelectValue placeholder="Выберите владельца (опционально)" />
-												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value="__no_person__">—</SelectItem>
-													{personnelData?.items.map((person) => (
-														<SelectItem
-															key={person.id}
-															value={person.id.toString()}
-														>
-															{person.rank ? `${person.rank} ` : ""}
-															{person.full_name}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										) : (
-											<div className="text-sm">
-												{equipment.current_owner_name ? (
-													<div>
-														{equipment.current_owner_rank &&
-															`${equipment.current_owner_rank} `}
-														{equipment.current_owner_name}
-													</div>
 												) : (
-													"—"
+													<div className="p-2.5 rounded-md bg-white/5 border border-transparent text-sm">
+														{equipment.current_owner_name ? (
+															<div>
+																<div className="font-semibold">{equipment.current_owner_name}</div>
+																{equipment.current_owner_rank && (
+																	<div className="text-xs text-muted-foreground mt-0.5">{equipment.current_owner_rank}</div>
+																)}
+															</div>
+														) : "—"}
+													</div>
 												)}
 											</div>
-										)}
-									</div>
 
-									<div className="space-y-2">
-										<Label htmlFor="current_location">Местоположение</Label>
-										<Input
-											id="current_location"
-											{...register("current_location")}
-											disabled={!isEditing}
-										/>
-									</div>
+											<div className="space-y-2">
+												<Label htmlFor="current_location" className="text-muted-foreground">Местоположение</Label>
+												<Input id="current_location" {...register("current_location")} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
+											</div>
 
-									<div className="space-y-2">
-										<Label>Статус</Label>
-										{isEditing ? (
-											<Select
-												value={currentStatus}
-												onValueChange={(val) => setValue("status", val)}
-											>
-												<SelectTrigger>
-													<SelectValue />
-												</SelectTrigger>
-												<SelectContent>
-													{STATUSES.map((status) => (
-														<SelectItem key={status} value={status}>
-															{status}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										) : (
-											<div>{getStatusBadge(equipment.status)}</div>
-										)}
-									</div>
-								</CardContent>
-							</Card>
+											<div className="space-y-2">
+												<Label className="text-muted-foreground">Статус</Label>
+												{isEditing ? (
+													<Select value={currentStatus} onValueChange={(val) => setValue("status", val)}>
+														<SelectTrigger className="bg-background/50 border-white/10">
+															<SelectValue />
+														</SelectTrigger>
+														<SelectContent className="glass border-white/10">
+															{STATUSES.map((status) => (
+																<SelectItem key={status} value={status}>{status}</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+												) : (
+													<div className="pt-1">{getStatusBadge(equipment.status)}</div>
+												)}
+											</div>
+										</CardContent>
+									</Card>
 
-							{/* Примечания */}
-							<Card>
-								<CardHeader>
-									<CardTitle>Примечания</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<Textarea
-										{...register("notes")}
-										disabled={!isEditing}
-										rows={4}
-										placeholder="Дополнительная информация..."
-									/>
-								</CardContent>
-							</Card>
+									{/* Примечания */}
+									<Card className="glass-elevated border-white/10 overflow-hidden">
+										<CardHeader className="bg-white/5 border-b border-white/10">
+											<CardTitle className="text-lg flex items-center gap-2">
+												<Info className="h-4 w-4 text-primary" /> Примечания
+											</CardTitle>
+										</CardHeader>
+										<CardContent className="p-6">
+											<Textarea
+												{...register("notes")}
+												disabled={!isEditing}
+												rows={4}
+												placeholder="Дополнительная информация..."
+												className="bg-background/50 border-white/10 resize-none disabled:opacity-100 disabled:bg-white/5"
+											/>
+										</CardContent>
+									</Card>
 
-							{/* Служебная информация */}
-							<Card>
-								<CardHeader>
-									<CardTitle>Служебная информация</CardTitle>
-								</CardHeader>
-								<CardContent className="space-y-2 text-sm text-muted-foreground">
-									<div>
-										<span className="font-medium">ID:</span> {equipment.id}
-									</div>
-									<div>
-										<span className="font-medium">Создано:</span>{" "}
-										{new Date(equipment.created_at).toLocaleString("ru-RU")}
-									</div>
-									<div>
-										<span className="font-medium">Обновлено:</span>{" "}
-										{new Date(equipment.updated_at).toLocaleString("ru-RU")}
-									</div>
-								</CardContent>
-							</Card>
+									{/* Мета-информация */}
+									<Card className="bg-white/5 border-white/10">
+										<CardContent className="p-5 space-y-3 text-xs text-muted-foreground">
+											<div className="flex justify-between">
+												<span className="flex items-center gap-1.5"><Hash className="h-3 w-3" /> ID устройства</span>
+												<span className="font-mono text-foreground/70">{equipment.id}</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Добавлено</span>
+												<span className="text-foreground/70">{new Date(equipment.created_at).toLocaleDateString("ru-RU")}</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Изменено</span>
+												<span className="text-foreground/70">{new Date(equipment.updated_at).toLocaleDateString("ru-RU")}</span>
+											</div>
+										</CardContent>
+									</Card>
+								</div>
+							</div>
 
 							{isEditing && (
-								<div className="flex justify-end gap-2">
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => setIsEditing(false)}
-									>
+								<div className="fixed bottom-8 right-8 z-50 flex gap-3 p-2 rounded-2xl glass-elevated border border-white/20 shadow-2xl animate-in fade-in slide-in-from-bottom-4">
+									<Button type="button" variant="ghost" onClick={() => setIsEditing(false)} className="hover:bg-white/10">
 										Отмена
 									</Button>
-									<Button type="submit" disabled={updateMutation.isPending}>
-										<Save className="mr-2 h-4 w-4" />
-										{updateMutation.isPending
-											? "Сохранение..."
-											: "Сохранить изменения"}
+									<Button type="submit" disabled={updateMutation.isPending} className="gradient-primary border-0 px-6">
+										{updateMutation.isPending ? "Сохранение..." : <><Save className="mr-2 h-4 w-4" /> Сохранить изменения</>}
 									</Button>
 								</div>
 							)}
@@ -765,92 +560,80 @@ export default function EquipmentDetailPage() {
 					</TabsContent>
 
 					<TabsContent value="movements">
-						<Card>
-							<CardHeader>
-								<div className="flex justify-between items-center">
-									<CardTitle>История перемещений</CardTitle>
-									<Button asChild>
-										<Link href={`/equipment/${equipmentId}/movements/create`}>
-											Добавить перемещение
-										</Link>
-									</Button>
-								</div>
+						<Card className="glass-elevated border-white/10 overflow-hidden">
+							<CardHeader className="bg-white/5 border-b border-white/10 flex flex-row items-center justify-between py-6">
+								<CardTitle className="text-lg">История перемещений</CardTitle>
+								<Button asChild className="gradient-primary border-0 shadow-lg">
+									<Link href={`/equipment/${equipmentId}/movements/create`}>
+										Зафиксировать перемещение
+									</Link>
+								</Button>
 							</CardHeader>
-							<CardContent>
+							<CardContent className="p-6">
 								{movementHistory?.items.length === 0 ? (
-									<div className="text-center py-8 text-muted-foreground">
-										Нет записей о перемещениях
+									<div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
+										История перемещений пуста
 									</div>
 								) : (
 									<div className="space-y-4">
 										{movementHistory?.items.map((movement) => (
 											<div
 												key={movement.id}
-												className="border rounded-lg p-4 hover:bg-slate-50 transition-colors"
+												className="group relative border border-white/5 bg-white/5 rounded-xl p-5 hover:bg-white/10 transition-all"
 											>
-												<div className="flex justify-between items-start mb-2">
-													<div className="font-medium">
-														{movement.movement_type}
+												<div className="flex justify-between items-start mb-4">
+													<div>
+														<div className="text-sm font-bold text-primary/90 mb-1">{movement.movement_type}</div>
+														<div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+															<Calendar className="h-3 w-3" />
+															{new Date(movement.created_at).toLocaleString("ru-RU")}
+														</div>
 													</div>
-													<Badge variant="outline">
-														{new Date(movement.created_at).toLocaleDateString(
-															"ru-RU",
-														)}
-													</Badge>
+													{movement.document_number && (
+														<Badge variant="outline" className="bg-background/30 border-white/10 text-[10px] tracking-wider uppercase">
+															Док: {movement.document_number}
+														</Badge>
+													)}
 												</div>
 
-												<div className="grid grid-cols-2 gap-4 text-sm">
-													<div>
-														<span className="text-muted-foreground">
-															Откуда:
-														</span>{" "}
-														{movement.from_location || "—"}
-														{movement.from_person_name && (
-															<div className="text-muted-foreground text-xs">
-																{movement.from_person_name}
-															</div>
-														)}
+												<div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+													<div className="space-y-3">
+														<div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Источник</div>
+														<div className="space-y-1">
+															<div className="text-sm font-medium">{movement.from_location || "—"}</div>
+															{movement.from_person_name && (
+																<div className="text-xs text-muted-foreground italic flex items-center gap-1.5">
+																	<UserIcon className="h-3 w-3" /> {movement.from_person_name}
+																</div>
+															)}
+														</div>
 													</div>
-													<div>
-														<span className="text-muted-foreground">Куда:</span>{" "}
-														{movement.to_location}
-														{movement.to_person_name && (
-															<div className="text-muted-foreground text-xs">
-																{movement.to_person_name}
-															</div>
-														)}
+													<div className="space-y-3">
+														<div className="text-[10px] uppercase tracking-widest text-primary/70 font-bold">Получатель / Место</div>
+														<div className="space-y-1">
+															<div className="text-sm font-medium">{movement.to_location}</div>
+															{movement.to_person_name && (
+																<div className="text-xs text-muted-foreground italic flex items-center gap-1.5">
+																	<UserIcon className="h-3 w-3" /> {movement.to_person_name}
+																</div>
+															)}
+														</div>
 													</div>
 												</div>
 
-												{movement.document_number && (
-													<div className="mt-2 text-sm text-muted-foreground">
-														Документ: {movement.document_number}
-														{movement.document_date && (
-															<>
-																{" "}
-																от{" "}
-																{new Date(
-																	movement.document_date,
-																).toLocaleDateString("ru-RU")}
-															</>
+												{(movement.reason || movement.created_by_username) && (
+													<div className="mt-4 pt-4 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 gap-4">
+														{movement.reason && (
+															<div className="text-xs">
+																<span className="text-muted-foreground mr-1.5">Причина:</span>
+																<span className="text-foreground/80">{movement.reason}</span>
+															</div>
 														)}
-													</div>
-												)}
-
-												{movement.reason && (
-													<div className="mt-2 text-sm">
-														<span className="text-muted-foreground">
-															Причина:
-														</span>{" "}
-														{movement.reason}
-													</div>
-												)}
-
-
-
-												{movement.created_by_username && (
-													<div className="mt-2 text-xs text-muted-foreground">
-														Создал: {movement.created_by_username}
+														{movement.created_by_username && (
+															<div className="text-[10px] text-muted-foreground md:text-right self-end opacity-50">
+																Оператор: {movement.created_by_username}
+															</div>
+														)}
 													</div>
 												)}
 											</div>

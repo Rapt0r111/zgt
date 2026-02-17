@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Save, UserMinus, UserPlus } from "lucide-react";
+import { ArrowLeft, Save, UserMinus, UserPlus, Usb, ShieldCheck, Edit3, X, FileText, Calendar, Hash, Info, Settings } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -47,7 +47,6 @@ const assetSchema = z
 	})
 	.refine(
 		(data) => {
-			// Если выбран статус "В использовании", владелец обязателен
 			if (data.status === "in_use" && !data.assigned_to_id) {
 				return false;
 			}
@@ -179,25 +178,22 @@ export default function StorageAndPassDetailPage() {
 
 	if (isLoading) {
 		return (
-			<div className="min-h-screen flex items-center justify-center">
-				<p>Загрузка...</p>
+			<div className="min-h-screen bg-slate-900 flex items-center justify-center">
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
 			</div>
 		);
 	}
 
 	if (!asset) {
 		return (
-			<div className="min-h-screen flex items-center justify-center">
+			<div className="min-h-screen bg-slate-900 flex items-center justify-center text-foreground">
 				<p>Актив не найден</p>
 			</div>
 		);
 	}
 
 	const getStatusBadge = (status: string) => {
-		const variants: Record<
-			string,
-			"default" | "secondary" | "destructive" | "outline"
-		> = {
+		const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
 			in_use: "default",
 			stock: "secondary",
 			broken: "destructive",
@@ -210,86 +206,80 @@ export default function StorageAndPassDetailPage() {
 			lost: "Утерян",
 		};
 		return (
-			<Badge variant={variants[status] || "default"}>
+			<Badge variant={variants[status] || "default"} className="px-3 shadow-sm">
 				{labels[status] || status}
 			</Badge>
 		);
 	};
 
 	return (
-		<div className="min-h-screen bg-slate-50 p-8">
+		<div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-foreground">
 			<div className="max-w-4xl mx-auto">
-				<Button variant="ghost" asChild className="mb-4">
+				<Button variant="ghost" asChild className="mb-6 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors">
 					<Link href="/storage-and-passes">
 						<ArrowLeft className="mr-2 h-4 w-4" />
 						Назад к списку
 					</Link>
 				</Button>
 
-				<div className="flex justify-between items-start mb-6">
+				<div className="flex flex-wrap justify-between items-start mb-8 gap-4">
 					<div>
-						<h1 className="text-3xl font-bold">{asset.serial_number}</h1>
-						<p className="text-muted-foreground mt-1">
-							{asset.asset_type === "flash_drive"
-								? "USB-флешка"
-								: "Электронный пропуск"}
-							{asset.model && ` • ${asset.manufacturer} ${asset.model}`}
+						<div className="flex items-center gap-3 mb-1">
+							<h1 className="text-3xl font-bold tracking-tight">{asset.serial_number}</h1>
+							{getStatusBadge(asset.status)}
+						</div>
+						<p className="text-muted-foreground flex items-center gap-2">
+							<span className="font-medium text-primary/80">
+								{asset.asset_type === "flash_drive" ? "USB-флешка" : "Электронный пропуск"}
+							</span>
+							{asset.model && (
+								<>
+									<span className="opacity-30">•</span>
+									<span>{asset.manufacturer} {asset.model}</span>
+								</>
+							)}
 						</p>
 					</div>
 					<div className="flex gap-2 items-center">
-						{getStatusBadge(asset.status)}
 						{asset.status === "stock" && (
-							<Dialog
-								open={showAssignDialog}
-								onOpenChange={setShowAssignDialog}
-							>
+							<Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
 								<DialogTrigger asChild>
-									<Button size="sm" variant="outline">
+									<Button size="sm" className="gradient-primary border-0 shadow-lg">
 										<UserPlus className="mr-2 h-4 w-4" />
 										Выдать
 									</Button>
 								</DialogTrigger>
-								<DialogContent>
+								<DialogContent className="glass border-white/10 text-foreground">
 									<DialogHeader>
 										<DialogTitle>Выдать устройство</DialogTitle>
 									</DialogHeader>
-									<div className="space-y-4">
+									<div className="space-y-4 py-4">
 										<div className="space-y-2">
-											<Label>Выберите сотрудника</Label>
+											<Label className="text-muted-foreground">Выберите сотрудника</Label>
 											<Select
 												value={selectedPersonnelId?.toString() || ""}
-												onValueChange={(val) =>
-													setSelectedPersonnelId(parseInt(val, 10))
-												}
+												onValueChange={(val) => setSelectedPersonnelId(parseInt(val, 10))}
 											>
-												<SelectTrigger>
+												<SelectTrigger className="bg-background/50 border-white/10">
 													<SelectValue placeholder="Выберите сотрудника" />
 												</SelectTrigger>
-												<SelectContent>
+												<SelectContent className="glass border-white/10">
 													{personnelData?.items.map((person) => (
-														<SelectItem
-															key={person.id}
-															value={person.id.toString()}
-														>
-															{person.rank ? `${person.rank} ` : ""}
-															{person.full_name}
+														<SelectItem key={person.id} value={person.id.toString()}>
+															{person.rank ? `${person.rank} ` : ""}{person.full_name}
 														</SelectItem>
 													))}
 												</SelectContent>
 											</Select>
 										</div>
-										<div className="flex justify-end gap-2">
-											<Button
-												variant="outline"
-												onClick={() => setShowAssignDialog(false)}
-											>
+										<div className="flex justify-end gap-2 pt-4">
+											<Button variant="ghost" onClick={() => setShowAssignDialog(false)} className="hover:bg-white/10">
 												Отмена
 											</Button>
 											<Button
+												className="gradient-primary border-0 shadow-lg"
 												onClick={handleAssign}
-												disabled={
-													!selectedPersonnelId || assignMutation.isPending
-												}
+												disabled={!selectedPersonnelId || assignMutation.isPending}
 											>
 												{assignMutation.isPending ? "Выдача..." : "Выдать"}
 											</Button>
@@ -302,6 +292,7 @@ export default function StorageAndPassDetailPage() {
 							<Button
 								size="sm"
 								variant="outline"
+								className="bg-white/5 border-white/10 hover:bg-white/10"
 								onClick={() => revokeMutation.mutate()}
 								disabled={revokeMutation.isPending}
 							>
@@ -309,8 +300,16 @@ export default function StorageAndPassDetailPage() {
 								{revokeMutation.isPending ? "Возврат..." : "Вернуть"}
 							</Button>
 						)}
-						<Button onClick={() => setIsEditing(!isEditing)}>
-							{isEditing ? "Отменить" : "Редактировать"}
+						<Button 
+							variant={isEditing ? "outline" : "secondary"} 
+							onClick={() => setIsEditing(!isEditing)}
+							className={!isEditing ? "bg-white/10 hover:bg-white/20 border-0" : "bg-transparent border-white/20"}
+						>
+							{isEditing ? (
+								<><X className="mr-2 h-4 w-4" /> Отменить</>
+							) : (
+								<><Edit3 className="mr-2 h-4 w-4" /> Редактировать</>
+							)}
 						</Button>
 					</div>
 				</div>
@@ -318,29 +317,32 @@ export default function StorageAndPassDetailPage() {
 				<form onSubmit={handleSubmit(onSubmit)}>
 					<div className="grid gap-6">
 						{error && (
-							<Alert variant="destructive">
+							<Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive-foreground">
 								<AlertDescription>{error}</AlertDescription>
 							</Alert>
 						)}
 
 						{/* Основная информация */}
-						<Card>
-							<CardHeader>
-								<CardTitle>Основная информация</CardTitle>
+						<Card className="glass-elevated border-white/10 overflow-hidden">
+							<CardHeader className="bg-white/5 border-b border-white/10">
+								<CardTitle className="text-lg flex items-center gap-2">
+									<Settings className="h-4 w-4 text-primary" /> Основные данные
+								</CardTitle>
 							</CardHeader>
-							<CardContent className="space-y-4">
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<CardContent className="p-6 space-y-6">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
-										<Label htmlFor="serial_number">Серийный номер</Label>
+										<Label htmlFor="serial_number" className="text-muted-foreground">Серийный номер</Label>
 										<Input
 											id="serial_number"
 											{...register("serial_number")}
 											disabled={!isEditing}
+											className="bg-background/50 border-white/10 font-mono focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5"
 										/>
 									</div>
 
 									<div className="space-y-2">
-										<Label>Статус</Label>
+										<Label className="text-muted-foreground">Статус</Label>
 										{isEditing ? (
 											<Select
 												value={currentStatus}
@@ -350,10 +352,10 @@ export default function StorageAndPassDetailPage() {
 													})
 												}
 											>
-												<SelectTrigger>
+												<SelectTrigger className="bg-background/50 border-white/10">
 													<SelectValue />
 												</SelectTrigger>
-												<SelectContent>
+												<SelectContent className="glass border-white/10">
 													<SelectItem value="stock">На складе</SelectItem>
 													<SelectItem value="in_use">Используется</SelectItem>
 													<SelectItem value="broken">Сломан</SelectItem>
@@ -361,59 +363,64 @@ export default function StorageAndPassDetailPage() {
 												</SelectContent>
 											</Select>
 										) : (
-											<div>{getStatusBadge(asset.status)}</div>
+											<div className="pt-1">{getStatusBadge(asset.status)}</div>
 										)}
 									</div>
 								</div>
 
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
-										<Label htmlFor="manufacturer">Производитель</Label>
+										<Label htmlFor="manufacturer" className="text-muted-foreground">Производитель</Label>
 										<Input
 											id="manufacturer"
 											{...register("manufacturer")}
 											disabled={!isEditing}
+											className="bg-background/50 border-white/10 focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5"
 										/>
 									</div>
 
 									<div className="space-y-2">
-										<Label htmlFor="model">Модель</Label>
+										<Label htmlFor="model" className="text-muted-foreground">Модель</Label>
 										<Input
 											id="model"
 											{...register("model")}
 											disabled={!isEditing}
+											className="bg-background/50 border-white/10 focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5"
 										/>
 									</div>
 								</div>
 
-								{asset.asset_type === "flash_drive" && (
-									<div className="space-y-2">
-										<Label htmlFor="capacity_gb">Объём (ГБ)</Label>
-										<Input
-											id="capacity_gb"
-											type="number"
-											{...register("capacity_gb", { valueAsNumber: true })}
-											disabled={!isEditing}
-										/>
-									</div>
-								)}
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									{asset.asset_type === "flash_drive" && (
+										<div className="space-y-2">
+											<Label htmlFor="capacity_gb" className="text-muted-foreground">Объём (ГБ)</Label>
+											<Input
+												id="capacity_gb"
+												type="number"
+												{...register("capacity_gb", { valueAsNumber: true })}
+												disabled={!isEditing}
+												className="bg-background/50 border-white/10 focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5"
+											/>
+										</div>
+									)}
 
-								{asset.asset_type === "electronic_pass" && (
-									<div className="space-y-2">
-										<Label htmlFor="access_level">Уровень доступа</Label>
-										<Input
-											id="access_level"
-											type="number"
-											{...register("access_level", { valueAsNumber: true })}
-											disabled={!isEditing}
-										/>
-									</div>
-								)}
+									{asset.asset_type === "electronic_pass" && (
+										<div className="space-y-2">
+											<Label htmlFor="access_level" className="text-muted-foreground">Уровень доступа</Label>
+											<Input
+												id="access_level"
+												type="number"
+												{...register("access_level", { valueAsNumber: true })}
+												disabled={!isEditing}
+												className="bg-background/50 border-white/10 focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5"
+											/>
+										</div>
+									)}
+								</div>
 
-								{/* Владелец в режиме редактирования */}
 								{isEditing && currentStatus === "in_use" && (
-									<div className="space-y-2">
-										<Label>Владелец *</Label>
+									<div className="space-y-2 pt-4 border-t border-white/5 animate-in fade-in">
+										<Label className="text-muted-foreground">Владелец *</Label>
 										<Select
 											value={currentOwnerId?.toString() || ""}
 											onValueChange={(val) =>
@@ -424,57 +431,45 @@ export default function StorageAndPassDetailPage() {
 												)
 											}
 										>
-											<SelectTrigger
-												className={
-													errors.assigned_to_id ? "border-destructive" : ""
-												}
-											>
+											<SelectTrigger className={`bg-background/50 border-white/10 ${errors.assigned_to_id ? "border-destructive/50" : ""}`}>
 												<SelectValue placeholder="Выберите сотрудника" />
 											</SelectTrigger>
-											<SelectContent>
+											<SelectContent className="glass border-white/10">
 												{personnelData?.items.map((person) => (
-													<SelectItem
-														key={person.id}
-														value={person.id.toString()}
-													>
-														{person.rank ? `${person.rank} ` : ""}
-														{person.full_name}
+													<SelectItem key={person.id} value={person.id.toString()}>
+														{person.rank ? `${person.rank} ` : ""}{person.full_name}
 													</SelectItem>
 												))}
 											</SelectContent>
 										</Select>
 										{errors.assigned_to_id && (
-											<p className="text-sm text-destructive">
-												{errors.assigned_to_id.message as string}
-											</p>
+											<p className="text-xs text-destructive mt-1">{errors.assigned_to_id.message as string}</p>
 										)}
-										<p className="text-sm text-muted-foreground">
-											При статусе &quot;Используется&quot; необходимо указать
-											владельца{" "}
-										</p>
 									</div>
 								)}
 							</CardContent>
 						</Card>
 
-						{/* Владелец (отображение) */}
+						{/* Текущий владелец */}
 						{asset.assigned_to_name && (
-							<Card>
-								<CardHeader>
-									<CardTitle>Текущий владелец</CardTitle>
+							<Card className="glass-elevated border-white/10 overflow-hidden">
+								<CardHeader className="bg-white/5 border-b border-white/10">
+									<CardTitle className="text-lg flex items-center gap-2">
+										<UserPlus className="h-4 w-4 text-primary" /> Текущий владелец
+									</CardTitle>
 								</CardHeader>
-								<CardContent>
-									<div className="text-sm">
-										<div className="font-medium">{asset.assigned_to_name}</div>
-										{asset.assigned_to_rank && (
-											<div className="text-muted-foreground">
-												{asset.assigned_to_rank}
-											</div>
-										)}
+								<CardContent className="p-6">
+									<div className="flex justify-between items-center">
+										<div>
+											<div className="font-semibold text-lg">{asset.assigned_to_name}</div>
+											{asset.assigned_to_rank && (
+												<div className="text-muted-foreground">{asset.assigned_to_rank}</div>
+											)}
+										</div>
 										{asset.issue_date && (
-											<div className="mt-2 text-muted-foreground">
-												Выдано:{" "}
-												{new Date(asset.issue_date).toLocaleString("ru-RU")}
+											<div className="text-right">
+												<div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Дата выдачи</div>
+												<div className="text-sm font-medium">{new Date(asset.issue_date).toLocaleDateString("ru-RU")}</div>
 											</div>
 										)}
 									</div>
@@ -483,54 +478,61 @@ export default function StorageAndPassDetailPage() {
 						)}
 
 						{/* Примечания */}
-						<Card>
-							<CardHeader>
-								<CardTitle>Примечания</CardTitle>
+						<Card className="glass-elevated border-white/10 overflow-hidden">
+							<CardHeader className="bg-white/5 border-b border-white/10">
+								<CardTitle className="text-lg flex items-center gap-2">
+									<Info className="h-4 w-4 text-primary" /> Примечания
+								</CardTitle>
 							</CardHeader>
-							<CardContent>
+							<CardContent className="p-6">
 								<Textarea
 									{...register("notes")}
 									disabled={!isEditing}
 									rows={4}
 									placeholder="Дополнительная информация..."
+									className="bg-background/50 border-white/10 resize-none disabled:opacity-100 disabled:bg-white/5"
 								/>
 							</CardContent>
 						</Card>
 
 						{/* Метаданные */}
-						<Card>
-							<CardHeader>
-								<CardTitle>Служебная информация</CardTitle>
-							</CardHeader>
-							<CardContent className="space-y-2 text-sm text-muted-foreground">
-								<div>
-									<span className="font-medium">ID:</span> {asset.id}
+						<Card className="bg-white/5 border-white/10">
+							<CardContent className="p-5 space-y-3 text-xs text-muted-foreground">
+								<div className="flex justify-between items-center">
+									<span className="flex items-center gap-1.5"><Hash className="h-3 w-3" /> ID актива</span>
+									<span className="font-mono text-foreground/70">{asset.id}</span>
 								</div>
-								<div>
-									<span className="font-medium">Создано:</span>{" "}
-									{new Date(asset.created_at).toLocaleString("ru-RU")}
+								<div className="flex justify-between items-center">
+									<span className="flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Создано</span>
+									<span className="text-foreground/70">{new Date(asset.created_at).toLocaleString("ru-RU")}</span>
 								</div>
-								<div>
-									<span className="font-medium">Обновлено:</span>{" "}
-									{new Date(asset.updated_at).toLocaleString("ru-RU")}
+								<div className="flex justify-between items-center">
+									<span className="flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Обновлено</span>
+									<span className="text-foreground/70">{new Date(asset.updated_at).toLocaleString("ru-RU")}</span>
 								</div>
 							</CardContent>
 						</Card>
 					</div>
 
 					{isEditing && (
-						<div className="mt-6 flex justify-end gap-2">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => setIsEditing(false)}
-							>
-								Отмена
-							</Button>
-							<Button type="submit" disabled={updateMutation.isPending}>
-								<Save className="mr-2 h-4 w-4" />
-								{updateMutation.isPending ? "Сохранение..." : "Сохранить"}
-							</Button>
+						<div className="fixed bottom-8 right-8 z-50 animate-in fade-in slide-in-from-bottom-4">
+							<div className="flex gap-3 p-2 rounded-2xl glass-elevated border border-white/20 shadow-2xl">
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => setIsEditing(false)}
+									className="hover:bg-white/10 text-muted-foreground"
+								>
+									Отмена
+								</Button>
+								<Button 
+									type="submit" 
+									disabled={updateMutation.isPending}
+									className="gradient-primary border-0 shadow-lg px-6 font-semibold"
+								>
+									{updateMutation.isPending ? "Сохранение..." : <><Save className="mr-2 h-4 w-4" /> Сохранить</>}
+								</Button>
+							</div>
 						</div>
 					)}
 				</form>
