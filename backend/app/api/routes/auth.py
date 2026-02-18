@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.orm import Session
@@ -11,25 +12,28 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest, Token, UserResponse
 from app.api.deps import get_current_user
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/auth", tags=["auth"])
+
 
 @router.post("/login", response_model=Token)
 async def login(
     login_data: LoginRequest,
     response: Response,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     client_ip = request.client.host if request.client else "unknown"
-    
+
     if not rate_limiter.is_allowed(client_ip):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Слишком много неудачных попыток. Попробуйте через 15 минут."
+            detail="Слишком много неудачных попыток. Попробуйте через 15 минут.",
         )
-    
+
     user = db.query(User).filter(User.username == login_data.username).first()
-    
+
     if not user or not verify_password(login_data.password, user.password_hash):
         rate_limiter.record_attempt(client_ip)
         raise HTTPException(
@@ -37,22 +41,30 @@ async def login(
             detail="Неверный логин или пароль",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Пользователь деактивирован")
-    
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Пользователь деактивирован",
+        )
+
     rate_limiter.reset(client_ip)
-    
+
     user.last_login = func.now()
     db.commit()
-    
+
     access_token = create_access_token(
         data={"sub": user.username, "role": user.role},
-        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-    
+
     csrf_token = generate_csrf_token(user.id)
-    
+
+    # domain=None — правильное значение для localhost.
+    # Пустая строка "" передаётся как domain="" буквально и ломает cookie
+    # в некоторых браузерах/версиях Starlette.
+    cookie_domain = settings.COOKIE_DOMAIN if settings.COOKIE_DOMAIN else None
+
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -60,16 +72,22 @@ async def login(
         secure=settings.SECURE_COOKIES,
         samesite="strict",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        domain=settings.COOKIE_DOMAIN
+        domain=cookie_domain,
     )
-    
+
+    # Устанавливаем CSRF-токен в заголовок ответа.
+    # expose_headers в CORSMiddleware позволяет браузеру его читать.
     response.headers["X-CSRF-Token"] = csrf_token
-    
+
+    logger.info("User '%s' logged in, CSRF token issued (len=%d)", user.username, len(csrf_token))
+
     return {"access_token": access_token, "token_type": "bearer"}
+
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     return current_user
+
 
 @router.post("/logout")
 async def logout(response: Response):
@@ -77,6 +95,6 @@ async def logout(response: Response):
         key="access_token",
         httponly=True,
         samesite="lax",
-        secure=False,  # True в проде с HTTPS
+        secure=False,
     )
     return {"message": "Выход выполнен"}

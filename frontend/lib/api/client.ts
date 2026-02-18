@@ -11,48 +11,47 @@ const apiClient = axios.create({
   timeout: 10000,
 });
 
-// CSRF-токен хранится только в памяти — не в sessionStorage
-// XSS не может его украсть через storage API
+// CSRF-токен хранится только в памяти — не в sessionStorage/localStorage.
+// XSS не может его украсть через storage API.
 let csrfToken: string | null = null;
 
 /**
- * Извлекает читаемое сообщение об ошибке из ответа FastAPI / Pydantic v2.
- *
- * Pydantic v2 возвращает: { detail: [{loc, msg, input, ctx}, ...] }
- * msg всегда строка, но может содержать префикс "Value error, " из @field_validator.
+ * Извлекает читаемое сообщение из ответа FastAPI / Pydantic v2.
+ * Pydantic v2: { detail: [{loc, msg, input, ctx}, ...] }
+ * FastAPI HTTPException: { detail: "строка" }
  */
-function extractErrorMessage(data: any): string | null {
-  if (!data) return null;
+function extractErrorMessage(data: unknown): string | null {
+  if (!data || typeof data !== "object") return null;
 
-  const detail = data.detail;
+  const detail = (data as Record<string, unknown>).detail;
 
-  // Pydantic v2: массив объектов с полем msg
   if (Array.isArray(detail)) {
     return detail
-      .map((d: any) => {
-        // d.msg гарантированно строка в Pydantic v2, но на всякий случай
-        const msg = typeof d?.msg === "string" ? d.msg : JSON.stringify(d?.msg ?? d);
-        // Убираем технический префикс который Pydantic добавляет к @field_validator ошибкам
-        return msg.replace(/^Value error,\s*/i, "");
+      .map((d: unknown) => {
+        if (!d || typeof d !== "object") return String(d ?? "");
+        const msg = (d as Record<string, unknown>).msg;
+        const msgStr = typeof msg === "string" ? msg : JSON.stringify(msg ?? d);
+        return msgStr.replace(/^Value error,\s*/i, "");
       })
       .filter(Boolean)
       .join(". ");
   }
 
-  // FastAPI HTTPException: { detail: "строка" }
   if (typeof detail === "string") return detail;
-
-  // Просто строка на верхнем уровне
   if (typeof data === "string") return data;
 
   return null;
 }
 
+// ── Response interceptor ──────────────────────────────────────────────────────
 apiClient.interceptors.response.use(
   (response) => {
+    // Заголовок приходит только на /api/auth/login.
+    // expose_headers в CORS должен включать "X-CSRF-Token".
     const newToken = response.headers["x-csrf-token"] as string | undefined;
     if (newToken) {
       csrfToken = newToken;
+      console.debug("[CSRF] Token stored, length:", newToken.length);
     }
     return response;
   },
@@ -62,7 +61,8 @@ apiClient.interceptors.response.use(
       typeof requestUrl === "string" && requestUrl.includes("/api/auth/");
 
     if (error.response?.status === 422) {
-      const message = extractErrorMessage(error.response.data) ?? "Ошибка валидации данных";
+      const message =
+        extractErrorMessage(error.response.data) ?? "Ошибка валидации данных";
       toast.error(message);
       console.error("Validation Error:", message);
     } else if (error.response?.status === 401 && !isAuthRequest) {
@@ -73,6 +73,9 @@ apiClient.interceptors.response.use(
       const detailStr = typeof detail === "string" ? detail : "";
       if (detailStr.includes("CSRF")) {
         toast.error("Ошибка безопасности. Обновите страницу.");
+        // Сбрасываем токен — после обновления страницы придёт новый при логине
+        csrfToken = null;
+        console.warn("[CSRF] Token rejected by server, cleared.");
       } else {
         toast.error("Недостаточно прав");
       }
@@ -83,18 +86,30 @@ apiClient.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
+// ── Request interceptor ───────────────────────────────────────────────────────
 const CSRF_EXEMPT_ENDPOINTS = ["/api/auth/login", "/api/auth/logout"];
 
 apiClient.interceptors.request.use((config) => {
   const mutatingMethods = ["post", "put", "patch", "delete"];
-  const isMutating = mutatingMethods.includes(config.method?.toLowerCase() || "");
-  const isExempt = CSRF_EXEMPT_ENDPOINTS.some((ep) => config.url?.includes(ep));
+  const isMutating = mutatingMethods.includes(
+    config.method?.toLowerCase() ?? "",
+  );
+  const isExempt = CSRF_EXEMPT_ENDPOINTS.some((ep) =>
+    config.url?.includes(ep),
+  );
 
-  if (isMutating && !isExempt && csrfToken) {
-    config.headers["X-CSRF-Token"] = csrfToken;
+  if (isMutating && !isExempt) {
+    if (csrfToken) {
+      config.headers["X-CSRF-Token"] = csrfToken;
+      console.debug("[CSRF] Token attached to", config.method?.toUpperCase(), config.url);
+    } else {
+      // Токена нет — значит пользователь не прошёл через /api/auth/login в этой сессии
+      // (например, открыл вкладку без входа). Сервер вернёт 403.
+      console.warn("[CSRF] No token available for", config.method?.toUpperCase(), config.url);
+    }
   }
 
   return config;
