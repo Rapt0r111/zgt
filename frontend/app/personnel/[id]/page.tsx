@@ -470,7 +470,7 @@ export default function PersonnelDetailPage() {
 
 					{isEditing && (
 						<div className="mt-8 flex justify-end">
-							<Button type="submit" disabled={updateMutation.isPending} className="gradient-primary border-0 shadow-lg px-8 py-6 h-auto text-lg font-bold">
+							<Button type="submit" disabled={updateMutation.isPending} className="gradient-primary border-0 shadow-lg px-3 py-2 h-auto font-bold">
 								<Save className="mr-2 h-5 w-5" />
 								{updateMutation.isPending
 									? "Сохранение..."
