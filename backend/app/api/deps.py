@@ -15,8 +15,6 @@ security = HTTPBearer(auto_error=False)
 # Иерархия ролей: чем выше число — тем больше прав
 ROLE_HIERARCHY: dict[str, int] = {
     "admin": 100,
-    "officer": 50,   # Офицер ЗГТ — видит личный состав и технику
-    "operator": 20,  # Оператор — только техника
     "user": 10,
 }
 

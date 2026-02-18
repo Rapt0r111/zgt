@@ -18,8 +18,6 @@ import type { UserUpdate } from "@/types/user";
 
 const ROLES = [
   { value: "admin", label: "Администратор" },
-  { value: "officer", label: "Офицер ЗГТ" },
-  { value: "operator", label: "Оператор" },
   { value: "user", label: "Пользователь" },
 ];
 

@@ -98,3 +98,20 @@ async def logout(response: Response):
         secure=False,
     )
     return {"message": "Выход выполнен"}
+
+@router.get("/csrf-token")
+async def get_csrf_token(
+    response: Response,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Выдаёт свежий CSRF-токен для уже авторизованного пользователя.
+    Вызывается при инициализации SPA — если access_token cookie есть,
+    но in-memory csrfToken был сброшен (F5, новая вкладка).
+    """
+    csrf_token = generate_csrf_token(current_user.id)
+    response.headers["X-CSRF-Token"] = csrf_token
+    logger.info(
+        "CSRF token refreshed for user '%s'", current_user.username
+    )
+    return {"csrf_refreshed": True}
