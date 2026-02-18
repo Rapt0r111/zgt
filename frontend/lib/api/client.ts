@@ -30,13 +30,24 @@ apiClient.interceptors.response.use(
       typeof requestUrl === "string" && requestUrl.includes("/api/auth/");
 
     if (error.response?.status === 422) {
-      console.error("Validation Error:", JSON.stringify(error.response.data, null, 2));
+      const details = error.response.data?.detail;
+
+      if (Array.isArray(details)) {
+        // Извлекаем все сообщения об ошибках и соединяем их в одну строку
+        const fullMessage = details.map((d: any) => d.msg).join(". ");
+        toast.error(fullMessage);
+        console.error("Validation Error:", fullMessage);
+      } else if (typeof details === "string") {
+        toast.error(details);
+      } else {
+        toast.error("Ошибка валидации данных");
+      }
     }
 
     if (error.response?.status === 401 && !isAuthRequest) {
-		toast.error("Сессия истекла");
-		window.location.href = "/login";
-	}
+      toast.error("Сессия истекла");
+      window.location.href = "/login";
+    }
 
     if (error.response?.status === 403) {
       if (error.response.data?.detail?.includes("CSRF")) {
