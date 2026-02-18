@@ -1,6 +1,6 @@
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 from app.core.config import settings
@@ -26,7 +26,7 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
@@ -36,20 +36,24 @@ def verify_token(token: str) -> Optional[dict]:
     except JWTError:
         return None
 
-CSRF_SECRET = settings.SECRET_KEY + "_csrf"
-CSRF_TOKEN_EXPIRE = 3600
+# Секрет для CSRF отдельный от JWT — компрометация одного не затрагивает другой
+def _csrf_secret() -> str:
+    return settings.SECRET_KEY + "_csrf"
 
 def generate_csrf_token(user_id: int) -> str:
+    """Генерирует CSRF-токен привязанный к user_id.
+    Время жизни совпадает с сессией (ACCESS_TOKEN_EXPIRE_MINUTES).
+    """
     payload = {
         "user_id": user_id,
-        "exp": datetime.utcnow() + timedelta(seconds=CSRF_TOKEN_EXPIRE),
-        "nonce": secrets.token_urlsafe(16)
+        "exp": datetime.now(timezone.utc) + timedelta(seconds=settings.CSRF_TOKEN_EXPIRE),
+        "nonce": secrets.token_urlsafe(16),
     }
-    return jwt.encode(payload, CSRF_SECRET, algorithm="HS256")
+    return jwt.encode(payload, _csrf_secret(), algorithm="HS256")
 
 def verify_csrf_token(token: str, user_id: int) -> bool:
     try:
-        payload = jwt.decode(token, CSRF_SECRET, algorithms=["HS256"])
+        payload = jwt.decode(token, _csrf_secret(), algorithms=["HS256"])
         return payload.get("user_id") == user_id
     except JWTError:
         return False

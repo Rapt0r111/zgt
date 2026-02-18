@@ -1,8 +1,7 @@
-# Заменить полностью
-
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import Optional
+from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.api.deps import require_personnel_access, verify_csrf
@@ -21,7 +20,7 @@ async def list_personnel(
     status: Optional[str] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user=Depends(require_personnel_access),  # ← RBAC
+    current_user=Depends(require_personnel_access),
 ):
     service = PersonnelService(db)
     items, total = service.get_list(skip=skip, limit=limit, status=status, search=search)
@@ -34,7 +33,6 @@ async def create_personnel(
     db: Session = Depends(get_db),
     current_user=Depends(verify_csrf),
 ):
-    # Дополнительная проверка роли для мутирующих операций
     from app.api.deps import ROLE_HIERARCHY
     if ROLE_HIERARCHY.get(current_user.role, 0) < ROLE_HIERARCHY.get("officer", 0):
         raise HTTPException(
@@ -52,13 +50,43 @@ async def create_personnel(
 async def get_personnel(
     personnel_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(require_personnel_access),  # ← RBAC
+    current_user=Depends(require_personnel_access),
 ):
     service = PersonnelService(db)
     personnel = service.get_by_id(personnel_id)
     if not personnel:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Военнослужащий не найден")
     return personnel
+
+
+@router.get("/{personnel_id}/clearance/check")
+async def check_clearance(
+    personnel_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_personnel_access),
+):
+    """Проверка актуальности допуска к государственной тайне."""
+    service = PersonnelService(db)
+    personnel = service.get_by_id(personnel_id)
+    if not personnel:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Военнослужащий не найден")
+
+    has_clearance = personnel.security_clearance_level is not None
+    expiry = personnel.clearance_expiry_date
+
+    is_expired = False
+    if expiry:
+        expiry_aware = expiry.replace(tzinfo=timezone.utc) if expiry.tzinfo is None else expiry
+        is_expired = expiry_aware < datetime.now(timezone.utc)
+
+    return {
+        "personnel_id": personnel_id,
+        "has_clearance": has_clearance,
+        "clearance_level": personnel.security_clearance_level,
+        "expiry_date": expiry.date().isoformat() if expiry else None,
+        "is_expired": is_expired,
+        "is_valid": has_clearance and not is_expired,
+    }
 
 
 @router.put("/{personnel_id}", response_model=PersonnelResponse)

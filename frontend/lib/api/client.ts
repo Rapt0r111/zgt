@@ -15,9 +15,41 @@ const apiClient = axios.create({
 // XSS не может его украсть через storage API
 let csrfToken: string | null = null;
 
+/**
+ * Извлекает читаемое сообщение об ошибке из ответа FastAPI / Pydantic v2.
+ *
+ * Pydantic v2 возвращает: { detail: [{loc, msg, input, ctx}, ...] }
+ * msg всегда строка, но может содержать префикс "Value error, " из @field_validator.
+ */
+function extractErrorMessage(data: any): string | null {
+  if (!data) return null;
+
+  const detail = data.detail;
+
+  // Pydantic v2: массив объектов с полем msg
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d: any) => {
+        // d.msg гарантированно строка в Pydantic v2, но на всякий случай
+        const msg = typeof d?.msg === "string" ? d.msg : JSON.stringify(d?.msg ?? d);
+        // Убираем технический префикс который Pydantic добавляет к @field_validator ошибкам
+        return msg.replace(/^Value error,\s*/i, "");
+      })
+      .filter(Boolean)
+      .join(". ");
+  }
+
+  // FastAPI HTTPException: { detail: "строка" }
+  if (typeof detail === "string") return detail;
+
+  // Просто строка на верхнем уровне
+  if (typeof data === "string") return data;
+
+  return null;
+}
+
 apiClient.interceptors.response.use(
   (response) => {
-    // Обновляем токен из заголовка ответа
     const newToken = response.headers["x-csrf-token"] as string | undefined;
     if (newToken) {
       csrfToken = newToken;
@@ -30,38 +62,23 @@ apiClient.interceptors.response.use(
       typeof requestUrl === "string" && requestUrl.includes("/api/auth/");
 
     if (error.response?.status === 422) {
-      const details = error.response.data?.detail;
-
-      if (Array.isArray(details)) {
-        // Извлекаем все сообщения об ошибках и соединяем их в одну строку
-        const fullMessage = details.map((d: any) => d.msg).join(". ");
-        toast.error(fullMessage);
-        console.error("Validation Error:", fullMessage);
-      } else if (typeof details === "string") {
-        toast.error(details);
-      } else {
-        toast.error("Ошибка валидации данных");
-      }
-    }
-
-    if (error.response?.status === 401 && !isAuthRequest) {
+      const message = extractErrorMessage(error.response.data) ?? "Ошибка валидации данных";
+      toast.error(message);
+      console.error("Validation Error:", message);
+    } else if (error.response?.status === 401 && !isAuthRequest) {
       toast.error("Сессия истекла");
       window.location.href = "/login";
-    }
-
-    if (error.response?.status === 403) {
-      if (error.response.data?.detail?.includes("CSRF")) {
+    } else if (error.response?.status === 403) {
+      const detail = error.response.data?.detail;
+      const detailStr = typeof detail === "string" ? detail : "";
+      if (detailStr.includes("CSRF")) {
         toast.error("Ошибка безопасности. Обновите страницу.");
       } else {
         toast.error("Недостаточно прав");
       }
-    }
-
-    if (error.response?.status === 429) {
+    } else if (error.response?.status === 429) {
       toast.error("Слишком много запросов. Попробуйте позже.");
-    }
-
-    if (error.response?.status >= 500) {
+    } else if (error.response?.status >= 500) {
       toast.error("Ошибка сервера");
     }
 
