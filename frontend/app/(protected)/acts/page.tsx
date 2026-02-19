@@ -1,13 +1,12 @@
 "use client";
 
-import { useTransition } from "react";
+import { useTransition, useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   FileText, Download, ArrowUpFromLine, ArrowDownToLine, ArrowLeft,
   ChevronDown, ChevronUp, RefreshCw, Shield, User, Cpu, CalendarDays,
   Package, AlertCircle, Database, PenLine, HardDrive, CreditCard,
 } from "lucide-react";
-import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { personnelApi } from "@/lib/api/personnel";
 import { equipmentApi } from "@/lib/api/equipment";
@@ -20,35 +19,20 @@ import { PersonnelSelect } from "@/components/shared/personnel-select";
 import { EquipmentSelect } from "@/components/shared/equipment-select";
 import { StorageAndPassSelect } from "@/components/shared/storage-and-pass-select";
 
-// ─── Константы ───────────────────────────────────────────────────────────────
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const COMMANDER = { rank: "капитан", sign: "С. Тарасенко" } as const;
 
 const KIT_OPTIONS = [
-  "ноутбук",
-  "зарядное устройство",
-  "компьютерная мышь",
-  "сумка для ноутбука",
-  "USB-хаб",
-  "кабель питания",
+  "ноутбук", "зарядное устройство", "компьютерная мышь",
+  "сумка для ноутбука", "USB-хаб", "кабель питания",
 ] as const;
 
-// ─── Вспомогательные функции ─────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Переводит первую букву в нижний регистр (только если это кириллица) */
 function lcFirst(s: string): string {
   if (!s) return s;
-  const first = s[0];
-  // Кириллица заглавная: А-Я + Ё
-  if (/[А-ЯЁ]/.test(first)) return first.toLowerCase() + s.slice(1);
-  return s;
-}
-
-/** Формирует "должность И.О. Фамилия" для текста акта (должность с маленькой буквы) */
-function formatPersonForAct(p: Personnel): string {
-  const role = lcFirst(p.position ?? p.rank ?? "");
-  const initials = getPersonInitials(p.full_name);
-  return role ? `${role} ${initials}` : initials;
+  return /[А-ЯЁ]/.test(s[0]) ? s[0].toLowerCase() + s.slice(1) : s;
 }
 
 function getPersonInitials(fullName: string): string {
@@ -60,24 +44,18 @@ function getPersonInitials(fullName: string): string {
 
 function getPersonLastNameInitials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/);
-  if (parts.length >= 2) return `${parts[1]?.[0] ?? ""}. ${parts[0]}`;
-  return fullName;
+  return parts.length >= 2 ? `${parts[1]?.[0] ?? ""}. ${parts[0]}` : fullName;
 }
 
-/** Серийный номер флешки/пропуска для отображения в акте */
-function formatAssetNumber(a: StorageAndPass): string {
-  return a.serial_number;
+function formatPersonForAct(p: Personnel): string {
+  const role = lcFirst(p.position ?? p.rank ?? "");
+  const initials = getPersonInitials(p.full_name);
+  return role ? `${role} ${initials}` : initials;
 }
 
-// ─── Компоненты формы ────────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
-interface CheckboxFieldProps {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}
-
-function CheckboxField({ label, checked, onChange }: CheckboxFieldProps) {
+function CheckboxField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex items-center gap-2.5 cursor-pointer group">
       <button
@@ -85,11 +63,7 @@ function CheckboxField({ label, checked, onChange }: CheckboxFieldProps) {
         role="checkbox"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
-          checked
-            ? "bg-blue-600 border-blue-500"
-            : "bg-slate-800/60 border-slate-700 group-hover:border-slate-500"
-        }`}
+        className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${checked ? "bg-blue-600 border-blue-500" : "bg-slate-800/60 border-slate-700 group-hover:border-slate-500"}`}
       >
         {checked && (
           <svg viewBox="0 0 10 8" fill="none" className="w-2.5 h-2.5">
@@ -102,48 +76,57 @@ function CheckboxField({ label, checked, onChange }: CheckboxFieldProps) {
   );
 }
 
-// ─── Превью документа ─────────────────────────────────────────────────────────
+function MultiAssetSelect({ label, icon: Icon, assetType, ids, onChange }: {
+  label: string;
+  icon: React.ElementType;
+  assetType: "flash_drive" | "electronic_pass";
+  ids: number[];
+  onChange: (ids: number[]) => void;
+}) {
+  const slots = [...ids, undefined];
+  return (
+    <div className="space-y-2">
+      <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
+        <Icon className="w-3.5 h-3.5" />{label}
+      </label>
+      {slots.map((slotId, i) => (
+        <StorageAndPassSelect
+          key={i}
+          assetType={assetType}
+          value={slotId}
+          onValueChange={(newId) => {
+            const next = [...ids];
+            if (newId === undefined) next.splice(i, 1);
+            else if (i < ids.length) next[i] = newId;
+            else next.push(newId);
+            onChange(next);
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Doc Preview ─────────────────────────────────────────────────────────────
 
 interface PreviewData {
-  actType: ActType;
-  year: string;
-  surrendererLabel: string;
-  receiverLabel: string;
-  issuerLabel: string;
-  model: string;
-  serial: string;
-  kit: string[];
-  defects: string;
-  flashDriveNumbers: string;
-  passNumbers: string;
-  surrendererName: string;
-  receiverName: string;
-  issuerName: string;
-  receiverRankShort: string;
-  receiverLastNameInitials: string;
+  actType: ActType; year: string;
+  surrendererLabel: string; receiverLabel: string; issuerLabel: string;
+  model: string; serial: string; kit: string[]; defects: string;
+  flashDriveNumbers: string; passNumbers: string;
+  surrendererName: string; receiverName: string; issuerName: string;
+  receiverRankShort: string; receiverLastNameInitials: string;
 }
 
 function DocPreview({ data }: { data: PreviewData }) {
-  const {
-    actType, year, surrendererLabel, receiverLabel, issuerLabel,
-    model, serial, kit, defects, flashDriveNumbers, passNumbers,
-  } = data;
-
-  const itemNo = (n: number, text: string) => (
-    <div style={{ marginLeft: "1.25cm" }}>{n}. {text}</div>
-  );
-
-  // Нумерация пунктов после ноутбука
+  const { actType, year, surrendererLabel, receiverLabel, issuerLabel, model, serial, kit, defects, flashDriveNumbers, passNumbers } = data;
   let idx = 2;
-  const passItem = passNumbers ? itemNo(idx++, `Электронный пропуск № ${passNumbers}`) : null;
-  const flashItem = flashDriveNumbers ? itemNo(idx++, `USB-накопитель МО РФ № ${flashDriveNumbers}`) : null;
+  const passItem = passNumbers ? <div style={{ marginLeft: "1.25cm" }}>{idx++}. Электронный пропуск № {passNumbers}</div> : null;
+  const flashItem = flashDriveNumbers ? <div style={{ marginLeft: "1.25cm" }}>{idx++}. USB-накопитель МО РФ № {flashDriveNumbers}</div> : null;
 
   return (
     <div className="bg-white rounded-lg shadow-xl overflow-auto max-h-[600px]">
-      <div
-        className="text-black px-12 py-10"
-        style={{ fontFamily: "Times New Roman, serif", fontSize: "12pt", lineHeight: "1.5", minWidth: "540px" }}
-      >
+      <div className="text-black px-12 py-10" style={{ fontFamily: "Times New Roman, serif", fontSize: "12pt", lineHeight: "1.5", minWidth: "540px" }}>
         <div style={{ textAlign: "right", marginLeft: "55%" }}>
           <div>УТВЕРЖДАЮ</div>
           <div>Командир роты (научной)</div>
@@ -151,81 +134,40 @@ function DocPreview({ data }: { data: PreviewData }) {
           <div style={{ marginTop: "6px" }}>{COMMANDER.sign}</div>
           <div>«___» ________ {year || "____"} г.</div>
         </div>
-
         <div style={{ height: "24px" }} />
-
-        <div style={{ textAlign: "center", fontWeight: "bold", lineHeight: "1.4" }}>
-          АКТ<br />
-          приема-передачи в эксплуатацию<br />
-          оборудования
-        </div>
-
-        <div style={{ marginTop: "8px" }}>
-          г. Санкт-Петербург{" "}
-          <span style={{ display: "inline-block", width: "200px" }} />
-          «___»___________ {year || "____"} г.
-        </div>
-
+        <div style={{ textAlign: "center", fontWeight: "bold", lineHeight: "1.4" }}>АКТ<br />приема-передачи в эксплуатацию<br />оборудования</div>
+        <div style={{ marginTop: "8px" }}>г. Санкт-Петербург<span style={{ display: "inline-block", width: "200px" }} />«___»___________ {year || "____"} г.</div>
         <div style={{ height: "16px" }} />
-
         <div style={{ textIndent: "1.25cm", textAlign: "justify" }}>
-          {actType === "sdacha" ? (
-            <>Настоящий акт составлен в том, что <strong>{receiverLabel || "___________"}</strong> принял, а{" "}<strong>{surrendererLabel || "___________"}</strong> сдал нижеперечисленное имущество:</>
-          ) : (
-            <>Настоящий акт составлен в том, что <strong>{receiverLabel || "___________"}</strong> принял, а{" "}<strong>{issuerLabel || "___________"}</strong> выдал нижеперечисленное имущество:</>
-          )}
+          {actType === "sdacha"
+            ? <>Настоящий акт составлен в том, что <strong>{receiverLabel || "___________"}</strong> принял, а <strong>{surrendererLabel || "___________"}</strong> сдал нижеперечисленное имущество:</>
+            : <>Настоящий акт составлен в том, что <strong>{receiverLabel || "___________"}</strong> принял, а <strong>{issuerLabel || "___________"}</strong> выдал нижеперечисленное имущество:</>}
         </div>
-
         <div style={{ height: "8px" }} />
-
         <div style={{ textIndent: "1.25cm", textAlign: "justify" }}>
-          1. Ноутбук «{model || "___________"}» (серийный номер {serial || "___________"} в комплекте:{" "}
-          {kit.length > 0 ? kit.join(", ") : "___________"})
-          {actType === "vydacha" && (
-            defects
-              ? <> в исправном состоянии, за исключением {defects} (см. приложение).</>
-              : " в исправном состоянии."
-          )}
-          {actType === "sdacha" && (
-            defects ? <>, за исключением {defects} (см. приложение).</> : "."
-          )}
+          1. Ноутбук «{model || "___________"}» (серийный номер {serial || "___________"} в комплекте: {kit.length > 0 ? kit.join(", ") : "___________"})
+          {actType === "vydacha" && (defects ? <> в исправном состоянии, за исключением {defects} (см. приложение).</> : " в исправном состоянии.")}
+          {actType === "sdacha" && (defects ? <>, за исключением {defects} (см. приложение).</> : ".")}
         </div>
-
         {passItem}
         {flashItem}
-
-        {/* Если vydacha и нет флешек/пропусков из БД — показываем пустые строки */}
-        {actType === "vydacha" && !passNumbers && (
-          <div style={{ marginLeft: "1.25cm" }}>2. Электронный пропуск №</div>
-        )}
-        {actType === "vydacha" && !flashDriveNumbers && (
-          <div style={{ marginLeft: "1.25cm" }}>{passNumbers ? "3" : "3"}. USB-накопитель МО РФ №</div>
-        )}
-
+        {actType === "vydacha" && !passNumbers && <div style={{ marginLeft: "1.25cm" }}>2. Электронный пропуск №</div>}
+        {actType === "vydacha" && !flashDriveNumbers && <div style={{ marginLeft: "1.25cm" }}>3. USB-накопитель МО РФ №</div>}
         <div style={{ height: "16px" }} />
-
         <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <div>
-            {actType === "sdacha" ? "Сдал:" : "Выдал:"}{" "}
-            <u>{actType === "sdacha" ? (data.surrendererName || "___________") : (data.issuerName || "___________")}</u> /_______________
-          </div>
+          <div>{actType === "sdacha" ? "Сдал:" : "Выдал:"} <u>{actType === "sdacha" ? (data.surrendererName || "___________") : (data.issuerName || "___________")}</u> /_______________</div>
           <div>«___»___________ {year || "____"} г.</div>
         </div>
-
         <div style={{ height: "16px" }} />
-
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <div>Принял: <u>{data.receiverName || "___________"}</u> /_______________</div>
           <div>«___»___________ {year || "____"} г.</div>
         </div>
-
         {defects && (
           <>
             <div style={{ borderTop: "1px dashed #999", marginTop: "24px", paddingTop: "16px" }} />
             <div style={{ textAlign: "center", fontWeight: "bold" }}>Приложение</div>
-            <div style={{ textIndent: "1.25cm", marginTop: "8px" }}>
-              Неисправности «{model}» №{serial}
-            </div>
+            <div style={{ textIndent: "1.25cm", marginTop: "8px" }}>Неисправности «{model}» №{serial}</div>
             <div style={{ marginTop: "16px" }}>Корректность подтверждаю:</div>
             <div>{data.receiverRankShort || "рядовой"}</div>
             <div style={{ textAlign: "right" }}>{data.receiverLastNameInitials || "___________"}</div>
@@ -237,20 +179,18 @@ function DocPreview({ data }: { data: PreviewData }) {
   );
 }
 
-// ─── Типы состояния формы ─────────────────────────────────────────────────────
+// ─── Form State ───────────────────────────────────────────────────────────────
 
 interface FormState {
   actType: ActType;
   surrenderPersonId: number | undefined;
   receiverPersonId: number | undefined;
   issuerPersonId: number | undefined;
-  // Ноутбук
   equipmentId: number | undefined;
   customSerial: string;
   customModel: string;
   kit: string[];
   defects: string;
-  // Флешки и пропуска (несколько — Set id)
   flashDriveIds: number[];
   passIds: number[];
   year: string;
@@ -271,56 +211,7 @@ const initialState: FormState = {
   year: new Date().getFullYear().toString(),
 };
 
-// ─── Хелпер выбора нескольких активов ────────────────────────────────────────
-
-function MultiAssetSelect({
-  label,
-  icon: Icon,
-  assetType,
-  ids,
-  onChange,
-}: {
-  label: string;
-  icon: React.ElementType;
-  assetType: "flash_drive" | "electronic_pass";
-  ids: number[];
-  onChange: (ids: number[]) => void;
-}) {
-  // Показываем N строк выбора, последняя всегда пустая для добавления
-  const slots = [...ids, undefined];
-
-  return (
-    <div className="space-y-2">
-      <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-        <Icon className="w-3.5 h-3.5" />
-        {label}
-      </label>
-      {slots.map((slotId, i) => (
-        <div key={i} className="flex gap-2 items-center">
-          <div className="flex-1">
-            <StorageAndPassSelect
-              assetType={assetType}
-              value={slotId}
-              onValueChange={(newId) => {
-                const next = [...ids];
-                if (newId === undefined) {
-                  // убираем этот слот
-                  next.splice(i, 1);
-                } else {
-                  if (i < ids.length) next[i] = newId;
-                  else next.push(newId);
-                }
-                onChange(next);
-              }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── Главная страница ─────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ActsPage() {
   const [form, setForm] = useState<FormState>(initialState);
@@ -328,7 +219,9 @@ export default function ActsPage() {
   const [isPending, startTransition] = useTransition();
   const [generateError, setGenerateError] = useState<string | null>(null);
 
-  // ─── Данные из API ────────────────────────────────────────────────────────
+  const setField = useCallback(<K extends keyof FormState>(key: K) => (value: FormState[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }, []);
 
   const { data: personnelData, isLoading: personnelLoading } = useQuery({
     queryKey: ["personnel", { limit: 1000 }],
@@ -355,6 +248,7 @@ export default function ActsPage() {
   });
 
   const personnel = personnelData?.items ?? [];
+  const getPerson = (id: number | undefined): Personnel | undefined => id != null ? personnel.find((p) => p.id === id) : undefined;
 
   const selectedEquipment = useMemo(
     () => equipmentData?.items.find((e) => e.id === form.equipmentId),
@@ -364,34 +258,17 @@ export default function ActsPage() {
   const effectiveModel = selectedEquipment?.model
     ? [selectedEquipment.manufacturer, selectedEquipment.model].filter(Boolean).join(" ")
     : form.customModel;
-
   const effectiveSerial = selectedEquipment?.serial_number ?? form.customSerial;
 
-  // Серийники выбранных флешек и пропусков
   const selectedFlashNumbers = useMemo(() => {
     if (!flashData?.items || form.flashDriveIds.length === 0) return "";
-    return form.flashDriveIds
-      .map((id) => flashData.items.find((a) => a.id === id)?.serial_number)
-      .filter(Boolean)
-      .join(", ");
+    return form.flashDriveIds.map((id) => flashData.items.find((a) => a.id === id)?.serial_number).filter(Boolean).join(", ");
   }, [flashData, form.flashDriveIds]);
 
   const selectedPassNumbers = useMemo(() => {
     if (!passData?.items || form.passIds.length === 0) return "";
-    return form.passIds
-      .map((id) => passData.items.find((a) => a.id === id)?.serial_number)
-      .filter(Boolean)
-      .join(", ");
+    return form.passIds.map((id) => passData.items.find((a) => a.id === id)?.serial_number).filter(Boolean).join(", ");
   }, [passData, form.passIds]);
-
-  // ─── Хелперы ─────────────────────────────────────────────────────────────
-
-  const setField = useCallback(<K extends keyof FormState>(key: K) => (value: FormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
-  const getPerson = (id: number | undefined): Personnel | undefined =>
-    id != null ? personnel.find((p) => p.id === id) : undefined;
 
   const surrenderer = getPerson(form.surrenderPersonId);
   const receiver = getPerson(form.receiverPersonId);
@@ -404,8 +281,6 @@ export default function ActsPage() {
     (form.actType === "sdacha"
       ? form.surrenderPersonId != null && form.receiverPersonId != null
       : form.receiverPersonId != null && form.issuerPersonId != null);
-
-  // ─── Генерация DOCX ──────────────────────────────────────────────────────
 
   const handleGenerate = () => {
     if (!canGenerate || isPending) return;
@@ -460,8 +335,6 @@ export default function ActsPage() {
     });
   };
 
-  // ─── Данные превью ───────────────────────────────────────────────────────
-
   const previewData: PreviewData = {
     actType: form.actType,
     year: form.year,
@@ -481,19 +354,17 @@ export default function ActsPage() {
     receiverLastNameInitials: receiver ? getPersonLastNameInitials(receiver.full_name) : "",
   };
 
-  // ─── Рендер ──────────────────────────────────────────────────────────────
+  const inputCls = "w-full rounded-lg px-3 py-2.5 text-sm transition-all focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 bg-slate-800/60 border border-slate-700/60 text-slate-100 placeholder-slate-600";
+  const inputDbCls = "w-full rounded-lg px-3 py-2.5 text-sm transition-all focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 bg-slate-800/30 border border-slate-700/30 text-slate-300";
+  const sectionCls = "bg-slate-900/60 border border-slate-800/60 rounded-2xl p-6 space-y-4";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8 text-foreground">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <Button variant="ghost" asChild className="mb-4 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors">
-            <Link href="/dashboard">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Назад к панели
-            </Link>
+            <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Назад к панели</Link>
           </Button>
-
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-blue-600/20 border border-blue-500/30 rounded-lg flex items-center justify-center">
               <FileText className="w-5 h-5 text-blue-400" />
@@ -505,7 +376,6 @@ export default function ActsPage() {
           </div>
         </div>
 
-        {/* Тип акта */}
         <div className="mb-8">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Тип документа</p>
           <div className="flex gap-3">
@@ -514,11 +384,7 @@ export default function ActsPage() {
                 key={type}
                 type="button"
                 onClick={() => setField("actType")(type)}
-                className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border text-sm font-medium transition-all ${
-                  form.actType === type
-                    ? "bg-blue-600/20 border-blue-500/50 text-blue-300 shadow-lg shadow-blue-900/20"
-                    : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600"
-                }`}
+                className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border text-sm font-medium transition-all ${form.actType === type ? "bg-blue-600/20 border-blue-500/50 text-blue-300 shadow-lg shadow-blue-900/20" : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600"}`}
               >
                 {type === "sdacha" ? <ArrowUpFromLine className="w-4 h-4" /> : <ArrowDownToLine className="w-4 h-4" />}
                 {type === "sdacha" ? "Акт сдачи оборудования" : "Акт выдачи оборудования"}
@@ -528,78 +394,58 @@ export default function ActsPage() {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          {/* ─── Форма ─────────────────────────────────────────── */}
           <div className="space-y-6">
-
-            {/* Участники */}
-            <div className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-6 space-y-4">
+            {/* Participants */}
+            <div className={sectionCls}>
               <div className="flex items-center gap-2 mb-1">
                 <User className="w-4 h-4 text-blue-400" />
                 <h2 className="text-sm font-semibold text-slate-200">Участники</h2>
               </div>
-
               {personnelLoading ? (
                 <div className="text-slate-500 text-sm">Загрузка личного состава...</div>
               ) : form.actType === "sdacha" ? (
                 <>
                   <div className="space-y-1.5">
-                    <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      <ArrowUpFromLine className="w-3.5 h-3.5" />Кто сдаёт
-                    </label>
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider"><ArrowUpFromLine className="w-3.5 h-3.5" />Кто сдаёт</label>
                     <PersonnelSelect value={form.surrenderPersonId} onValueChange={setField("surrenderPersonId")} placeholder="Выберите сотрудника" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      <ArrowDownToLine className="w-3.5 h-3.5" />Кто принимает
-                    </label>
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider"><ArrowDownToLine className="w-3.5 h-3.5" />Кто принимает</label>
                     <PersonnelSelect value={form.receiverPersonId} onValueChange={setField("receiverPersonId")} placeholder="Выберите сотрудника" />
                   </div>
                 </>
               ) : (
                 <>
                   <div className="space-y-1.5">
-                    <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      <ArrowUpFromLine className="w-3.5 h-3.5" />Кто выдаёт
-                    </label>
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider"><ArrowUpFromLine className="w-3.5 h-3.5" />Кто выдаёт</label>
                     <PersonnelSelect value={form.issuerPersonId} onValueChange={setField("issuerPersonId")} placeholder="Выберите офицера" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      <ArrowDownToLine className="w-3.5 h-3.5" />Кто принимает
-                    </label>
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider"><ArrowDownToLine className="w-3.5 h-3.5" />Кто принимает</label>
                     <PersonnelSelect value={form.receiverPersonId} onValueChange={setField("receiverPersonId")} placeholder="Выберите сотрудника" />
                   </div>
                 </>
               )}
             </div>
 
-            {/* Оборудование */}
-            <div className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-6 space-y-4">
+            {/* Equipment */}
+            <div className={sectionCls}>
               <div className="flex items-center gap-2 mb-1">
                 <Cpu className="w-4 h-4 text-blue-400" />
                 <h2 className="text-sm font-semibold text-slate-200">Ноутбук</h2>
               </div>
-
               <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                  <Database className="w-3.5 h-3.5" />Выбрать из базы данных
-                </label>
+                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider"><Database className="w-3.5 h-3.5" />Выбрать из базы данных</label>
                 <EquipmentSelect
                   value={form.equipmentId}
                   onValueChange={(id) => setForm((prev) => ({ ...prev, equipmentId: id, customModel: "", customSerial: "" }))}
                   placeholder="Поиск по модели, типу или номеру..."
                 />
-                {selectedEquipment && (
-                  <p className="text-xs text-blue-400/70">Модель и серийный номер заполнены из базы данных</p>
-                )}
+                {selectedEquipment && <p className="text-xs text-blue-400/70">Модель и серийный номер заполнены из базы данных</p>}
               </div>
-
               <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-slate-700/60" />
-                <span className="text-xs text-slate-600">или вручную</span>
-                <div className="flex-1 h-px bg-slate-700/60" />
+                <div className="flex-1 h-px bg-slate-700/60" /><span className="text-xs text-slate-600">или вручную</span><div className="flex-1 h-px bg-slate-700/60" />
               </div>
-
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-2 text-xs font-medium text-slate-400 uppercase tracking-wider">
@@ -611,9 +457,7 @@ export default function ActsPage() {
                     value={effectiveModel}
                     onChange={(e) => setForm((prev) => ({ ...prev, equipmentId: undefined, customModel: e.target.value }))}
                     placeholder="Aquarius Cmp NS685U R11"
-                    className={`w-full rounded-lg px-3 py-2.5 text-sm transition-all focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 ${
-                      selectedEquipment ? "bg-slate-800/30 border border-slate-700/30 text-slate-300" : "bg-slate-800/60 border border-slate-700/60 text-slate-100 placeholder-slate-600"
-                    }`}
+                    className={selectedEquipment ? inputDbCls : inputCls}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -626,63 +470,46 @@ export default function ActsPage() {
                     value={effectiveSerial}
                     onChange={(e) => setForm((prev) => ({ ...prev, equipmentId: undefined, customSerial: e.target.value }))}
                     placeholder="222081909046R-0210"
-                    className={`w-full rounded-lg px-3 py-2.5 text-sm font-mono transition-all focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 ${
-                      selectedEquipment ? "bg-slate-800/30 border border-slate-700/30 text-slate-300" : "bg-slate-800/60 border border-slate-700/60 text-slate-100 placeholder-slate-600"
-                    }`}
+                    className={`font-mono ${selectedEquipment ? inputDbCls : inputCls}`}
                   />
                 </div>
               </div>
             </div>
 
-            {/* Флешки и пропуска */}
+            {/* Flash drives & passes */}
             <div className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-6 space-y-5">
               <div className="flex items-center gap-2 mb-1">
                 <HardDrive className="w-4 h-4 text-blue-400" />
                 <h2 className="text-sm font-semibold text-slate-200">Флешки и пропуска</h2>
                 <span className="text-xs text-slate-500 ml-1">(необязательно)</span>
               </div>
-
-              <MultiAssetSelect
-                label="USB-накопители МО РФ"
-                icon={HardDrive}
-                assetType="flash_drive"
-                ids={form.flashDriveIds}
-                onChange={setField("flashDriveIds")}
-              />
-
+              <MultiAssetSelect label="USB-накопители МО РФ" icon={HardDrive} assetType="flash_drive" ids={form.flashDriveIds} onChange={setField("flashDriveIds")} />
               <div className="h-px bg-slate-800/60" />
-
-              <MultiAssetSelect
-                label="Электронные пропуска"
-                icon={CreditCard}
-                assetType="electronic_pass"
-                ids={form.passIds}
-                onChange={setField("passIds")}
-              />
+              <MultiAssetSelect label="Электронные пропуска" icon={CreditCard} assetType="electronic_pass" ids={form.passIds} onChange={setField("passIds")} />
             </div>
 
-            {/* Комплект */}
-            <div className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Package className="w-4 h-4 text-blue-400" />
-                <h2 className="text-sm font-semibold text-slate-200">Комплект поставки</h2>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {KIT_OPTIONS.map((item) => (
-                  <CheckboxField
-                    key={item}
-                    label={item}
-                    checked={form.kit.includes(item)}
-                    onChange={(checked) =>
-                      setField("kit")(checked ? [...form.kit, item] : form.kit.filter((k) => k !== item))
-                    }
-                  />
-                ))}
+            {/* Kit */}
+            <div className={sectionCls.replace("space-y-4", "")}>
+              <div className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Package className="w-4 h-4 text-blue-400" />
+                  <h2 className="text-sm font-semibold text-slate-200">Комплект поставки</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {KIT_OPTIONS.map((item) => (
+                    <CheckboxField
+                      key={item}
+                      label={item}
+                      checked={form.kit.includes(item)}
+                      onChange={(checked) => setField("kit")(checked ? [...form.kit, item] : form.kit.filter((k) => k !== item))}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Дефекты и неисправности */}
-            <div className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-6 space-y-4">
+            {/* Defects */}
+            <div className={sectionCls}>
               <div className="flex items-center gap-2 mb-1">
                 <Shield className="w-4 h-4 text-amber-400" />
                 <h2 className="text-sm font-semibold text-slate-200">Дефекты и неисправности</h2>
@@ -701,7 +528,7 @@ export default function ActsPage() {
               </div>
             </div>
 
-            {/* Год */}
+            {/* Year */}
             <div className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-6">
               <div className="space-y-1.5">
                 <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
@@ -724,8 +551,7 @@ export default function ActsPage() {
 
             {generateError && (
               <div className="flex items-center gap-2 text-red-400 text-sm bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {generateError}
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />{generateError}
               </div>
             )}
 
@@ -733,24 +559,17 @@ export default function ActsPage() {
               type="button"
               onClick={handleGenerate}
               disabled={!canGenerate || isPending}
-              className={`w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl text-sm font-semibold transition-all ${
-                canGenerate && !isPending
-                  ? "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/30 active:scale-[0.98]"
-                  : "bg-slate-800/60 text-slate-600 cursor-not-allowed border border-slate-700/40"
-              }`}
+              className={`w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl text-sm font-semibold transition-all ${canGenerate && !isPending ? "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/30 active:scale-[0.98]" : "bg-slate-800/60 text-slate-600 cursor-not-allowed border border-slate-700/40"}`}
             >
               {isPending
                 ? <><RefreshCw className="w-4 h-4 animate-spin" />Формирование документа...</>
-                : <><Download className="w-4 h-4" />Сформировать и скачать DOCX</>
-              }
+                : <><Download className="w-4 h-4" />Сформировать и скачать DOCX</>}
             </button>
 
-            {!canGenerate && (
-              <p className="text-xs text-slate-600 text-center">Заполните все обязательные поля для генерации</p>
-            )}
+            {!canGenerate && <p className="text-xs text-slate-600 text-center">Заполните все обязательные поля для генерации</p>}
           </div>
 
-          {/* ─── Превью ─────────────────────────────────────────── */}
+          {/* Preview */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Предварительный просмотр</p>
@@ -759,9 +578,7 @@ export default function ActsPage() {
                 onClick={() => setShowPreview(!showPreview)}
                 className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
               >
-                {showPreview
-                  ? <><ChevronUp className="w-3.5 h-3.5" />Свернуть</>
-                  : <><ChevronDown className="w-3.5 h-3.5" />Развернуть</>}
+                {showPreview ? <><ChevronUp className="w-3.5 h-3.5" />Свернуть</> : <><ChevronDown className="w-3.5 h-3.5" />Развернуть</>}
               </button>
             </div>
 
@@ -781,9 +598,7 @@ export default function ActsPage() {
 
             <div className="bg-slate-900/40 border border-slate-800/40 rounded-xl p-4">
               <p className="text-xs text-slate-500 leading-relaxed">
-                <span className="text-slate-400 font-medium">Формат документа:</span>{" "}
-                A4, поля 2cm / 0.6cm / 0.8cm / 1.2cm, шрифт Times New Roman 14pt.
-                {" При наличии дефектов автоматически добавляется Приложение."}
+                <span className="text-slate-400 font-medium">Формат документа:</span> A4, поля 2cm / 0.6cm / 0.8cm / 1.2cm, шрифт Times New Roman 14pt. При наличии дефектов автоматически добавляется Приложение.
               </p>
             </div>
           </div>

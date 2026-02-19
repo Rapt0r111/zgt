@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  Document, Packer, Paragraph, TextRun, AlignmentType, UnderlineType, TabStopType,
-} from "docx";
+import { Document, Packer, Paragraph, TextRun, AlignmentType, UnderlineType, TabStopType } from "docx";
 import { z } from "zod";
 
 const ActPayloadSchema = z.object({
@@ -152,7 +150,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   let raw: unknown;
-  try { raw = await req.json(); } catch {
+  try {
+    raw = await req.json();
+  } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 

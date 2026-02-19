@@ -1,8 +1,7 @@
 import axios, { type AxiosResponse } from "axios";
 import { toast } from "sonner";
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -17,7 +16,7 @@ export async function refreshCsrfToken(): Promise<void> {
   try {
     await apiClient.get("/api/auth/csrf-token");
   } catch {
-    // User not authenticated — expected on /login
+    // Not authenticated — expected on /login
   }
 }
 
@@ -25,28 +24,29 @@ export async function initCsrf(): Promise<void> {
   if (!csrfToken) await refreshCsrfToken();
 }
 
-function extractErrorMessage(data: unknown): string | null {
+function extractDetailMessage(data: unknown): string | null {
   if (!data || typeof data !== "object") return null;
   const { detail } = data as Record<string, unknown>;
   if (Array.isArray(detail)) {
-    return detail
-      .map((d: unknown) => {
-        if (!d || typeof d !== "object") return String(d ?? "");
-        const msg = (d as Record<string, unknown>).msg;
-        return (typeof msg === "string" ? msg : JSON.stringify(msg ?? d))
-          .replace(/^Value error,\s*/i, "");
-      })
-      .filter(Boolean)
-      .join(". ") || null;
+    return (
+      detail
+        .map((d: unknown) => {
+          if (!d || typeof d !== "object") return String(d ?? "");
+          const msg = (d as Record<string, unknown>).msg;
+          return (typeof msg === "string" ? msg : JSON.stringify(msg ?? d)).replace(/^Value error,\s*/i, "");
+        })
+        .filter(Boolean)
+        .join(". ") || null
+    );
   }
   return typeof detail === "string" ? detail : null;
 }
 
 const CSRF_EXEMPT = ["/api/auth/login", "/api/auth/logout", "/api/auth/csrf-token"];
-const MUTATING = ["post", "put", "patch", "delete"];
+const MUTATING_METHODS = ["post", "put", "patch", "delete"];
 
 apiClient.interceptors.request.use((config) => {
-  const isMutating = MUTATING.includes(config.method?.toLowerCase() ?? "");
+  const isMutating = MUTATING_METHODS.includes(config.method?.toLowerCase() ?? "");
   const isExempt = CSRF_EXEMPT.some((ep) => config.url?.includes(ep));
   if (isMutating && !isExempt && csrfToken) {
     config.headers["X-CSRF-Token"] = csrfToken;
@@ -65,13 +65,13 @@ apiClient.interceptors.response.use(
     const isAuthRequest = (error.config?.url as string)?.includes("/api/auth/");
 
     if (status === 422) {
-      toast.error(extractErrorMessage(error.response.data) ?? "Ошибка валидации данных");
+      toast.error(extractDetailMessage(error.response?.data) ?? "Ошибка валидации данных");
     } else if (status === 401 && !isAuthRequest) {
       csrfToken = null;
       toast.error("Сессия истекла");
       window.location.href = "/login";
     } else if (status === 403) {
-      const detail = error.response.data?.detail ?? "";
+      const detail = error.response?.data?.detail ?? "";
       if (typeof detail === "string" && /csrf/i.test(detail)) {
         csrfToken = null;
         showCsrfSecurityAlert();
@@ -89,6 +89,8 @@ apiClient.interceptors.response.use(
 );
 
 function showCsrfSecurityAlert(): void {
+  if (document.getElementById("zgt-csrf-alert")) return;
+
   const overlay = document.createElement("div");
   overlay.id = "zgt-csrf-alert";
   Object.assign(overlay.style, {
