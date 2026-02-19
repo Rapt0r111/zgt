@@ -1,31 +1,32 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-const GUEST_ONLY_ROUTES = ["/login", "/register"];
+const GUEST_ONLY = ["/login", "/register"];
 
-const PROTECTED_ROUTES = [
+const PROTECTED  = [
   "/dashboard",
   "/personnel",
   "/equipment",
   "/phones",
   "/storage-and-passes",
   "/users",
+  "/acts",
 ];
 
 // ↓ было "middleware", стало "proxy"
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const accessToken = request.cookies.get("access_token")?.value;
-  const isAuthenticated = Boolean(accessToken);
+  const isAuthenticated = Boolean(
+    request.cookies.get("access_token")?.value,
+  );
 
   // 1. Авторизованный → /login : редирект на /dashboard
-  if (isAuthenticated && GUEST_ONLY_ROUTES.some((r) => pathname.startsWith(r))) {
+  if (isAuthenticated && GUEST_ONLY.some((r) => pathname.startsWith(r))) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   // 2. Гость → защищённая страница : редирект на /login
-  const isProtected = PROTECTED_ROUTES.some((r) => pathname.startsWith(r));
-  if (!isAuthenticated && isProtected) {
+  if (!isAuthenticated && PROTECTED.some((r) => pathname.startsWith(r))) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
@@ -42,6 +43,7 @@ export const config = {
     "/phones/:path*",
     "/storage-and-passes/:path*",
     "/users/:path*",
+    "/acts/:path*",
     "/login",
     "/register",
   ],

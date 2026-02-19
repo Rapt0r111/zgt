@@ -4,13 +4,31 @@ from typing import Optional
 from datetime import datetime, timezone
 
 from app.core.database import get_db
-from app.api.deps import require_personnel_access, verify_csrf
+from app.api.deps import require_officer, verify_csrf, get_current_user
+from app.models.user import User
 from app.schemas.personnel import (
     PersonnelCreate, PersonnelUpdate, PersonnelResponse, PersonnelListResponse
 )
 from app.services.personnel_service import PersonnelService
 
 router = APIRouter(prefix="/personnel", tags=["personnel"])
+
+# Единый dependency для мутирующих операций с персоналом
+_officer_csrf = lambda db=Depends(get_db), user=Depends(verify_csrf): (db, user)
+
+
+def _require_officer_csrf(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(verify_csrf),
+) -> tuple[Session, User]:
+    """CSRF + минимум officer."""
+    from app.api.deps import ROLE_HIERARCHY
+    if ROLE_HIERARCHY.get(current_user.role, 0) < ROLE_HIERARCHY.get("officer", 0):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Требуется роль: officer",
+        )
+    return db, current_user
 
 
 @router.get("/", response_model=PersonnelListResponse)
@@ -20,7 +38,7 @@ async def list_personnel(
     status: Optional[str] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user=Depends(require_personnel_access),
+    _: User = Depends(require_officer),
 ):
     service = PersonnelService(db)
     items, total = service.get_list(skip=skip, limit=limit, status=status, search=search)
@@ -30,15 +48,9 @@ async def list_personnel(
 @router.post("/", response_model=PersonnelResponse, status_code=status.HTTP_201_CREATED)
 async def create_personnel(
     personnel: PersonnelCreate,
-    db: Session = Depends(get_db),
-    current_user=Depends(verify_csrf),
+    deps: tuple = Depends(_require_officer_csrf),
 ):
-    from app.api.deps import ROLE_HIERARCHY
-    if ROLE_HIERARCHY.get(current_user.role, 0) < ROLE_HIERARCHY.get("officer", 0):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Создание записей личного состава требует роль: officer",
-        )
+    db, _ = deps
     service = PersonnelService(db)
     try:
         return service.create(personnel)
@@ -50,7 +62,7 @@ async def create_personnel(
 async def get_personnel(
     personnel_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(require_personnel_access),
+    _: User = Depends(require_officer),
 ):
     service = PersonnelService(db)
     personnel = service.get_by_id(personnel_id)
@@ -63,22 +75,20 @@ async def get_personnel(
 async def check_clearance(
     personnel_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(require_personnel_access),
+    _: User = Depends(require_officer),
 ):
-    """Проверка актуальности допуска к государственной тайне."""
     service = PersonnelService(db)
     personnel = service.get_by_id(personnel_id)
     if not personnel:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Военнослужащий не найден")
 
-    has_clearance = personnel.security_clearance_level is not None
     expiry = personnel.clearance_expiry_date
-
     is_expired = False
     if expiry:
         expiry_aware = expiry.replace(tzinfo=timezone.utc) if expiry.tzinfo is None else expiry
         is_expired = expiry_aware < datetime.now(timezone.utc)
 
+    has_clearance = personnel.security_clearance_level is not None
     return {
         "personnel_id": personnel_id,
         "has_clearance": has_clearance,
@@ -93,15 +103,9 @@ async def check_clearance(
 async def update_personnel(
     personnel_id: int,
     personnel_data: PersonnelUpdate,
-    db: Session = Depends(get_db),
-    current_user=Depends(verify_csrf),
+    deps: tuple = Depends(_require_officer_csrf),
 ):
-    from app.api.deps import ROLE_HIERARCHY
-    if ROLE_HIERARCHY.get(current_user.role, 0) < ROLE_HIERARCHY.get("officer", 0):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Редактирование личного состава требует роль: officer",
-        )
+    db, _ = deps
     service = PersonnelService(db)
     personnel = service.update(personnel_id, personnel_data)
     if not personnel:
@@ -112,15 +116,9 @@ async def update_personnel(
 @router.delete("/{personnel_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_personnel(
     personnel_id: int,
-    db: Session = Depends(get_db),
-    current_user=Depends(verify_csrf),
+    deps: tuple = Depends(_require_officer_csrf),
 ):
-    from app.api.deps import ROLE_HIERARCHY
-    if ROLE_HIERARCHY.get(current_user.role, 0) < ROLE_HIERARCHY.get("officer", 0):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Удаление записей личного состава требует роль: officer",
-        )
+    db, _ = deps
     service = PersonnelService(db)
     if not service.delete(personnel_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Военнослужащий не найден")

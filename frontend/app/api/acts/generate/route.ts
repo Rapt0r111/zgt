@@ -1,26 +1,12 @@
-/**
- * POST /api/acts/generate
- * Генерирует акт сдачи/выдачи оборудования в формате DOCX.
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import {
-  Document,
-  Packer,
-  Paragraph,
-  TextRun,
-  AlignmentType,
-  UnderlineType,
-  TabStopType,
+  Document, Packer, Paragraph, TextRun, AlignmentType, UnderlineType, TabStopType,
 } from "docx";
 import { z } from "zod";
-import type { ActPayload } from "@/types/acts";
-
-// ─── Валидация входных данных ─────────────────────────────────────────────────
 
 const ActPayloadSchema = z.object({
   actType: z.enum(["sdacha", "vydacha"]),
-  year: z.string().regex(/^\d{4}$/, "Год должен быть 4-значным числом"),
+  year: z.string().regex(/^\d{4}$/),
   commanderRank: z.string().min(1).max(100),
   commanderSign: z.string().min(1).max(100),
   equipmentName: z.string().min(1).max(500),
@@ -39,43 +25,17 @@ const ActPayloadSchema = z.object({
   receiverLastNameInitials: z.string().max(200).optional(),
 });
 
-// ─── Типы ────────────────────────────────────────────────────────────────────
+type Payload = z.infer<typeof ActPayloadSchema>;
 
-type ValidatedPayload = z.infer<typeof ActPayloadSchema>;
+const WIDOWS_RE = /([авиксуоАВИКСУО])\s+/g;
+const noWidows = (t: string) => t.replace(WIDOWS_RE, (_, p) => `${p}\u00A0`);
 
-// ─── Утилиты ─────────────────────────────────────────────────────────────────
+const TNR = (text: string, opts: Partial<ConstructorParameters<typeof TextRun>[0]> = {}) =>
+  new TextRun({ text, font: "Times New Roman", size: 28, ...(opts as object) });
 
-/**
- * Заменяет пробел после однобуквенных предлогов/союзов на неразрывный,
- * чтобы избежать висячих предлогов в конце строки.
- * Список: а в и к о с у — наиболее часто встречающиеся в актах.
- */
-const PREPOSITION_RE = /([авиксуоАВИКСУО])\s+/g;
+const BL = () => new Paragraph({ children: [], spacing: { after: 0, line: 240, lineRule: "auto" } });
 
-function noWidows(text: string): string {
-  return text.replace(PREPOSITION_RE, (_, p) => p + " ");
-}
-
-// ─── DSL для построения параграфов ───────────────────────────────────────────
-
-const TNR = (
-  text: string,
-  opts: Partial<ConstructorParameters<typeof TextRun>[0]> = {}
-): TextRun =>
-  new TextRun({
-    text,
-    font: "Times New Roman",
-    size: 28,
-    ...(opts as object),
-  });
-
-const BL = (): Paragraph =>
-  new Paragraph({
-    children: [],
-    spacing: { after: 0, line: 240, lineRule: "auto" },
-  });
-
-const bodyParagraph = (children: TextRun[]): Paragraph =>
+const bodyP = (children: TextRun[]) =>
   new Paragraph({
     children,
     spacing: { after: 0, line: 240, lineRule: "auto" },
@@ -83,39 +43,21 @@ const bodyParagraph = (children: TextRun[]): Paragraph =>
     alignment: AlignmentType.BOTH,
   });
 
-// ─── Блок УТВЕРЖДАЮ ──────────────────────────────────────────────────────────
+const PAGE = {
+  page: {
+    size: { width: 11906, height: 16838 },
+    margin: { top: 1134, right: 850, bottom: 1134, left: 1701 },
+  },
+} as const;
 
-function headerBlock(commanderRank: string, commanderSign: string, year: string): Paragraph[] {
+function headerBlock(rank: string, sign: string, year: string): Paragraph[] {
   return [
-    new Paragraph({
-      children: [TNR("УТВЕРЖДАЮ")],
-      spacing: { after: 0, line: 240, lineRule: "auto" },
-      indent: { left: 5387 },
-      alignment: AlignmentType.CENTER,
-    }),
-    new Paragraph({
-      children: [TNR("Командир роты (научной)")],
-      spacing: { after: 0, line: 240, lineRule: "auto" },
-      indent: { left: 5387 },
-    }),
-    new Paragraph({
-      children: [TNR(commanderRank)],
-      spacing: { after: 0, line: 240, lineRule: "auto" },
-      indent: { left: 5387 },
-    }),
-    new Paragraph({
-      children: [TNR(commanderSign)],
-      spacing: { after: 0, line: 360, lineRule: "auto" },
-      indent: { left: 4678, firstLine: 2693 },
-      alignment: AlignmentType.RIGHT,
-    }),
-    new Paragraph({
-      children: [TNR(`«___» ________ ${year} г.`)],
-      spacing: { after: 0, line: 240, lineRule: "auto" },
-      indent: { left: 5387 },
-    }),
-    BL(),
-    BL(),
+    new Paragraph({ children: [TNR("УТВЕРЖДАЮ")], spacing: { after: 0, line: 240, lineRule: "auto" }, indent: { left: 5387 }, alignment: AlignmentType.CENTER }),
+    new Paragraph({ children: [TNR("Командир роты (научной)")], spacing: { after: 0, line: 240, lineRule: "auto" }, indent: { left: 5387 } }),
+    new Paragraph({ children: [TNR(rank)], spacing: { after: 0, line: 240, lineRule: "auto" }, indent: { left: 5387 } }),
+    new Paragraph({ children: [TNR(sign)], spacing: { after: 0, line: 360, lineRule: "auto" }, indent: { left: 4678, firstLine: 2693 }, alignment: AlignmentType.RIGHT }),
+    new Paragraph({ children: [TNR(`«___» ________ ${year} г.`)], spacing: { after: 0, line: 240, lineRule: "auto" }, indent: { left: 5387 } }),
+    BL(), BL(),
     new Paragraph({
       children: [
         new TextRun({ text: "АКТ", font: "Times New Roman", size: 28, bold: true }),
@@ -125,229 +67,107 @@ function headerBlock(commanderRank: string, commanderSign: string, year: string)
       spacing: { after: 0, line: 240, lineRule: "auto" },
       alignment: AlignmentType.CENTER,
     }),
-    new Paragraph({
-      children: [TNR(`г. Санкт-Петербург                                                        «___»___________${year} г.`)],
-      spacing: { after: 0, line: 240, lineRule: "auto" },
-    }),
-    BL(),
-    BL(),
+    new Paragraph({ children: [TNR(`г. Санкт-Петербург                                                        «___»___________${year} г.`)], spacing: { after: 0, line: 240, lineRule: "auto" } }),
+    BL(), BL(),
   ];
 }
-
-// ─── Строка подписи ───────────────────────────────────────────────────────────
 
 function signatureLine(label: string, name: string, year: string): Paragraph {
   return new Paragraph({
     children: [
       TNR(`${label}   `),
-      new TextRun({
-        text: `${name} `,
-        font: "Times New Roman",
-        size: 28,
-        underline: { type: UnderlineType.SINGLE },
-      }),
+      new TextRun({ text: `${name} `, font: "Times New Roman", size: 28, underline: { type: UnderlineType.SINGLE } }),
       TNR(`/_______________\t\t«___»___________${year} г.`),
     ],
-    tabStops: [
-      { type: TabStopType.RIGHT, position: 6237 },
-      { type: TabStopType.RIGHT, position: 7088 },
-    ],
+    tabStops: [{ type: TabStopType.RIGHT, position: 6237 }, { type: TabStopType.RIGHT, position: 7088 }],
     spacing: { after: 0, line: 240, lineRule: "auto" },
   });
 }
 
-// ─── Настройки страницы (A4) ──────────────────────────────────────────────────
-
-const PAGE_SETTINGS = {
-  page: {
-    size: { width: 11906, height: 16838 },
-    // top: 2cm, right: 0.6cm, bottom: 0.8cm, left: 1.2cm (в twips: 1cm ≈ 567)
-    margin: { top: 1134, right: 850, bottom: 1134, left: 1701 },
-  },
-} as const;
-
-// ─── Вспомогательные пункты: пропуска и флешки ───────────────────────────────
-
-function buildExtraItems(d: ValidatedPayload, startIndex: number): Paragraph[] {
+function extraItems(d: Payload, startIdx: number): Paragraph[] {
   const items: Paragraph[] = [];
-  let idx = startIndex;
+  let i = startIdx;
   if (d.passNumbers) {
-    items.push(new Paragraph({
-      children: [TNR(noWidows(`${idx}. Электронный пропуск № ${d.passNumbers}`))],
-      spacing: { after: 0, line: 240, lineRule: "auto" },
-      indent: { left: 709 },
-    }));
-    idx++;
+    items.push(new Paragraph({ children: [TNR(noWidows(`${i}. Электронный пропуск № ${d.passNumbers}`))], spacing: { after: 0, line: 240, lineRule: "auto" }, indent: { left: 709 } }));
+    i++;
   }
   if (d.flashDriveNumbers) {
-    items.push(new Paragraph({
-      children: [TNR(noWidows(`${idx}. USB-накопитель МО РФ № ${d.flashDriveNumbers}`))],
-      spacing: { after: 0, line: 240, lineRule: "auto" },
-      indent: { left: 709 },
-    }));
-    idx++;
+    items.push(new Paragraph({ children: [TNR(noWidows(`${i}. USB-накопитель МО РФ № ${d.flashDriveNumbers}`))], spacing: { after: 0, line: 240, lineRule: "auto" }, indent: { left: 709 } }));
   }
   return items;
 }
 
-// ─── Акт сдачи ───────────────────────────────────────────────────────────────
+function appendix(d: Payload): Paragraph[] {
+  if (!d.defects) return [];
+  return [
+    new Paragraph({ children: [new TextRun({ text: "", break: 1 })], pageBreakBefore: true, spacing: { after: 0, line: 240, lineRule: "auto" } }),
+    new Paragraph({ children: [TNR("Приложение", { bold: true })], spacing: { after: 0, line: 720, lineRule: "auto" }, alignment: AlignmentType.CENTER }),
+    bodyP([TNR(noWidows(`Неисправности «${d.equipmentName}» №${d.serialNumber}`))]),
+    BL(),
+    new Paragraph({ children: [TNR("Корректность подтверждаю:")], spacing: { line: 240, lineRule: "auto" } }),
+    new Paragraph({ children: [TNR(d.receiverRankShort ?? "рядовой")], spacing: { line: 240, lineRule: "auto" } }),
+    new Paragraph({ children: [TNR(d.receiverLastNameInitials ?? "")], spacing: { line: 240, lineRule: "auto" }, alignment: AlignmentType.RIGHT }),
+    new Paragraph({ children: [TNR(`«___» ___________${d.year} г.`)], spacing: { line: 240, lineRule: "auto" } }),
+  ];
+}
 
-function buildSdachaDoc(d: ValidatedPayload): Document {
-  const intro = noWidows(`Настоящий акт составлен в том, что ${d.receiverRank ?? ""} ${d.receiverName ?? ""} принял, а ${d.surrendererRank ?? ""} ${d.surrendererName ?? ""} сдал нижеперечисленное имущество:`);
+function buildDoc(d: Payload): Document {
+  const isSdacha = d.actType === "sdacha";
+  const thirdParty = isSdacha
+    ? `${d.surrendererRank ?? ""} ${d.surrendererName ?? ""}`.trim()
+    : `${d.issuerRank ?? ""} ${d.issuerName ?? ""}`.trim();
+  const verb = isSdacha ? "сдал" : "выдал";
+  const intro = noWidows(`Настоящий акт составлен в том, что ${d.receiverRank ?? ""} ${d.receiverName ?? ""} принял, а ${thirdParty} ${verb} нижеперечисленное имущество:`);
 
-  const item1Base = noWidows(`1. Ноутбук «${d.equipmentName}» (серийный номер ${d.serialNumber} в комплекте: ${d.kit})`);
+  const item1Base = noWidows(`1. Ноутбук «${d.equipmentName}» (серийный номер ${d.serialNumber} в комплекте: ${d.kit})${!isSdacha ? " в исправном состоянии" : ""}`);
+  const item1Text = d.defects
+    ? `${item1Base}${isSdacha ? "," : ""}, за исключением ${d.defects} (см. приложение).`
+    : `${item1Base}.`;
 
-  const item1Children: TextRun[] = d.defects
-    ? [TNR(item1Base + noWidows(`, за исключением ${d.defects} (см. приложение).`))]
-    : [TNR(item1Base + ".")];
-
-  const appendixChildren: Paragraph[] = d.defects
-    ? [
-        new Paragraph({
-          children: [new TextRun({ text: "", break: 1 })],
-          pageBreakBefore: true,
-          spacing: { after: 0, line: 240, lineRule: "auto" },
-        }),
-        new Paragraph({
-          children: [TNR("Приложение", { bold: true })],
-          spacing: { after: 0, line: 720, lineRule: "auto" },
-          alignment: AlignmentType.CENTER,
-        }),
-        bodyParagraph([TNR(noWidows(`Неисправности «${d.equipmentName}» №${d.serialNumber}`))]),
-        BL(),
-        new Paragraph({ children: [TNR("Корректность подтверждаю:")], spacing: { line: 240, lineRule: "auto" } }),
-        new Paragraph({ children: [TNR(d.receiverRankShort ?? "рядовой")], spacing: { line: 240, lineRule: "auto" } }),
-        new Paragraph({
-          children: [TNR(d.receiverLastNameInitials ?? "")],
-          spacing: { line: 240, lineRule: "auto" },
-          alignment: AlignmentType.RIGHT,
-        }),
-        new Paragraph({ children: [TNR(`«___» ___________${d.year} г.`)], spacing: { line: 240, lineRule: "auto" } }),
-      ]
-    : [];
-
-  // Дополнительные пункты: пропуска и флешки
-  const extraItems = buildExtraItems(d, 2);
+  const actionLabel = isSdacha ? "Сдал:    " : "Выдал:   ";
+  const actionName = isSdacha ? (d.surrendererName ?? "") : (d.issuerName ?? "");
 
   return new Document({
     sections: [{
-      properties: PAGE_SETTINGS,
+      properties: PAGE,
       children: [
         ...headerBlock(d.commanderRank, d.commanderSign, d.year),
-        bodyParagraph([TNR(intro)]),
-        bodyParagraph(item1Children),
-        ...extraItems,
+        bodyP([TNR(intro)]),
+        bodyP([TNR(item1Text)]),
+        ...extraItems(d, 2),
         BL(),
-        signatureLine("Сдал:    ", d.surrendererName ?? "", d.year),
-        BL(),
-        BL(),
+        signatureLine(actionLabel, actionName, d.year),
+        BL(), BL(),
         signatureLine("Принял:", d.receiverName ?? "", d.year),
-        BL(),
-        BL(),
-        ...appendixChildren,
+        BL(), BL(),
+        ...appendix(d),
       ],
     }],
   });
 }
-
-// ─── Акт выдачи ──────────────────────────────────────────────────────────────
-
-function buildVydachaDoc(d: ValidatedPayload): Document {
-  const intro = noWidows(`Настоящий акт составлен в том, что ${d.receiverRank ?? ""} ${d.receiverName ?? ""} принял, а ${d.issuerRank ?? ""} ${d.issuerName ?? ""} выдал нижеперечисленное имущество:`);
-
-  const item1Base = noWidows(`1. Ноутбук «${d.equipmentName}» (серийный номер ${d.serialNumber} в комплекте: ${d.kit}) в исправном состоянии`);
-
-  const item1Children: TextRun[] = d.defects
-    ? [TNR(item1Base + `, за исключением ${d.defects} (см. приложение).`)]
-    : [TNR(item1Base + ".")];
-
-  const appendixChildren: Paragraph[] = d.defects
-    ? [
-        new Paragraph({
-          children: [new TextRun({ text: "", break: 1 })],
-          pageBreakBefore: true,
-          spacing: { after: 0, line: 240, lineRule: "auto" },
-        }),
-        new Paragraph({
-          children: [TNR("Приложение", { bold: true })],
-          spacing: { after: 0, line: 720, lineRule: "auto" },
-          alignment: AlignmentType.CENTER,
-        }),
-        bodyParagraph([TNR(`Неисправности «${d.equipmentName}» №${d.serialNumber}`)]),
-        BL(),
-        new Paragraph({ children: [TNR("Корректность подтверждаю:")], spacing: { line: 240, lineRule: "auto" } }),
-        new Paragraph({ children: [TNR(d.receiverRankShort ?? "рядовой")], spacing: { line: 240, lineRule: "auto" } }),
-        new Paragraph({
-          children: [TNR(d.receiverLastNameInitials ?? "")],
-          spacing: { line: 240, lineRule: "auto" },
-          alignment: AlignmentType.RIGHT,
-        }),
-        new Paragraph({ children: [TNR(`«___» ___________${d.year} г.`)], spacing: { line: 240, lineRule: "auto" } }),
-      ]
-    : [];
-
-  return new Document({
-    sections: [{
-      properties: PAGE_SETTINGS,
-      children: [
-        ...headerBlock(d.commanderRank, d.commanderSign, d.year),
-        bodyParagraph([TNR(intro)]),
-        bodyParagraph(item1Children),
-        ...buildExtraItems(d, 2),
-        BL(),
-        signatureLine("Выдал:   ", d.issuerName ?? "", d.year),
-        BL(),
-        BL(),
-        signatureLine("Принял:", d.receiverName ?? "", d.year),
-        BL(),
-        BL(),
-        ...appendixChildren,
-      ],
-    }],
-  });
-}
-
-// ─── Route Handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // Rate limiting заголовок (если nginx/edge перед Next.js не стоит)
-  const contentType = req.headers.get("content-type") ?? "";
-  if (!contentType.includes("application/json")) {
-    return NextResponse.json({ error: "Content-Type должен быть application/json" }, { status: 415 });
+  if (!req.headers.get("content-type")?.includes("application/json")) {
+    return NextResponse.json({ error: "Content-Type must be application/json" }, { status: 415 });
   }
 
-  let rawPayload: unknown;
-  try {
-    rawPayload = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Невалидный JSON" }, { status: 400 });
+  let raw: unknown;
+  try { raw = await req.json(); } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const parsed = ActPayloadSchema.safeParse(rawPayload);
+  const parsed = ActPayloadSchema.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Ошибка валидации", details: parsed.error.flatten() },
-      { status: 422 }
-    );
+    return NextResponse.json({ error: "Validation error", details: parsed.error.flatten() }, { status: 422 });
   }
 
-  const payload = parsed.data;
-
   try {
-    const doc = payload.actType === "sdacha"
-      ? buildSdachaDoc(payload)
-      : buildVydachaDoc(payload);
-
-    const buffer = await Packer.toBuffer(doc);
-
-    const personKey =
-      payload.actType === "sdacha"
-        ? (payload.surrendererName?.split(" ")[0] ?? "документ")
-        : (payload.receiverName?.split(" ")[0] ?? "документ");
-
-    const filename = encodeURIComponent(
-      `акт_${payload.actType === "sdacha" ? "сдачи" : "выдачи"}_ноутбука_${personKey}.docx`
-    );
+    const buffer = await Packer.toBuffer(buildDoc(parsed.data));
+    const d = parsed.data;
+    const personKey = d.actType === "sdacha"
+      ? (d.surrendererName?.split(" ")[0] ?? "документ")
+      : (d.receiverName?.split(" ")[0] ?? "документ");
+    const filename = encodeURIComponent(`акт_${d.actType === "sdacha" ? "сдачи" : "выдачи"}_ноутбука_${personKey}.docx`);
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
@@ -359,6 +179,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
   } catch (err) {
     console.error("[acts/generate]", err);
-    return NextResponse.json({ error: "Ошибка генерации документа" }, { status: 500 });
+    return NextResponse.json({ error: "Document generation failed" }, { status: 500 });
   }
 }

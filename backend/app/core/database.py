@@ -12,12 +12,11 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-_is_postgres = settings.DATABASE_URL.startswith(("postgresql://", "postgres://", "postgresql+psycopg2://"))
+_is_postgres = settings.DATABASE_URL.startswith(
+    ("postgresql://", "postgres://", "postgresql+psycopg2://")
+)
 
-if _is_postgres:
-    connect_args = {}  # psycopg2 не принимает check_same_thread и прочие SQLite-параметры
-else:
-    connect_args = {"check_same_thread": False}
+connect_args = {} if _is_postgres else {"check_same_thread": False}
 
 engine = create_engine(
     settings.DATABASE_URL,
@@ -29,17 +28,27 @@ engine = create_engine(
 
 if not _is_postgres:
     @event.listens_for(engine, "connect")
-    def _set_sqlite_pragma(dbapi_conn, _connection_record):
+    def _set_sqlite_pragma(dbapi_conn, _):
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
 _MAX_RETRIES = 3
 _RETRY_DELAY = 0.5
+
+
+def utcnow_expr():
+    """
+    Кросс-платформенное SQL-выражение текущего UTC времени.
+    PostgreSQL: timezone('UTC', now())
+    SQLite:     strftime('%Y-%m-%dT%H:%M:%f', 'now')
+    """
+    if _is_postgres:
+        return text("timezone('UTC', now())")
+    return text("(strftime('%Y-%m-%dT%H:%M:%f', 'now'))")
 
 
 def _create_session_with_retry() -> Session:
@@ -51,7 +60,7 @@ def _create_session_with_retry() -> Session:
             return session
         except OperationalError as exc:
             last_exc = exc
-            logger.warning("Не удалось подключиться к БД (попытка %d/%d): %s", attempt, _MAX_RETRIES, exc)
+            logger.warning("БД недоступна (попытка %d/%d): %s", attempt, _MAX_RETRIES, exc)
             if attempt < _MAX_RETRIES:
                 time.sleep(_RETRY_DELAY * attempt)
     raise RuntimeError(f"Не удалось подключиться к БД после {_MAX_RETRIES} попыток") from last_exc

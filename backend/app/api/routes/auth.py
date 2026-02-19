@@ -1,8 +1,7 @@
 import logging
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import func
 
 from app.core.database import get_db
 from app.core.security import verify_password, create_access_token, generate_csrf_token
@@ -13,7 +12,6 @@ from app.schemas.auth import LoginRequest, Token, UserResponse
 from app.api.deps import get_current_user
 
 logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -43,26 +41,19 @@ async def login(
         )
 
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Пользователь деактивирован",
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Пользователь деактивирован")
 
     rate_limiter.reset(client_ip)
 
-    user.last_login = func.now()
+    # Явный UTC — корректно с DateTime(timezone=True)
+    user.last_login = datetime.now(timezone.utc)
     db.commit()
 
     access_token = create_access_token(
         data={"sub": user.username, "role": user.role},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-
     csrf_token = generate_csrf_token(user.id)
-
-    # domain=None — правильное значение для localhost.
-    # Пустая строка "" передаётся как domain="" буквально и ломает cookie
-    # в некоторых браузерах/версиях Starlette.
     cookie_domain = settings.COOKIE_DOMAIN if settings.COOKIE_DOMAIN else None
 
     response.set_cookie(
@@ -74,13 +65,8 @@ async def login(
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         domain=cookie_domain,
     )
-
-    # Устанавливаем CSRF-токен в заголовок ответа.
-    # expose_headers в CORSMiddleware позволяет браузеру его читать.
     response.headers["X-CSRF-Token"] = csrf_token
-
-    logger.info("User '%s' logged in, CSRF token issued (len=%d)", user.username, len(csrf_token))
-
+    logger.info("User '%s' logged in", user.username)
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -91,27 +77,16 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 
 @router.post("/logout")
 async def logout(response: Response):
-    response.delete_cookie(
-        key="access_token",
-        httponly=True,
-        samesite="lax",
-        secure=False,
-    )
+    response.delete_cookie(key="access_token", httponly=True, samesite="lax", secure=False)
     return {"message": "Выход выполнен"}
+
 
 @router.get("/csrf-token")
 async def get_csrf_token(
     response: Response,
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Выдаёт свежий CSRF-токен для уже авторизованного пользователя.
-    Вызывается при инициализации SPA — если access_token cookie есть,
-    но in-memory csrfToken был сброшен (F5, новая вкладка).
-    """
     csrf_token = generate_csrf_token(current_user.id)
     response.headers["X-CSRF-Token"] = csrf_token
-    logger.info(
-        "CSRF token refreshed for user '%s'", current_user.username
-    )
+    logger.info("CSRF token refreshed for user '%s'", current_user.username)
     return {"csrf_refreshed": True}
