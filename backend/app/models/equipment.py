@@ -33,6 +33,8 @@ class Equipment(Base):
     current_location = Column(String(255))
     status = Column(String(50), default="В работе")
     notes = Column(Text)
+    # Признак личного имущества военнослужащего (не принадлежит министерству)
+    is_personal = Column(Boolean, default=False, nullable=False, index=True)
     movement_history = relationship("EquipmentMovement", back_populates="equipment", cascade="all, delete-orphan")
     storage_devices = relationship("StorageDevice", back_populates="equipment", cascade="all, delete-orphan")
     is_active = Column(Boolean, default=True)

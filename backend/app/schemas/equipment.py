@@ -30,11 +30,14 @@ class EquipmentBase(BaseModel):
     current_location: Optional[str] = Field(None, max_length=255)
     status: str = Field(default="В работе", max_length=50)
     notes: Optional[str] = None
-
+    # Признак личного имущества (не МО)
+    is_personal: bool = False
 
     @model_validator(mode="after")
     def validate_inventory_number(self):
-        # Инвентарный номер не нужен только для ноутбуков не в работе
+        # Для личного ноутбука инвентарный номер не нужен
+        if self.is_personal:
+            return self
         needs_inventory = not (
             self.equipment_type == "Ноутбук" and self.status != "В работе"
         )
@@ -42,8 +45,10 @@ class EquipmentBase(BaseModel):
             raise ValueError("Учетный номер обязателен")
         return self
 
+
 class EquipmentCreate(EquipmentBase):
     pass
+
 
 class EquipmentUpdate(BaseModel):
     equipment_type: Optional[str] = None
@@ -71,18 +76,22 @@ class EquipmentUpdate(BaseModel):
     current_location: Optional[str] = None
     status: Optional[str] = None
     notes: Optional[str] = None
+    is_personal: Optional[bool] = None
+
 
 class EquipmentResponse(EquipmentBase):
     id: int
-    inventory_number: Optional[str] = None # Теперь None (null) разрешен
+    inventory_number: Optional[str] = None
     is_active: bool
+    is_personal: bool
     created_at: datetime
     updated_at: datetime
     current_owner_name: Optional[str] = None
     current_owner_rank: Optional[str] = None
-    
+
     class Config:
         from_attributes = True
+
 
 class EquipmentListResponse(BaseModel):
     total: int
@@ -111,7 +120,7 @@ class MovementResponse(MovementBase):
     from_person_name: Optional[str] = None
     to_person_name: Optional[str] = None
     created_by_username: Optional[str] = None
-    
+
     class Config:
         from_attributes = True
 
@@ -157,7 +166,7 @@ class StorageDeviceResponse(StorageDeviceBase):
     created_at: datetime
     updated_at: datetime
     equipment_inventory_number: Optional[str] = None
-    
+
     class Config:
         from_attributes = True
 
@@ -169,8 +178,7 @@ class StorageDeviceListResponse(BaseModel):
 # ============ STATISTICS SCHEMAS ============
 
 class EquipmentStats(BaseModel):
-    """Статистика по технике"""
     total_equipment: int
-    by_type: dict[str, int]  # {"АРМ": 15, "Ноутбук": 8}
-    by_status: dict[str, int]  # {"В работе": 20, "На складе": 3}
-    pending_movements: int  # Ожидающие перемещения
+    by_type: dict[str, int]
+    by_status: dict[str, int]
+    pending_movements: int

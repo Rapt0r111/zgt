@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Users, Phone, Laptop, Shield, FileText } from "lucide-react";
+import { Users, Smartphone, Laptop, Shield, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/glass/GlassCard";
@@ -30,8 +30,8 @@ interface NavCard {
 
 const NAV_CARDS: NavCard[] = [
   { href: "/personnel", icon: Users, title: "Личный состав", subtitle: "Учёт и допуски", colorClass: "text-blue-400 bg-blue-500/10 group-hover:bg-blue-500/20" },
-  { href: "/phones", icon: Phone, title: "Средства связи", subtitle: "Хранение телефонов", colorClass: "text-green-400 bg-green-500/10 group-hover:bg-green-500/20" },
-  { href: "/equipment", icon: Laptop, title: "Вычислительная техника", subtitle: "АРМ и ноутбуки", colorClass: "text-purple-400 bg-purple-500/10 group-hover:bg-purple-500/20" },
+  { href: "/personal-items", icon: Smartphone, title: "Личные вещи", subtitle: "Телефоны и ноутбуки", colorClass: "text-green-400 bg-green-500/10 group-hover:bg-green-500/20" },
+  { href: "/equipment", icon: Laptop, title: "Вычислительная техника", subtitle: "АРМ и оборудование", colorClass: "text-purple-400 bg-purple-500/10 group-hover:bg-purple-500/20" },
   { href: "/storage-and-passes", icon: Shield, title: "Носители и пропуска", subtitle: "Флешки и допуски", colorClass: "text-yellow-400 bg-yellow-500/10 group-hover:bg-yellow-500/20" },
   { href: "/acts", icon: FileText, title: "Генератор документов", subtitle: "Акты приема-передачи", colorClass: "text-cyan-400 bg-cyan-500/10 group-hover:bg-cyan-500/20" },
   { href: "/users", icon: Shield, title: "Пользователи", subtitle: "Управление доступом", colorClass: "text-red-400 bg-red-500/10 group-hover:bg-red-500/20", adminOnly: true },

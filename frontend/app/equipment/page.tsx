@@ -3,10 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { 
   ArrowLeft, Eye, Plus, Search, Trash2, Monitor, Hash, MapPin, 
-  User as UserIcon, Activity, Package, Wrench, Laptop, CheckCircle2 
+  User as UserIcon, Activity, Package, Wrench, Laptop
 } from "lucide-react";
 import Link from "next/link";
-import { useState, useMemo, useEffect } from "react"; // добавил useEffect
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ const StatBar = ({ value, colorClass }: { value: number; colorClass: string }) =
 export default function EquipmentPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState(""); // Новое состояние
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
 
@@ -68,6 +68,7 @@ export default function EquipmentPage() {
     search: debouncedSearch.trim() || undefined,
     status: activeTab === "all" ? undefined : activeTab,
     equipment_type: typeFilter === "all" ? undefined : typeFilter,
+    is_personal: false, // Исключаем личную технику из списка и статистики
   }), [debouncedSearch, activeTab, typeFilter]);
 
   // Запрос списка техники
@@ -76,9 +77,9 @@ export default function EquipmentPage() {
     queryFn: () => equipmentApi.getList(filterParams),
   });
 
-  // Запрос статистики (теперь зависит от фильтров!)
+  // Запрос статистики
   const { data: stats } = useQuery({
-    queryKey: ["equipment-stats", filterParams], // При изменении фильтров статистика перезагрузится
+    queryKey: ["equipment-stats", filterParams],
     queryFn: () => equipmentApi.getStatistics(filterParams),
   });
 
@@ -106,7 +107,7 @@ export default function EquipmentPage() {
   const inStock = stats?.by_status?.["На складе"] || 0;
   const broken = (stats?.by_status?.["Сломан"] || 0) + (stats?.by_status?.["В ремонте"] || 0);
   
-  // Health Score - процент исправной техники (не в ремонте и не сломано)
+  // Health Score - процент исправной техники
   const healthScore = totalItems > 0 ? 100 - getPercent(broken, totalItems) : 100;
 
   return (

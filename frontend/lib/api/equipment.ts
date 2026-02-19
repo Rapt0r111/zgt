@@ -6,7 +6,14 @@ import type {
 import apiClient from "./client";
 
 export const equipmentApi = {
-  getList: async (params?: { skip?: number; limit?: number; equipment_type?: string; status?: string; search?: string }): Promise<EquipmentListResponse> => {
+  getList: async (params?: {
+    skip?: number;
+    limit?: number;
+    equipment_type?: string;
+    status?: string;
+    search?: string;
+    is_personal?: boolean;
+  }): Promise<EquipmentListResponse> => {
     const { data } = await apiClient.get("/api/equipment/", { params });
     return data;
   },
@@ -40,7 +47,12 @@ export const equipmentApi = {
     return data;
   },
 
-  getStatistics: async (params?: { equipment_type?: string; status?: string; search?: string }): Promise<EquipmentStats> => {
+  getStatistics: async (params?: {
+    equipment_type?: string;
+    status?: string;
+    search?: string;
+    is_personal?: boolean;
+  }): Promise<EquipmentStats> => {
     const { data } = await apiClient.get("/api/equipment/stats", { params });
     return data;
   },

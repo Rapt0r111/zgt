@@ -125,11 +125,16 @@ async def list_equipment(
     equipment_type: Optional[str] = None,
     status: Optional[str] = None,
     search: Optional[str] = None,
+    is_personal: Optional[bool] = None,  # <-- добавлено
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
     service = EquipmentService(db)
-    items, total = service.get_list(skip=skip, limit=limit, equipment_type=equipment_type, status=status, search=search)
+    items, total = service.get_list(
+        skip=skip, limit=limit,
+        equipment_type=equipment_type, status=status,
+        search=search, is_personal=is_personal,
+    )
     return EquipmentListResponse(total=total, items=[_enrich_equipment(e) for e in items])
 
 
@@ -153,10 +158,14 @@ async def get_statistics(
     equipment_type: Optional[str] = None,
     status: Optional[str] = None,
     search: Optional[str] = None,
+    is_personal: Optional[bool] = None,  # <-- добавлено
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return EquipmentService(db).get_statistics(equipment_type=equipment_type, status=status, search=search)
+    return EquipmentService(db).get_statistics(
+        equipment_type=equipment_type, status=status,
+        search=search, is_personal=is_personal,
+    )
 
 
 @router.post("/movements", response_model=MovementResponse, status_code=status.HTTP_201_CREATED)
