@@ -1,6 +1,13 @@
 "use client";
 
-import { useTransition, useState, useCallback, useMemo, useRef } from "react";
+import {
+  useTransition,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  memo, 
+} from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   FileText, Download, ArrowUpFromLine, ArrowDownToLine, ArrowLeft,
@@ -18,103 +25,39 @@ import { Button } from "@/components/ui/button";
 import { PersonnelSelect } from "@/components/shared/personnel-select";
 import { EquipmentSelect } from "@/components/shared/equipment-select";
 import { StorageAndPassSelect } from "@/components/shared/storage-and-pass-select";
-
-// ─── Матрица состояний ────────────────────────────────────────────────────────
-
-const CONDITION_VALUES = ["ok", "defective", "absent", "cosmetic"] as const;
-type Condition = (typeof CONDITION_VALUES)[number];
-
-const CONDITION_LABEL: Record<Condition, string> = {
-  ok: "Исправно",
-  defective: "Неисправно",
-  absent: "Отсутствует",
-  cosmetic: "Косм. дефекты",
-};
-
-const CONDITION_COLOR: Record<Condition, string> = {
-  ok: "bg-emerald-600/20 border-emerald-500/50 text-emerald-300",
-  defective: "bg-red-600/20 border-red-500/50 text-red-300",
-  absent: "bg-slate-600/20 border-slate-500/50 text-slate-400",
-  cosmetic: "bg-amber-600/20 border-amber-500/50 text-amber-300",
-};
-
-const ITEM_GENDER: Record<string, "m" | "f" | "n"> = {
-  "ноутбук": "m",
-  "зарядное устройство": "n",
-  "компьютерная мышь": "f",
-  "мышь": "f",
-  "сумка для ноутбука": "f",
-  "сумка": "f",
-  "usb-концентратор": "m",
-  "кабель питания": "m",
-  "кабель": "m",
-  "адаптер питания": "m",
-  "адаптер": "m",
-  "блок питания": "m",
-};
-
-function getItemGender(name: string): "m" | "f" | "n" {
-  return ITEM_GENDER[name.toLowerCase().trim()] ?? "n";
-}
-
-const CONDITION_ADJECTIVE: Record<Condition, Record<"m" | "f" | "n", string>> = {
-  ok: { m: "исправен", f: "исправна", n: "исправно" },
-  defective: { m: "неисправен", f: "неисправна", n: "неисправно" },
-  absent: { m: "отсутствует", f: "отсутствует", n: "отсутствует" },
-  cosmetic: { m: "имеет косметические дефекты", f: "имеет косметические дефекты", n: "имеет косметические дефекты" },
-};
-
-function conditionPhrase(c: Condition, name: string): string {
-  if (c === "ok") return "";
-  const gender = getItemGender(name);
-  return ` (${CONDITION_ADJECTIVE[c][gender]})`;
-}
-
-// ─── Константы ────────────────────────────────────────────────────────────────
-
-const COMMANDER = { rank: "капитан", sign: "С. Тарасенко" } as const;
-
-// Нельзя вызывать crypto.randomUUID() на уровне модуля – SSR упадёт
-function makeDefaultKitItems() {
-  return [
-    { id: crypto.randomUUID(), name: "ноутбук", condition: "ok" as Condition, defectNote: "" },
-    { id: crypto.randomUUID(), name: "компьютерная мышь", condition: "ok" as Condition, defectNote: "" },
-    { id: crypto.randomUUID(), name: "сумка для ноутбука", condition: "ok" as Condition, defectNote: "" },
-  ];
-}
-
-const KIT_PRESETS = [
-  "ноутбук",
-  "зарядное устройство",
-  "компьютерная мышь",
-  "сумка для ноутбука",
-  "USB-концентратор",
-  "кабель питания",
-] as const;
+import {
+  CONDITION_VALUES,
+  CONDITION_LABEL,
+  CONDITION_COLOR,
+  type Condition,
+  type KitItem,
+  type UploadedPhoto,
+  KIT_PRESETS,
+  COMMANDER,
+  MONTHS_GEN,
+  formatFullDate,
+  parseDateString,
+  buildKitString,
+  computeOverallState,
+  conditionPhrase,
+  itemGoesToAppendix,
+  CONDITION_ADJECTIVE,
+  getItemGender,
+  formatPersonNominative,
+  formatPersonGenitive,
+  getPersonInitials,
+  getPersonLastNameInitials,
+} from "@/lib/acts/shared";
 
 // ─── Типы ─────────────────────────────────────────────────────────────────────
 
-interface KitItem {
-  id: string;
-  name: string;
-  condition: Condition;
-  defectNote: string;
-}
-
-interface UploadedPhoto {
-  id: string;
-  file: File;
-  dataUrl: string;
-  caption: string;
-}
-
 interface FormState {
   actType: ActType;
-  actNumber: string;        // номер акта (необязательно)
-  actDay: string;        // день (01-31)
-  actMonth: string;        // месяц (01-12)
+  actNumber: string;
+  actDay: string;
+  actMonth: string;
   year: string;
-  basisDoc: string;        // основание (приказ / распоряжение)
+  basisDoc: string;
   surrenderPersonId: number | undefined;
   receiverPersonId: number | undefined;
   issuerPersonId: number | undefined;
@@ -128,187 +71,148 @@ interface FormState {
   photos: UploadedPhoto[];
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Начальное состояние ─────────────────────────────────────────────────────
 
-function lcFirst(s: string): string {
-  if (!s) return s;
-  return /[А-ЯЁ]/.test(s[0]) ? s[0].toLowerCase() + s.slice(1) : s;
+function makeDefaultKitItems(): KitItem[] {
+  return [
+    { id: crypto.randomUUID(), name: "ноутбук", condition: "ok", defectNote: "" },
+    { id: crypto.randomUUID(), name: "компьютерная мышь", condition: "ok", defectNote: "" },
+    { id: crypto.randomUUID(), name: "сумка для ноутбука", condition: "ok", defectNote: "" },
+  ];
 }
 
-function getPersonInitials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/);
-  if (parts.length >= 3) return `${parts[0]} ${parts[1][0]}.${parts[2][0]}.`;
-  if (parts.length === 2) return `${parts[0]} ${parts[1][0]}.`;
-  return fullName;
-}
-
-function getPersonLastNameInitials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/);
-  // Ожидаем: [0]=Фамилия [1]=Имя [2]=Отчество → «Фамилия И.О.»
-  if (parts.length >= 3) return `${parts[0]} ${parts[1][0]}.${parts[2][0]}.`;
-  if (parts.length === 2) return `${parts[0]} ${parts[1][0]}.`;
-  return fullName;
-}
-
-/**
- * Именительный падеж для подписей: «командир первого взвода лейтенант Халупа А.И.»
- */
-function formatPersonNominative(p: Personnel): string {
-  const parts: string[] = [];
-  if (p.position) parts.push(lcFirst(p.position));
-  if (p.rank) parts.push(lcFirst(p.rank));
-  parts.push(getPersonInitials(p.full_name));
-  return parts.join(" ");
-}
-
-// ─── Склонение ────────────────────────────────────────────────────────────────
-
-function toGenitiveLastName(lastName: string): string {
-  if (/[кнлтрвхжшщзсдбпмф]о$/iu.test(lastName)) return lastName;
-  if (/[еэ]$/iu.test(lastName)) return lastName;
-  if (/[оеё]в$/iu.test(lastName)) return lastName + "а";
-  if (/[иы]н$/iu.test(lastName)) return lastName + "а";
-  if (/ский$/iu.test(lastName)) return lastName.replace(/ский$/iu, "ского");
-  if (/цкий$/iu.test(lastName)) return lastName.replace(/цкий$/iu, "цкого");
-  if (/жий$/iu.test(lastName)) return lastName.replace(/жий$/iu, "жего");
-  if (/ный$/iu.test(lastName)) return lastName.replace(/ный$/iu, "ного");
-  if (/ой$/iu.test(lastName)) return lastName.replace(/ой$/iu, "ого");
-  if (/ий$/iu.test(lastName)) return lastName.replace(/ий$/iu, "его");
-  if (/[жшщч]а$/iu.test(lastName)) return lastName.replace(/а$/u, "и");
-  if (/[бвгджзклмнпрстфхцчшщ]а$/iu.test(lastName)) return lastName.replace(/а$/u, "ы");
-  if (/[бвгджзклмнпрстфхцчшщ]$/iu.test(lastName)) return lastName + "а";
-  return lastName;
-}
-
-function toGenitiveWord(word: string): string {
-  const w = word.trim();
-  const wl = w.toLowerCase();
-  const DICT: Record<string, string> = {
-    "маршал": "маршала", "генерал": "генерала", "полковник": "полковника",
-    "подполковник": "подполковника", "майор": "майора", "капитан": "капитана",
-    "лейтенант": "лейтенанта", "прапорщик": "прапорщика", "старшина": "старшины",
-    "сержант": "сержанта", "ефрейтор": "ефрейтора", "рядовой": "рядового",
-    "курсант": "курсанта", "старший": "старшего", "младший": "младшего",
-    "оператор": "оператора", "командир": "командира", "начальник": "начальника",
-    "заместитель": "заместителя", "офицер": "офицера", "специалист": "специалиста",
-    "инженер": "инженера", "техник": "техника", "связист": "связиста",
-    "программист": "программиста", "аналитик": "аналитика", "водитель": "водителя",
-    "механик": "механика", "переводчик": "переводчика",
-    "первого": "первого", "первый": "первого", "второго": "второго", "второй": "второго",
-    "третьего": "третьего", "третий": "третьего", "четвёртого": "четвёртого",
-    "роты": "роты", "рота": "роты", "взвода": "взвода", "взвод": "взвода",
-    "батальона": "батальона", "батальон": "батальона", "полка": "полка", "полк": "полка",
-    "дивизии": "дивизии", "бригады": "бригады",
+function makeInitialState(): FormState {
+  const now = new Date();
+  return {
+    actType: "sdacha",
+    actNumber: "",
+    actDay: String(now.getDate()).padStart(2, "0"),
+    actMonth: String(now.getMonth() + 1).padStart(2, "0"),
+    year: String(now.getFullYear()),
+    basisDoc: "",
+    surrenderPersonId: undefined,
+    receiverPersonId: undefined,
+    issuerPersonId: undefined,
+    equipmentId: undefined,
+    customSerial: "",
+    customModel: "",
+    kitItems: makeDefaultKitItems(),
+    defects: "",
+    flashDriveIds: [],
+    passIds: [],
+    photos: [],
   };
-  if (DICT[wl]) {
-    const gen = DICT[wl];
-    return w[0] === w[0].toUpperCase() ? gen[0].toUpperCase() + gen.slice(1) : gen;
-  }
-  if (/[ыи]й$/iu.test(w)) return w.replace(/[ыи]й$/iu, (m) => m[0] === "ы" ? "ого" : "его");
-  if (/ник$/iu.test(w)) return w + "а";
-  if (/ист$/iu.test(w)) return w + "а";
-  if (/ор$/iu.test(w)) return w + "а";
-  return w;
-}
-
-function toGenitivePhrase(phrase: string): string {
-  return phrase.split(/\s+/).map((t) => /^\(/.test(t) ? t : toGenitiveWord(t)).join(" ");
-}
-
-/**
- * Родительный падеж: «командира первого взвода лейтенанта Халупы А.И.»
- */
-function formatPersonGenitive(p: Personnel): string {
-  const parts: string[] = [];
-  if (p.position) parts.push(toGenitivePhrase(lcFirst(p.position)));
-  if (p.rank) parts.push(toGenitivePhrase(lcFirst(p.rank)));
-  const nameParts = p.full_name.trim().split(/\s+/);
-  const lastNameGen = toGenitiveLastName(nameParts[0] ?? "");
-  const initialsStr = nameParts.length >= 3
-    ? `${lastNameGen} ${nameParts[1][0]}.${nameParts[2][0]}.`
-    : nameParts.length === 2
-      ? `${lastNameGen} ${nameParts[1][0]}.`
-      : lastNameGen;
-  parts.push(initialsStr);
-  return parts.join(" ");
-}
-
-// Русские названия месяцев в родительном падеже
-const MONTHS_GEN = [
-  "января", "февраля", "марта", "апреля", "мая", "июня",
-  "июля", "августа", "сентября", "октября", "ноября", "декабря",
-];
-
-function formatFullDate(day: string, month: string, year: string): string {
-  const d = parseInt(day);
-  const m = parseInt(month);
-  if (!d || !m || m < 1 || m > 12) return `«___» ___________ ${year} г.`;
-  return `«${String(d).padStart(2, "0")}» ${MONTHS_GEN[m - 1]} ${year} г.`;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ConditionToggle({ value, onChange }: { value: Condition; onChange: (v: Condition) => void }) {
+const ConditionToggle = memo(function ConditionToggle({
+  value,
+  onChange,
+}: {
+  value: Condition;
+  onChange: (v: Condition) => void;
+}) {
   return (
     <div className="flex gap-1 flex-wrap">
       {CONDITION_VALUES.map((c) => (
-        <button key={c} type="button" onClick={() => onChange(c)}
-          className={`px-2 py-0.5 rounded text-xs border transition-all ${value === c ? CONDITION_COLOR[c]
-            : "bg-slate-800/40 border-slate-700/40 text-slate-500 hover:border-slate-600 hover:text-slate-400"
-            }`}>
+        <button
+          key={c}
+          type="button"
+          onClick={() => onChange(c)}
+          className={`px-2 py-0.5 rounded text-xs border transition-all ${
+            value === c
+              ? CONDITION_COLOR[c]
+              : "bg-slate-800/40 border-slate-700/40 text-slate-500 hover:border-slate-600 hover:text-slate-400"
+          }`}
+        >
           {CONDITION_LABEL[c]}
         </button>
       ))}
     </div>
   );
-}
+});
 
-function KitItemRow({ item, onChange, onRemove }: {
-  item: KitItem; onChange: (updated: KitItem) => void; onRemove: () => void;
+const KitItemRow = memo(function KitItemRow({
+  item,
+  onChange,
+  onRemove,
+}: {
+  item: KitItem;
+  onChange: (updated: KitItem) => void;
+  onRemove: () => void;
 }) {
   const needsNote = item.condition === "defective" || item.condition === "absent";
   return (
     <div className="bg-slate-800/30 border border-slate-700/40 rounded-lg p-3 space-y-2">
       <div className="flex items-center gap-2">
-        <input type="text" value={item.name}
+        <input
+          type="text"
+          value={item.name}
           onChange={(e) => onChange({ ...item, name: e.target.value })}
           placeholder="Наименование позиции"
-          className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-none border-b border-slate-700/60 pb-0.5 focus:border-blue-500/60 transition-colors" />
-        <button type="button" onClick={onRemove}
-          className="text-slate-600 hover:text-red-400 transition-colors p-0.5" title="Удалить позицию">
+          className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-none border-b border-slate-700/60 pb-0.5 focus:border-blue-500/60 transition-colors"
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-slate-600 hover:text-red-400 transition-colors p-0.5"
+          title="Удалить позицию"
+        >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
       <ConditionToggle value={item.condition} onChange={(c) => onChange({ ...item, condition: c })} />
       {needsNote && (
-        <input type="text" value={item.defectNote}
+        <input
+          type="text"
+          value={item.defectNote}
           onChange={(e) => onChange({ ...item, defectNote: e.target.value })}
-          placeholder={item.condition === "absent" ? "Причина отсутствия (необязательно)" : "Описание неисправности"}
-          className="w-full bg-transparent text-xs text-slate-300 placeholder-slate-600 outline-none border-b border-slate-700/40 pb-0.5 focus:border-amber-500/40 transition-colors" />
+          placeholder={
+            item.condition === "absent"
+              ? "Причина отсутствия (необязательно)"
+              : "Описание неисправности"
+          }
+          className="w-full bg-transparent text-xs text-slate-300 placeholder-slate-600 outline-none border-b border-slate-700/40 pb-0.5 focus:border-amber-500/40 transition-colors"
+        />
       )}
     </div>
   );
-}
+});
 
-function MultiAssetSelect({ label, icon: Icon, assetType, ids, onChange }: {
-  label: string; icon: React.ElementType; assetType: "flash_drive" | "electronic_pass";
-  ids: number[]; onChange: (ids: number[]) => void;
+function MultiAssetSelect({
+  label,
+  icon: Icon,
+  assetType,
+  ids,
+  onChange,
+}: {
+  label: string;
+  icon: React.ElementType;
+  assetType: "flash_drive" | "electronic_pass";
+  ids: number[];
+  onChange: (ids: number[]) => void;
 }) {
   const slots = [...ids, undefined];
   return (
     <div className="space-y-2">
       <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-        <Icon className="w-3.5 h-3.5" />{label}
+        <Icon className="w-3.5 h-3.5" />
+        {label}
       </label>
       {slots.map((slotId, i) => (
-        <StorageAndPassSelect key={i} assetType={assetType} value={slotId}
+        <StorageAndPassSelect
+          key={i}
+          assetType={assetType}
+          value={slotId}
           onValueChange={(newId) => {
             const next = [...ids];
             if (newId === undefined) next.splice(i, 1);
             else if (i < ids.length) next[i] = newId;
             else next.push(newId);
             onChange(next);
-          }} />
+          }}
+        />
       ))}
     </div>
   );
@@ -316,28 +220,61 @@ function MultiAssetSelect({ label, icon: Icon, assetType, ids, onChange }: {
 
 // ─── Photo Upload ─────────────────────────────────────────────────────────────
 
-function PhotoUpload({ photos, onChange }: { photos: UploadedPhoto[]; onChange: (p: UploadedPhoto[]) => void }) {
+/**
+ * Ресайзит изображение на клиенте до max 1200×900 перед отправкой.
+ * Сокращает размер payload и финального docx.
+ */
+function resizeImage(file: File, maxW = 1200, maxH = 900): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const ratio = Math.min(maxW / img.width, maxH / img.height, 1);
+        const w = Math.round(img.width * ratio);
+        const h = Math.round(img.height * ratio);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { resolve(e.target!.result as string); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = e.target!.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function PhotoUpload({
+  photos,
+  onChange,
+}: {
+  photos: UploadedPhoto[];
+  onChange: (p: UploadedPhoto[]) => void;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFiles = (files: FileList | null) => {
+  const handleFiles = async (files: FileList | null) => {
     if (!files) return;
-    Array.from(files).forEach((file) => {
-      if (!file.type.startsWith("image/")) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        onChange([...photos, {
-          id: crypto.randomUUID(),
-          file,
-          dataUrl: e.target?.result as string,
-          caption: "",
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
+    const newPhotos: UploadedPhoto[] = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue;
+      try {
+        const dataUrl = await resizeImage(file);
+        newPhotos.push({ id: crypto.randomUUID(), file, dataUrl, caption: "" });
+      } catch {
+        // пропускаем файл при ошибке
+      }
+    }
+    if (newPhotos.length > 0) onChange([...photos, ...newPhotos]);
   };
 
   const updateCaption = (id: string, caption: string) => {
-    onChange(photos.map((p) => p.id === id ? { ...p, caption } : p));
+    onChange(photos.map((p) => (p.id === id ? { ...p, caption } : p)));
   };
 
   const remove = (id: string) => {
@@ -348,30 +285,51 @@ function PhotoUpload({ photos, onChange }: { photos: UploadedPhoto[]; onChange: 
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         {photos.map((photo) => (
-          <div key={photo.id} className="relative group bg-slate-800/40 border border-slate-700/40 rounded-lg overflow-hidden">
+          <div
+            key={photo.id}
+            className="relative group bg-slate-800/40 border border-slate-700/40 rounded-lg overflow-hidden"
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photo.dataUrl} alt={photo.caption || "Фото"}
-              className="w-full h-32 object-cover" />
-            <button type="button" onClick={() => remove(photo.id)}
-              className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+            <img
+              src={photo.dataUrl}
+              alt={photo.caption || "Фото"}
+              className="w-full h-32 object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => remove(photo.id)}
+              className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
               <X className="w-3 h-3" />
             </button>
             <div className="p-2">
-              <input type="text" value={photo.caption}
+              <input
+                type="text"
+                value={photo.caption}
                 onChange={(e) => updateCaption(photo.id, e.target.value)}
                 placeholder="Подпись к фото"
-                className="w-full bg-transparent text-xs text-slate-300 placeholder-slate-600 outline-none border-b border-slate-700/40 pb-0.5 focus:border-blue-500/40 transition-colors" />
+                className="w-full bg-transparent text-xs text-slate-300 placeholder-slate-600 outline-none border-b border-slate-700/40 pb-0.5 focus:border-blue-500/40 transition-colors"
+              />
             </div>
           </div>
         ))}
       </div>
-      <button type="button" onClick={() => inputRef.current?.click()}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-dashed border-slate-700/60 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-all text-sm">
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-dashed border-slate-700/60 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-all text-sm"
+      >
         <Camera className="w-4 h-4" />
         Добавить фотографии дефектов
       </button>
-      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
-        onChange={(e) => handleFiles(e.target.files)} />
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => handleFiles(e.target.files)}
+      />
       {photos.length > 0 && (
         <p className="text-xs text-slate-600">
           Фотографии будут добавлены в Приложение к акту. Рекомендуется добавлять подписи.
@@ -381,7 +339,7 @@ function PhotoUpload({ photos, onChange }: { photos: UploadedPhoto[]; onChange: 
   );
 }
 
-// ─── Doc Preview ─────────────────────────────────────────────────────────────
+// ─── Doc Preview ──────────────────────────────────────────────────────────────
 
 interface PreviewData {
   actType: ActType;
@@ -411,174 +369,171 @@ interface PreviewData {
   photos: UploadedPhoto[];
 }
 
-function DocPreview({ data }: { data: PreviewData }) {
+/** Рендерит дату с подчёркиваниями для превью */
+function PreviewDate({ dateStr }: { dateStr: string }) {
+  const parsed = parseDateString(dateStr);
+  if (!parsed) return <span>{dateStr}</span>;
+  const { day, month, rest } = parsed;
+  return (
+    <span>
+      <u>«{day}»</u> <u>{month}</u> {rest}
+    </span>
+  );
+}
+
+/** Строка подписи для превью */
+function PreviewSignLine({
+  label,
+  initials,
+  dateStr,
+}: {
+  label: string;
+  initials: string;
+  dateStr: string;
+}) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+      <div>
+        <span style={{ whiteSpace: "pre" }}>{label}</span>
+        <u>{initials || "___________"}</u>
+        <span> /_______________</span>
+      </div>
+      <PreviewDate dateStr={dateStr} />
+    </div>
+  );
+}
+
+const DocPreview = memo(function DocPreview({ data }: { data: PreviewData }) {
   const {
     actType, actNumber, fullDate, year, basisDoc,
     surrendererLabel, receiverLabel, issuerLabel,
     surrendererGenLabel, receiverGenLabel, issuerGenLabel,
     model, serial, kitItems, defects, flashDriveNumbers, passNumbers, photos,
+    receiverRankShort, receiverLastNameInitials,
+    surrendererLastNameInitials, issuerLastNameInitials,
   } = data;
 
   const isSdacha = actType === "sdacha";
-  const kitStr = kitItems.map((it) => `${it.name}${conditionPhrase(it.condition, it.name)}`).join(", ");
-  const laptopItem = kitItems.find((i) => i.name.toLowerCase().trim() === "ноутбук");
-  const hasLaptopDefect = laptopItem && laptopItem.condition !== "ok";
+  const kitStr = buildKitString(kitItems);
   const hasCustomDefects = !!defects.trim();
-  const peripheryItems = kitItems.filter((i) => i.name.toLowerCase().trim() !== "ноутбук");
-  const hasPeripheryDefect = peripheryItems.some((i) => i.condition === "defective");
-  const hasPeripheryAbsent = peripheryItems.some((i) => i.condition === "absent");
-  const hasPeripheryCosmetic = peripheryItems.some((i) => i.condition === "cosmetic");
-  const actionLabelWithSpaces = isSdacha ? "Сдал:       " : "Выдал:  ";
+  const { text: overallState, hasAppendix: showAppendix } = computeOverallState(
+    kitItems,
+    hasCustomDefects,
+  );
 
-  let overallState: string;
-  if (hasLaptopDefect || hasCustomDefects) {
-    overallState = " – в неисправном состоянии (см. Приложение)";
-  } else if (hasPeripheryDefect) {
-    overallState = " – ноутбук в исправном состоянии; дефекты периферии указаны в Приложении";
-  } else if (hasPeripheryAbsent) {
-    overallState = " – ноутбук в исправном состоянии; передаётся в неполном комплекте";
-  } else if (hasPeripheryCosmetic) {
-    overallState = " – ноутбук в исправном состоянии; отдельные позиции имеют косметические дефекты";
-  } else {
-    overallState = " – в исправном состоянии";
-  }
-
-  // Вводная часть:
-  // «принял от [родительный сдающего/выдающего]»
-  // Убрана конструкция «который сдал» – юридически избыточна и некорректна
   const thirdPartyGenLabel = isSdacha
-    ? (surrendererGenLabel || surrendererLabel || "___________")
-    : (issuerGenLabel || issuerLabel || "___________");
+    ? surrendererGenLabel || surrendererLabel || "___________"
+    : issuerGenLabel || issuerLabel || "___________";
+
   const receiverNom = receiverLabel || "___________";
-
-  const actionLabel = isSdacha ? "Сдал:" : "Выдал:";
-
-  const renderUnderlinedDate = (dateStr: string) => {
-    const regex = /«([^»]+)»\s+([^\s]+)\s+(.*)/;
-    const match = dateStr.match(regex);
-    if (match) {
-      const [, day, month, rest] = match;
-      return (
-        <span>
-          <u style={{ textDecoration: 'underline' }}>«{day}»</u>{' '}
-          <u style={{ textDecoration: 'underline' }}>{month}</u>{' '}
-          {rest}
-        </span>
-      );
-    }
-    return dateStr;
-  };
-
-  const showAppendix =
-    kitItems.some((i) => i.condition === "defective" || i.condition === "absent") ||
-    hasCustomDefects || photos.length > 0;
-
+  const actionLabel = isSdacha ? "Сдал:       " : "Выдал:  ";
+  const actionInitials = isSdacha ? surrendererLastNameInitials : issuerLastNameInitials;
   const actNumberStr = actNumber.trim() ? ` № ${actNumber.trim()}` : "";
+
+  const appendixItems = kitItems.filter((i) => itemGoesToAppendix(i.condition));
 
   return (
     <div className="bg-white rounded-lg shadow-xl overflow-auto max-h-[600px]">
-      <div className="text-black px-12 py-10"
-        style={{ fontFamily: "Times New Roman, serif", fontSize: "12pt", lineHeight: "1.5", minWidth: "540px" }}>
-        {/* Гриф */}
+      <div
+        className="text-black px-12 py-10"
+        style={{
+          fontFamily: "Times New Roman, serif",
+          fontSize: "12pt",
+          lineHeight: "1.5",
+          minWidth: "540px",
+        }}
+      >
+        {/* Гриф УТВЕРЖДАЮ */}
         <div style={{ textAlign: "right", marginLeft: "55%" }}>
           <div>УТВЕРЖДАЮ</div>
           <div>Командир роты (научной)</div>
           <div>{COMMANDER.rank}</div>
           <div style={{ marginTop: "6px" }}>{COMMANDER.sign}</div>
-          <div>{fullDate}</div>
+          <PreviewDate dateStr={fullDate} />
         </div>
         <div style={{ height: "24px" }} />
 
         <div style={{ textAlign: "center", fontWeight: "bold", lineHeight: "1.4" }}>
-          АКТ{actNumberStr}<br />
+          АКТ{actNumberStr}
+          <br />
           приёма-передачи оборудования
         </div>
 
-        <div style={{ marginTop: "8px" }}>
-          г. Санкт-Петербург
-          <span style={{ display: "inline-block", width: "200px" }} />
-          {fullDate}
+        <div style={{ marginTop: "8px", display: "flex", justifyContent: "space-between" }}>
+          <span>г. Санкт-Петербург</span>
+          <PreviewDate dateStr={fullDate} />
         </div>
         <div style={{ height: "16px" }} />
 
-        {/* Основание */}
         {basisDoc.trim() && (
           <div style={{ marginBottom: "8px" }}>
             <strong>Основание:</strong> {basisDoc.trim()}.
           </div>
         )}
 
-        {/* Вводная часть – исправленная формулировка */}
         <div style={{ textIndent: "1.25cm", textAlign: "justify" }}>
-          Настоящий акт составлен о том, что{" "}
-          <strong>{receiverNom}</strong> принял от{" "}
-          <strong>{thirdPartyGenLabel}</strong>{" "}
-          нижеперечисленное имущество:
+          Настоящий акт составлен о том, что <strong>{receiverNom}</strong> принял от{" "}
+          <strong>{thirdPartyGenLabel}</strong> нижеперечисленное имущество:
         </div>
         <div style={{ height: "8px" }} />
 
         <div style={{ textIndent: "1.25cm", textAlign: "justify" }}>
-          1. Ноутбук «{model || "___________"}» (серийный номер: {serial || "___________"};
-          в комплекте: {kitStr || "___________"}){overallState}.
+          1. Ноутбук «{model || "___________"}» (серийный номер:{" "}
+          {serial || "___________"}; в комплекте: {kitStr || "___________"})
+          {overallState}.
         </div>
 
-        {(passNumbers || !isSdacha) && (
+        {passNumbers && (
           <div style={{ marginLeft: "1.25cm" }}>
-            2. Электронный пропуск № {passNumbers || "[ДАННЫЕ ОТСУТСТВУЮТ]"}.
+            2. Электронный пропуск № {passNumbers}.
           </div>
         )}
-        {(flashDriveNumbers || !isSdacha) && (
+        {flashDriveNumbers && (
           <div style={{ marginLeft: "1.25cm" }}>
-            3. USB-накопитель МО РФ № {flashDriveNumbers || "[ДАННЫЕ ОТСУТСТВУЮТ]"}.
+            3. USB-накопитель МО РФ № {flashDriveNumbers}.
           </div>
         )}
 
         <div style={{ height: "16px" }} />
 
         {/* Подписи */}
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <div style={{ display: "flex" }}>
-            <span style={{ whiteSpace: "pre" }}>{actionLabelWithSpaces}</span>
-            <span><u>{(isSdacha ? data.surrendererLastNameInitials : data.issuerLastNameInitials) || "___________"}</u> /_______________</span>
-          </div>
-          <div>{renderUnderlinedDate(fullDate)}</div>
-        </div>
-        <div style={{ height: "16px" }} />
-
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <div style={{ display: "flex" }}>
-            <span style={{ whiteSpace: "pre" }}>Принял:  </span> {/* 2 пробела */}
-            <span><u>{data.receiverLastNameInitials || "___________"}</u> /_______________</span>
-          </div>
-          <div>{renderUnderlinedDate(fullDate)}</div>
-        </div>
+        <PreviewSignLine
+          label={actionLabel}
+          initials={actionInitials}
+          dateStr={fullDate}
+        />
+        <PreviewSignLine
+          label="Принял:  "
+          initials={receiverLastNameInitials}
+          dateStr={fullDate}
+        />
 
         {/* Приложение */}
         {showAppendix && (
           <>
-            <div style={{ borderTop: "1px dashed #999", marginTop: "24px", paddingTop: "16px" }} />
+            <div
+              style={{ borderTop: "1px dashed #999", marginTop: "24px", paddingTop: "16px" }}
+            />
             <div style={{ textAlign: "center", fontWeight: "bold" }}>
-              Приложение {actNumber.trim() ? `к акту № ${actNumber.trim()}` : ""}
+              Приложение{actNumber.trim() ? ` к акту № ${actNumber.trim()}` : ""}
             </div>
             <div style={{ textIndent: "1.25cm", marginTop: "8px" }}>
               Перечень неисправностей ноутбука «{model}», серийный номер: {serial}:
             </div>
             <div style={{ marginLeft: "1.25cm", marginTop: "8px" }}>
-              {kitItems.filter((i) => i.condition === "defective" || i.condition === "absent")
-                .map((item, idx) => {
-                  const gender = getItemGender(item.name);
-                  const stateWord = CONDITION_ADJECTIVE[item.condition][gender];
-                  return (
-                    <div key={item.id}>
-                      {idx + 1}. {item.name} – {stateWord}
-                      {item.defectNote ? `: ${item.defectNote}` : ""}.
-                    </div>
-                  );
-                })}
+              {appendixItems.map((item, idx) => {
+                const gender = getItemGender(item.name);
+                const stateWord = CONDITION_ADJECTIVE[item.condition][gender];
+                return (
+                  <div key={item.id}>
+                    {idx + 1}. {item.name} – {stateWord}
+                    {item.defectNote ? `: ${item.defectNote}` : ""}.
+                  </div>
+                );
+              })}
               {hasCustomDefects && (
                 <div>
-                  {kitItems.filter((i) => i.condition === "defective" || i.condition === "absent").length + 1}.
-                  Прочие дефекты: {defects}.
+                  {appendixItems.length + 1}. Прочие дефекты: {defects}.
                 </div>
               )}
             </div>
@@ -589,53 +544,41 @@ function DocPreview({ data }: { data: PreviewData }) {
                   {photos.map((photo, i) => (
                     <div key={photo.id} style={{ textAlign: "center" }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photo.dataUrl} alt={photo.caption} style={{ width: "120px", height: "90px", objectFit: "cover", border: "1px solid #ccc" }} />
-                      <div style={{ fontSize: "9pt", color: "#666" }}>Фото {i + 1}{photo.caption ? `: ${photo.caption}` : ""}</div>
+                      <img
+                        src={photo.dataUrl}
+                        alt={photo.caption}
+                        style={{
+                          width: "120px",
+                          height: "90px",
+                          objectFit: "cover",
+                          border: "1px solid #ccc",
+                        }}
+                      />
+                      <div style={{ fontSize: "9pt", color: "#666" }}>
+                        Фото {i + 1}
+                        {photo.caption ? `: ${photo.caption}` : ""}
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
             <div style={{ marginTop: "16px", fontSize: "11pt" }}>
-              Принимающая сторона подтверждает, что указанные выше недостатки
-              зафиксированы сторонами совместно и известны принимающей стороне
-              на момент приёма имущества.
+              Принимающая сторона подтверждает, что указанные выше недостатки зафиксированы
+              сторонами совместно и известны принимающей стороне на момент приёма имущества.
             </div>
             <div style={{ marginTop: "16px" }}>С перечнем ознакомлен и согласен:</div>
-            <div style={{ marginTop: "8px" }}>{data.receiverRankShort || "рядовой"}</div>
-            <div style={{ textAlign: "right" }}>{data.receiverLastNameInitials || "___________"}</div>
-            <div>{fullDate}</div>
+            <div style={{ marginTop: "8px" }}>{receiverRankShort || "рядовой"}</div>
+            <div style={{ textAlign: "right" }}>
+              <u>{receiverLastNameInitials || "___________"}</u>
+            </div>
+            <PreviewDate dateStr={fullDate} />
           </>
         )}
       </div>
     </div>
   );
-}
-
-// ─── Form State ───────────────────────────────────────────────────────────────
-
-function makeInitialState(): FormState {
-  const now = new Date();
-  return {
-    actType: "sdacha",
-    actNumber: "",
-    actDay: String(now.getDate()).padStart(2, "0"),
-    actMonth: String(now.getMonth() + 1).padStart(2, "0"),
-    year: String(now.getFullYear()),
-    basisDoc: "",
-    surrenderPersonId: undefined,
-    receiverPersonId: undefined,
-    issuerPersonId: undefined,
-    equipmentId: undefined,
-    customSerial: "",
-    customModel: "",
-    kitItems: makeDefaultKitItems(),
-    defects: "",
-    flashDriveIds: [],
-    passIds: [],
-    photos: [],
-  };
-}
+});
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -647,7 +590,8 @@ export default function ActsPage() {
 
   const setField = useCallback(
     <K extends keyof FormState>(key: K) =>
-      (value: FormState[K]) => setForm((prev) => ({ ...prev, [key]: value })),
+      (value: FormState[K]) =>
+        setForm((prev) => ({ ...prev, [key]: value })),
     [],
   );
 
@@ -676,60 +620,87 @@ export default function ActsPage() {
   });
 
   const personnel = personnelData?.items ?? [];
-  const getPerson = (id: number | undefined): Personnel | undefined =>
-    id != null ? personnel.find((p) => p.id === id) : undefined;
+  const getPerson = useCallback(
+    (id: number | undefined): Personnel | undefined =>
+      id != null ? personnel.find((p) => p.id === id) : undefined,
+    [personnel],
+  );
 
   const selectedEquipment = useMemo(
     () => equipmentData?.items.find((e) => e.id === form.equipmentId),
     [equipmentData, form.equipmentId],
   );
 
-  const effectiveModel = selectedEquipment?.model
-    ? [selectedEquipment.manufacturer, selectedEquipment.model].filter(Boolean).join(" ")
-    : form.customModel;
+  const effectiveModel = useMemo(
+    () =>
+      selectedEquipment?.model
+        ? [selectedEquipment.manufacturer, selectedEquipment.model].filter(Boolean).join(" ")
+        : form.customModel,
+    [selectedEquipment, form.customModel],
+  );
+
   const effectiveSerial = selectedEquipment?.serial_number ?? form.customSerial;
 
   const selectedFlashNumbers = useMemo(() => {
     if (!flashData?.items || form.flashDriveIds.length === 0) return "";
     return form.flashDriveIds
       .map((id) => flashData.items.find((a) => a.id === id)?.serial_number)
-      .filter(Boolean).join(", ");
+      .filter(Boolean)
+      .join(", ");
   }, [flashData, form.flashDriveIds]);
 
   const selectedPassNumbers = useMemo(() => {
     if (!passData?.items || form.passIds.length === 0) return "";
     return form.passIds
       .map((id) => passData.items.find((a) => a.id === id)?.serial_number)
-      .filter(Boolean).join(", ");
+      .filter(Boolean)
+      .join(", ");
   }, [passData, form.passIds]);
 
-  const surrenderer = getPerson(form.surrenderPersonId);
-  const receiver = getPerson(form.receiverPersonId);
-  const issuer = getPerson(form.issuerPersonId);
+  const surrenderer = useMemo(() => getPerson(form.surrenderPersonId), [getPerson, form.surrenderPersonId]);
+  const receiver = useMemo(() => getPerson(form.receiverPersonId), [getPerson, form.receiverPersonId]);
+  const issuer = useMemo(() => getPerson(form.issuerPersonId), [getPerson, form.issuerPersonId]);
 
   const updateKitItem = useCallback((id: string, updated: KitItem) => {
-    setForm((prev) => ({ ...prev, kitItems: prev.kitItems.map((item) => item.id === id ? updated : item) }));
-  }, []);
-  const removeKitItem = useCallback((id: string) => {
-    setForm((prev) => ({ ...prev, kitItems: prev.kitItems.filter((item) => item.id !== id) }));
-  }, []);
-  const addKitItem = useCallback((name?: string) => {
     setForm((prev) => ({
       ...prev,
-      kitItems: [...prev.kitItems, { id: crypto.randomUUID(), name: name ?? "", condition: "ok", defectNote: "" }],
+      kitItems: prev.kitItems.map((item) => (item.id === id ? updated : item)),
     }));
   }, []);
 
-  const fullDate = formatFullDate(form.actDay, form.actMonth, form.year);
+  const removeKitItem = useCallback((id: string) => {
+    setForm((prev) => ({
+      ...prev,
+      kitItems: prev.kitItems.filter((item) => item.id !== id),
+    }));
+  }, []);
 
-  const canGenerate =
-    effectiveModel.trim() !== "" &&
-    effectiveSerial.trim() !== "" &&
-    form.kitItems.length > 0 &&
-    form.kitItems.every((it) => it.name.trim() !== "") &&
-    (form.actType === "sdacha"
-      ? form.surrenderPersonId != null && form.receiverPersonId != null
-      : form.receiverPersonId != null && form.issuerPersonId != null);
+  const addKitItem = useCallback((name?: string) => {
+    setForm((prev) => ({
+      ...prev,
+      kitItems: [
+        ...prev.kitItems,
+        { id: crypto.randomUUID(), name: name ?? "", condition: "ok" as Condition, defectNote: "" },
+      ],
+    }));
+  }, []);
+
+  const fullDate = useMemo(
+    () => formatFullDate(form.actDay, form.actMonth, form.year),
+    [form.actDay, form.actMonth, form.year],
+  );
+
+  const canGenerate = useMemo(
+    () =>
+      effectiveModel.trim() !== "" &&
+      effectiveSerial.trim() !== "" &&
+      form.kitItems.length > 0 &&
+      form.kitItems.every((it) => it.name.trim() !== "") &&
+      (form.actType === "sdacha"
+        ? form.surrenderPersonId != null && form.receiverPersonId != null
+        : form.receiverPersonId != null && form.issuerPersonId != null),
+    [effectiveModel, effectiveSerial, form.kitItems, form.actType, form.surrenderPersonId, form.receiverPersonId, form.issuerPersonId],
+  );
 
   const handleGenerate = () => {
     if (!canGenerate || isPending) return;
@@ -737,7 +708,6 @@ export default function ActsPage() {
 
     startTransition(async () => {
       try {
-        // Конвертируем фото в base64 для передачи на сервер
         const photosPayload = form.photos.map((p) => ({
           dataUrl: p.dataUrl,
           caption: p.caption,
@@ -763,20 +733,19 @@ export default function ActsPage() {
           passNumbers: selectedPassNumbers || null,
           photos: photosPayload,
 
-          // Именительный (для подписей – должность звание Инициалы)
           surrendererLabel: surrenderer ? formatPersonNominative(surrenderer) : "",
           receiverLabel: receiver ? formatPersonNominative(receiver) : "",
           issuerLabel: issuer ? formatPersonNominative(issuer) : "",
 
-          // Родительный (для вводной части)
           surrendererGenitiveLabel: surrenderer ? formatPersonGenitive(surrenderer) : "",
           receiverGenitiveLabel: receiver ? formatPersonGenitive(receiver) : "",
           issuerGenitiveLabel: issuer ? formatPersonGenitive(issuer) : "",
 
-          // Для Приложения
           receiverRankShort: receiver?.rank?.split(" ").at(-1) ?? "рядовой",
           receiverLastNameInitials: receiver ? getPersonLastNameInitials(receiver.full_name) : "",
-          surrendererLastNameInitials: surrenderer ? getPersonLastNameInitials(surrenderer.full_name) : "",
+          surrendererLastNameInitials: surrenderer
+            ? getPersonLastNameInitials(surrenderer.full_name)
+            : "",
           issuerLastNameInitials: issuer ? getPersonLastNameInitials(issuer.full_name) : "",
         };
 
@@ -796,7 +765,8 @@ export default function ActsPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         const lastName =
-          (form.actType === "sdacha" ? surrenderer : receiver)?.full_name.split(" ")[0] ?? "документ";
+          (form.actType === "sdacha" ? surrenderer : receiver)?.full_name.split(" ")[0] ??
+          "документ";
         a.href = url;
         a.download = `акт_${form.actType === "sdacha" ? "сдачи" : "выдачи"}_ноутбука_${lastName}.docx`;
         a.click();
@@ -807,33 +777,45 @@ export default function ActsPage() {
     });
   };
 
-  const previewData: PreviewData = {
-    actType: form.actType,
-    actNumber: form.actNumber,
-    fullDate,
-    year: form.year,
-    basisDoc: form.basisDoc,
-    surrendererLabel: surrenderer ? formatPersonNominative(surrenderer) : "",
-    receiverLabel: receiver ? formatPersonNominative(receiver) : "",
-    issuerLabel: issuer ? formatPersonNominative(issuer) : "",
-    surrendererGenLabel: surrenderer ? formatPersonGenitive(surrenderer) : "",
-    receiverGenLabel: receiver ? formatPersonGenitive(receiver) : "",
-    issuerGenLabel: issuer ? formatPersonGenitive(issuer) : "",
-    model: effectiveModel,
-    serial: effectiveSerial,
-    kitItems: form.kitItems,
-    defects: form.defects,
-    flashDriveNumbers: selectedFlashNumbers,
-    passNumbers: selectedPassNumbers,
-    surrendererName: surrenderer ? getPersonInitials(surrenderer.full_name) : "",
-    receiverName: receiver ? getPersonInitials(receiver.full_name) : "",
-    issuerName: issuer ? getPersonInitials(issuer.full_name) : "",
-    receiverRankShort: receiver?.rank?.split(" ").at(-1) ?? "рядовой",
-    receiverLastNameInitials: receiver ? getPersonLastNameInitials(receiver.full_name) : "",
-    surrendererLastNameInitials: surrenderer ? getPersonLastNameInitials(surrenderer.full_name) : "",
-    issuerLastNameInitials: issuer ? getPersonLastNameInitials(issuer.full_name) : "",
-    photos: form.photos,
-  };
+  // Мемоизированный previewData — пересчитывается только при изменении зависимостей
+  const previewData = useMemo<PreviewData>(
+    () => ({
+      actType: form.actType,
+      actNumber: form.actNumber,
+      fullDate,
+      year: form.year,
+      basisDoc: form.basisDoc,
+      surrendererLabel: surrenderer ? formatPersonNominative(surrenderer) : "",
+      receiverLabel: receiver ? formatPersonNominative(receiver) : "",
+      issuerLabel: issuer ? formatPersonNominative(issuer) : "",
+      surrendererGenLabel: surrenderer ? formatPersonGenitive(surrenderer) : "",
+      receiverGenLabel: receiver ? formatPersonGenitive(receiver) : "",
+      issuerGenLabel: issuer ? formatPersonGenitive(issuer) : "",
+      model: effectiveModel,
+      serial: effectiveSerial,
+      kitItems: form.kitItems,
+      defects: form.defects,
+      flashDriveNumbers: selectedFlashNumbers,
+      passNumbers: selectedPassNumbers,
+      surrendererName: surrenderer ? getPersonInitials(surrenderer.full_name) : "",
+      receiverName: receiver ? getPersonInitials(receiver.full_name) : "",
+      issuerName: issuer ? getPersonInitials(issuer.full_name) : "",
+      receiverRankShort: receiver?.rank?.split(" ").at(-1) ?? "рядовой",
+      receiverLastNameInitials: receiver ? getPersonLastNameInitials(receiver.full_name) : "",
+      surrendererLastNameInitials: surrenderer
+        ? getPersonLastNameInitials(surrenderer.full_name)
+        : "",
+      issuerLastNameInitials: issuer ? getPersonLastNameInitials(issuer.full_name) : "",
+      photos: form.photos,
+    }),
+    [
+      form.actType, form.actNumber, form.basisDoc, form.kitItems,
+      form.defects, form.photos, form.year,
+      fullDate, effectiveModel, effectiveSerial,
+      selectedFlashNumbers, selectedPassNumbers,
+      surrenderer, receiver, issuer,
+    ],
+  );
 
   const inputCls =
     "w-full rounded-lg px-3 py-2.5 text-sm transition-all focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 bg-slate-800/60 border border-slate-700/60 text-slate-100 placeholder-slate-600";
@@ -845,15 +827,21 @@ export default function ActsPage() {
   const currentYear = new Date().getFullYear();
   const yearOptions = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2].map(String);
   const dayOptions = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0"));
-  const monthOptions = MONTHS_GEN.map((m, i) => ({ value: String(i + 1).padStart(2, "0"), label: m }));
+  const monthOptions = MONTHS_GEN.map((m, i) => ({
+    value: String(i + 1).padStart(2, "0"),
+    label: m,
+  }));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8 text-foreground">
       <div className="max-w-7xl mx-auto">
         {/* Заголовок */}
         <div className="mb-6">
-          <Button variant="ghost" asChild
-            className="mb-4 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors">
+          <Button
+            variant="ghost"
+            asChild
+            className="mb-4 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+          >
             <Link href="/dashboard">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Назад к панели
@@ -865,22 +853,35 @@ export default function ActsPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Генерация актов</h1>
-              <p className="text-muted-foreground mt-1">Формирование актов приёма-передачи оборудования</p>
+              <p className="text-muted-foreground mt-1">
+                Формирование актов приёма-передачи оборудования
+              </p>
             </div>
           </div>
         </div>
 
         {/* Тип документа */}
         <div className="mb-8">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Тип документа</p>
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">
+            Тип документа
+          </p>
           <div className="flex gap-3">
             {(["sdacha", "vydacha"] as const).map((type) => (
-              <button key={type} type="button" onClick={() => setField("actType")(type)}
-                className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border text-sm font-medium transition-all ${form.actType === type
-                  ? "bg-blue-600/20 border-blue-500/50 text-blue-300 shadow-lg shadow-blue-900/20"
-                  : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600"
-                  }`}>
-                {type === "sdacha" ? <ArrowUpFromLine className="w-4 h-4" /> : <ArrowDownToLine className="w-4 h-4" />}
+              <button
+                key={type}
+                type="button"
+                onClick={() => setField("actType")(type)}
+                className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border text-sm font-medium transition-all ${
+                  form.actType === type
+                    ? "bg-blue-600/20 border-blue-500/50 text-blue-300 shadow-lg shadow-blue-900/20"
+                    : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600"
+                }`}
+              >
+                {type === "sdacha" ? (
+                  <ArrowUpFromLine className="w-4 h-4" />
+                ) : (
+                  <ArrowDownToLine className="w-4 h-4" />
+                )}
                 {type === "sdacha" ? "Акт сдачи оборудования" : "Акт выдачи оборудования"}
               </button>
             ))}
@@ -899,46 +900,70 @@ export default function ActsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    <Hash className="w-3.5 h-3.5" />Номер акта <span className="normal-case font-normal text-slate-500">(необязательно)</span>
+                    <Hash className="w-3.5 h-3.5" />
+                    Номер акта{" "}
+                    <span className="normal-case font-normal text-slate-500">(необязательно)</span>
                   </label>
-                  <input type="text" value={form.actNumber}
+                  <input
+                    type="text"
+                    value={form.actNumber}
                     onChange={(e) => setField("actNumber")(e.target.value)}
                     placeholder="например, 12"
-                    className={inputCls} />
+                    className={inputCls}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    <CalendarDays className="w-3.5 h-3.5" />Год
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    Год
                   </label>
                   <div className="relative">
-                    <select value={form.year} onChange={(e) => setField("year")(e.target.value)}
-                      className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-100 appearance-none cursor-pointer focus:outline-none focus:border-blue-500/60 transition-all">
+                    <select
+                      value={form.year}
+                      onChange={(e) => setField("year")(e.target.value)}
+                      className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-100 appearance-none cursor-pointer focus:outline-none focus:border-blue-500/60 transition-all"
+                    >
                       {yearOptions.map((y) => (
-                        <option key={y} value={y} className="bg-slate-800">{y} г.</option>
+                        <option key={y} value={y} className="bg-slate-800">
+                          {y} г.
+                        </option>
                       ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
                   </div>
                 </div>
               </div>
+
               {/* Дата */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Дата акта</label>
+                <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  Дата акта
+                </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="relative">
-                    <select value={form.actDay} onChange={(e) => setField("actDay")(e.target.value)}
-                      className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-100 appearance-none cursor-pointer focus:outline-none focus:border-blue-500/60 transition-all">
+                    <select
+                      value={form.actDay}
+                      onChange={(e) => setField("actDay")(e.target.value)}
+                      className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-100 appearance-none cursor-pointer focus:outline-none focus:border-blue-500/60 transition-all"
+                    >
                       {dayOptions.map((d) => (
-                        <option key={d} value={d} className="bg-slate-800">{d}</option>
+                        <option key={d} value={d} className="bg-slate-800">
+                          {d}
+                        </option>
                       ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
                   </div>
                   <div className="relative">
-                    <select value={form.actMonth} onChange={(e) => setField("actMonth")(e.target.value)}
-                      className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-100 appearance-none cursor-pointer focus:outline-none focus:border-blue-500/60 transition-all">
+                    <select
+                      value={form.actMonth}
+                      onChange={(e) => setField("actMonth")(e.target.value)}
+                      className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-100 appearance-none cursor-pointer focus:outline-none focus:border-blue-500/60 transition-all"
+                    >
                       {monthOptions.map(({ value, label }) => (
-                        <option key={value} value={value} className="bg-slate-800">{label}</option>
+                        <option key={value} value={value} className="bg-slate-800">
+                          {label}
+                        </option>
                       ))}
                     </select>
                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
@@ -946,16 +971,21 @@ export default function ActsPage() {
                 </div>
                 <p className="text-xs text-slate-600">Итог: {fullDate}</p>
               </div>
+
               {/* Основание */}
               <div className="space-y-1.5">
                 <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                  <FileText className="w-3.5 h-3.5" />Основание
+                  <FileText className="w-3.5 h-3.5" />
+                  Основание{" "}
                   <span className="text-slate-600 normal-case font-normal">(необязательно)</span>
                 </label>
-                <input type="text" value={form.basisDoc}
+                <input
+                  type="text"
+                  value={form.basisDoc}
                   onChange={(e) => setField("basisDoc")(e.target.value)}
                   placeholder="Приказ командира в/ч № … от …"
-                  className={inputCls} />
+                  className={inputCls}
+                />
               </div>
             </div>
 
@@ -971,10 +1001,14 @@ export default function ActsPage() {
                 <>
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      <ArrowUpFromLine className="w-3.5 h-3.5" />Кто сдаёт
+                      <ArrowUpFromLine className="w-3.5 h-3.5" />
+                      Кто сдаёт
                     </label>
-                    <PersonnelSelect value={form.surrenderPersonId} onValueChange={setField("surrenderPersonId")}
-                      placeholder="Выберите военнослужащего" />
+                    <PersonnelSelect
+                      value={form.surrenderPersonId}
+                      onValueChange={setField("surrenderPersonId")}
+                      placeholder="Выберите военнослужащего"
+                    />
                     {surrenderer && (
                       <p className="text-xs text-slate-500">
                         ↳ В акте: {formatPersonGenitive(surrenderer)}
@@ -983,10 +1017,14 @@ export default function ActsPage() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      <ArrowDownToLine className="w-3.5 h-3.5" />Кто принимает
+                      <ArrowDownToLine className="w-3.5 h-3.5" />
+                      Кто принимает
                     </label>
-                    <PersonnelSelect value={form.receiverPersonId} onValueChange={setField("receiverPersonId")}
-                      placeholder="Выберите военнослужащего" />
+                    <PersonnelSelect
+                      value={form.receiverPersonId}
+                      onValueChange={setField("receiverPersonId")}
+                      placeholder="Выберите военнослужащего"
+                    />
                     {receiver && (
                       <p className="text-xs text-slate-500">
                         ↳ В акте: {formatPersonNominative(receiver)}
@@ -998,10 +1036,14 @@ export default function ActsPage() {
                 <>
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      <ArrowUpFromLine className="w-3.5 h-3.5" />Кто выдаёт
+                      <ArrowUpFromLine className="w-3.5 h-3.5" />
+                      Кто выдаёт
                     </label>
-                    <PersonnelSelect value={form.issuerPersonId} onValueChange={setField("issuerPersonId")}
-                      placeholder="Выберите ответственного" />
+                    <PersonnelSelect
+                      value={form.issuerPersonId}
+                      onValueChange={setField("issuerPersonId")}
+                      placeholder="Выберите ответственного"
+                    />
                     {issuer && (
                       <p className="text-xs text-slate-500">
                         ↳ В акте: {formatPersonGenitive(issuer)}
@@ -1010,10 +1052,14 @@ export default function ActsPage() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      <ArrowDownToLine className="w-3.5 h-3.5" />Кто принимает
+                      <ArrowDownToLine className="w-3.5 h-3.5" />
+                      Кто принимает
                     </label>
-                    <PersonnelSelect value={form.receiverPersonId} onValueChange={setField("receiverPersonId")}
-                      placeholder="Выберите военнослужащего" />
+                    <PersonnelSelect
+                      value={form.receiverPersonId}
+                      onValueChange={setField("receiverPersonId")}
+                      placeholder="Выберите военнослужащего"
+                    />
                     {receiver && (
                       <p className="text-xs text-slate-500">
                         ↳ В акте: {formatPersonNominative(receiver)}
@@ -1032,11 +1078,21 @@ export default function ActsPage() {
               </div>
               <div className="space-y-1.5">
                 <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                  <Database className="w-3.5 h-3.5" />Выбрать из базы данных
+                  <Database className="w-3.5 h-3.5" />
+                  Выбрать из базы данных
                 </label>
-                <EquipmentSelect value={form.equipmentId}
-                  onValueChange={(id) => setForm((prev) => ({ ...prev, equipmentId: id, customModel: "", customSerial: "" }))}
-                  placeholder="Поиск по модели, типу или номеру…" />
+                <EquipmentSelect
+                  value={form.equipmentId}
+                  onValueChange={(id) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      equipmentId: id,
+                      customModel: "",
+                      customSerial: "",
+                    }))
+                  }
+                  placeholder="Поиск по модели, типу или номеру…"
+                />
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px bg-slate-700/60" />
@@ -1046,23 +1102,51 @@ export default function ActsPage() {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-2 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    <PenLine className="w-3.5 h-3.5" />Модель
-                    {selectedEquipment && <span className="text-slate-600 normal-case font-normal tracking-normal">(заполнено из БД)</span>}
+                    <PenLine className="w-3.5 h-3.5" />
+                    Модель
+                    {selectedEquipment && (
+                      <span className="text-slate-600 normal-case font-normal tracking-normal">
+                        (заполнено из БД)
+                      </span>
+                    )}
                   </label>
-                  <input type="text" value={effectiveModel}
-                    onChange={(e) => setForm((prev) => ({ ...prev, equipmentId: undefined, customModel: e.target.value }))}
+                  <input
+                    type="text"
+                    value={effectiveModel}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        equipmentId: undefined,
+                        customModel: e.target.value,
+                      }))
+                    }
                     placeholder="Aquarius Cmp NS685U R11"
-                    className={selectedEquipment ? inputDbCls : inputCls} />
+                    className={selectedEquipment ? inputDbCls : inputCls}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-2 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    <Shield className="w-3.5 h-3.5" />Серийный номер
-                    {selectedEquipment && <span className="text-slate-600 normal-case font-normal tracking-normal">(заполнено из БД)</span>}
+                    <Shield className="w-3.5 h-3.5" />
+                    Серийный номер
+                    {selectedEquipment && (
+                      <span className="text-slate-600 normal-case font-normal tracking-normal">
+                        (заполнено из БД)
+                      </span>
+                    )}
                   </label>
-                  <input type="text" value={effectiveSerial}
-                    onChange={(e) => setForm((prev) => ({ ...prev, equipmentId: undefined, customSerial: e.target.value }))}
+                  <input
+                    type="text"
+                    value={effectiveSerial}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        equipmentId: undefined,
+                        customSerial: e.target.value,
+                      }))
+                    }
                     placeholder="222081909046R-0210"
-                    className={`font-mono ${selectedEquipment ? inputDbCls : inputCls}`} />
+                    className={`font-mono ${selectedEquipment ? inputDbCls : inputCls}`}
+                  />
                 </div>
               </div>
             </div>
@@ -1074,11 +1158,21 @@ export default function ActsPage() {
                 <h2 className="text-sm font-semibold text-slate-200">Флешки и пропуска</h2>
                 <span className="text-xs text-slate-500 ml-1">(необязательно)</span>
               </div>
-              <MultiAssetSelect label="USB-накопители МО РФ" icon={HardDrive}
-                assetType="flash_drive" ids={form.flashDriveIds} onChange={setField("flashDriveIds")} />
+              <MultiAssetSelect
+                label="USB-накопители МО РФ"
+                icon={HardDrive}
+                assetType="flash_drive"
+                ids={form.flashDriveIds}
+                onChange={setField("flashDriveIds")}
+              />
               <div className="h-px bg-slate-800/60" />
-              <MultiAssetSelect label="Электронные пропуска" icon={CreditCard}
-                assetType="electronic_pass" ids={form.passIds} onChange={setField("passIds")} />
+              <MultiAssetSelect
+                label="Электронные пропуска"
+                icon={CreditCard}
+                assetType="electronic_pass"
+                ids={form.passIds}
+                onChange={setField("passIds")}
+              />
             </div>
 
             {/* Комплектация */}
@@ -1090,7 +1184,10 @@ export default function ActsPage() {
                 </div>
                 <div className="flex gap-1 items-center text-xs text-slate-500">
                   {CONDITION_VALUES.map((c) => (
-                    <span key={c} className={`px-1.5 py-0.5 rounded border text-xs ${CONDITION_COLOR[c]}`}>
+                    <span
+                      key={c}
+                      className={`px-1.5 py-0.5 rounded border text-xs ${CONDITION_COLOR[c]}`}
+                    >
                       {CONDITION_LABEL[c]}
                     </span>
                   ))}
@@ -1098,21 +1195,35 @@ export default function ActsPage() {
               </div>
               <div className="space-y-2">
                 {form.kitItems.map((item) => (
-                  <KitItemRow key={item.id} item={item}
+                  <KitItemRow
+                    key={item.id}
+                    item={item}
                     onChange={(updated) => updateKitItem(item.id, updated)}
-                    onRemove={() => removeKitItem(item.id)} />
+                    onRemove={() => removeKitItem(item.id)}
+                  />
                 ))}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {KIT_PRESETS.filter((preset) => !form.kitItems.some((it) => it.name === preset)).map((preset) => (
-                  <button key={preset} type="button" onClick={() => addKitItem(preset)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border border-slate-700/40 text-slate-500 hover:text-slate-300 hover:border-slate-600 transition-all bg-slate-800/20">
-                    <Plus className="w-3 h-3" />{preset}
+                {KIT_PRESETS.filter(
+                  (preset) => !form.kitItems.some((it) => it.name === preset),
+                ).map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => addKitItem(preset)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border border-slate-700/40 text-slate-500 hover:text-slate-300 hover:border-slate-600 transition-all bg-slate-800/20"
+                  >
+                    <Plus className="w-3 h-3" />
+                    {preset}
                   </button>
                 ))}
-                <button type="button" onClick={() => addKitItem()}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border border-dashed border-slate-700/40 text-slate-600 hover:text-slate-400 hover:border-slate-500 transition-all">
-                  <Plus className="w-3 h-3" />Свою позицию
+                <button
+                  type="button"
+                  onClick={() => addKitItem()}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border border-dashed border-slate-700/40 text-slate-600 hover:text-slate-400 hover:border-slate-500 transition-all"
+                >
+                  <Plus className="w-3 h-3" />
+                  Свою позицию
                 </button>
               </div>
             </div>
@@ -1124,10 +1235,13 @@ export default function ActsPage() {
                 <h2 className="text-sm font-semibold text-slate-200">Дополнительные дефекты</h2>
                 <span className="text-xs text-slate-500 ml-1">(необязательно)</span>
               </div>
-              <textarea value={form.defects} onChange={(e) => setField("defects")(e.target.value)}
+              <textarea
+                value={form.defects}
+                onChange={(e) => setField("defects")(e.target.value)}
                 placeholder="Дефекты корпуса, матрицы, царапины и пр., не отражённые выше"
                 rows={2}
-                className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/60 transition-all resize-none" />
+                className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/60 transition-all resize-none"
+              />
             </div>
 
             {/* Фотографии */}
@@ -1143,19 +1257,33 @@ export default function ActsPage() {
             {/* Ошибка */}
             {generateError && (
               <div className="flex items-center gap-2 text-red-400 text-sm bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />{generateError}
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {generateError}
               </div>
             )}
 
-            {/* Кнопка */}
-            <button type="button" onClick={handleGenerate} disabled={!canGenerate || isPending}
-              className={`w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl text-sm font-semibold transition-all ${canGenerate && !isPending
-                ? "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/30 active:scale-[0.98]"
-                : "bg-slate-800/60 text-slate-600 cursor-not-allowed border border-slate-700/40"
-                }`}>
-              {isPending
-                ? <><RefreshCw className="w-4 h-4 animate-spin" />Формирование документа…</>
-                : <><Download className="w-4 h-4" />Сформировать и скачать DOCX</>}
+            {/* Кнопка генерации */}
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={!canGenerate || isPending}
+              className={`w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl text-sm font-semibold transition-all ${
+                canGenerate && !isPending
+                  ? "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/30 active:scale-[0.98]"
+                  : "bg-slate-800/60 text-slate-600 cursor-not-allowed border border-slate-700/40"
+              }`}
+            >
+              {isPending ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Формирование документа…
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  Сформировать и скачать DOCX
+                </>
+              )}
             </button>
             {!canGenerate && (
               <p className="text-xs text-slate-600 text-center">
@@ -1167,10 +1295,25 @@ export default function ActsPage() {
           {/* Предпросмотр */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Предварительный просмотр</p>
-              <button type="button" onClick={() => setShowPreview(!showPreview)}
-                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors">
-                {showPreview ? <><ChevronUp className="w-3.5 h-3.5" />Свернуть</> : <><ChevronDown className="w-3.5 h-3.5" />Развернуть</>}
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Предварительный просмотр
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowPreview(!showPreview)}
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                {showPreview ? (
+                  <>
+                    <ChevronUp className="w-3.5 h-3.5" />
+                    Свернуть
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                    Развернуть
+                  </>
+                )}
               </button>
             </div>
             {showPreview && (
@@ -1189,8 +1332,8 @@ export default function ActsPage() {
             <div className="bg-slate-900/40 border border-slate-800/40 rounded-xl p-4">
               <p className="text-xs text-slate-500 leading-relaxed">
                 <span className="text-slate-400 font-medium">Формат:</span> A4, поля 3/0.6/0.8/1.2 см,
-                Times New Roman 14 пт. При дефектах – автоматическое Приложение с перечнем и подписью.
-                Фотографии встраиваются в Приложение.
+                Times New Roman 14 пт. При дефектах – автоматическое Приложение с перечнем и
+                подписью. Фотографии встраиваются в Приложение (оптимизированы до 1200×900 px).
               </p>
             </div>
           </div>
