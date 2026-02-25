@@ -28,12 +28,12 @@ class PhoneService:
         if owner_id:
             query = query.filter(Phone.owner_id == owner_id)
         if search:
-            search = sanitize_html(search)
+            search_clean = sanitize_html(search)
             query = query.join(Personnel).filter(or_(
-                Phone.model.ilike(f"%{search}%"),
-                Phone.imei_1.ilike(f"%{search}%"),
-                Phone.imei_2.ilike(f"%{search}%"),
-                Personnel.full_name.ilike(f"%{search}%")
+                Phone.model.ilike(f"%{search_clean}%"),
+                Phone.imei_1.ilike(f"%{search_clean}%"),
+                Phone.imei_2.ilike(f"%{search_clean}%"),
+                Personnel.full_name.ilike(f"%{search_clean}%")
             ))
         
         total = query.count()
@@ -82,55 +82,58 @@ class PhoneService:
         return True
     
     def batch_checkin(self, phone_ids: List[int]) -> int:
+        """Принять телефоны (статус -> Сдан). Все проверки — до транзакции."""
+        # Загружаем телефоны с блокировкой
+        phones = self.db.query(Phone).filter(
+            Phone.id.in_(phone_ids),
+            Phone.is_active == True
+        ).all()
+        
+        found_ids = {p.id for p in phones}
+        missing = set(phone_ids) - found_ids
+        if missing:
+            raise ValueError(f"Телефоны не найдены: {sorted(missing)}")
+        
+        already_checked = [p.id for p in phones if p.status == "Сдан"]
+        if already_checked:
+            raise ValueError(f"Телефоны уже сданы: {already_checked}")
+        
         try:
-            with self.db.begin_nested():
-                phones = self.db.query(Phone).with_for_update().filter(
-                    Phone.id.in_(phone_ids),
-                    Phone.is_active == True
-                ).all()
-                
-                if len(phones) != len(phone_ids):
-                    raise ValueError("Некоторые телефоны не найдены")
-                
-                already_checked = [p.id for p in phones if p.status == "Сдан"]
-                if already_checked:
-                    raise ValueError(f"Телефоны уже сданы: {already_checked}")
-                
-                count = self.db.query(Phone).filter(Phone.id.in_(phone_ids)).update(
-                    {"status": "Сдан"}, synchronize_session=False
-                )
-                self.db.flush()
-            
+            count = self.db.query(Phone).filter(Phone.id.in_(phone_ids)).update(
+                {"status": "Сдан"}, synchronize_session=False
+            )
             self.db.commit()
             return count
         except Exception as e:
             self.db.rollback()
+            logger.error(f"Batch checkin error: {e}")
             raise ValueError(f"Ошибка массовой сдачи: {str(e)}")
     
     def batch_checkout(self, phone_ids: List[int]) -> int:
+        """Выдать телефоны (статус -> Выдан). Все проверки — до транзакции."""
+        phones = self.db.query(Phone).filter(
+            Phone.id.in_(phone_ids),
+            Phone.is_active == True
+        ).all()
+        
+        found_ids = {p.id for p in phones}
+        missing = set(phone_ids) - found_ids
+        if missing:
+            raise ValueError(f"Телефоны не найдены: {sorted(missing)}")
+        
+        already_out = [p.id for p in phones if p.status == "Выдан"]
+        if already_out:
+            raise ValueError(f"Телефоны уже выданы: {already_out}")
+        
         try:
-            with self.db.begin_nested():
-                phones = self.db.query(Phone).with_for_update().filter(
-                    Phone.id.in_(phone_ids),
-                    Phone.is_active == True
-                ).all()
-                
-                if len(phones) != len(phone_ids):
-                    raise ValueError("Некоторые телефоны не найдены")
-                
-                already_out = [p.id for p in phones if p.status == "Выдан"]
-                if already_out:
-                    raise ValueError(f"Телефоны уже выданы: {already_out}")
-                
-                count = self.db.query(Phone).filter(Phone.id.in_(phone_ids)).update(
-                    {"status": "Выдан"}, synchronize_session=False
-                )
-                self.db.flush()
-            
+            count = self.db.query(Phone).filter(Phone.id.in_(phone_ids)).update(
+                {"status": "Выдан"}, synchronize_session=False
+            )
             self.db.commit()
             return count
         except Exception as e:
             self.db.rollback()
+            logger.error(f"Batch checkout error: {e}")
             raise ValueError(f"Ошибка массовой выдачи: {str(e)}")
     
     def get_status_report(self) -> dict:

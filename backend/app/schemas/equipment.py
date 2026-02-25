@@ -35,13 +35,11 @@ class EquipmentBase(BaseModel):
 
     @model_validator(mode="after")
     def validate_inventory_number(self):
-        # Для личного ноутбука инвентарный номер не нужен
+        # Личное имущество: инвентарный номер необязателен
         if self.is_personal:
             return self
-        needs_inventory = not (
-            self.equipment_type == "Ноутбук" and self.status != "В работе"
-        )
-        if needs_inventory and not (self.inventory_number or "").strip():
+        # Все остальные единицы техники — инвентарный номер обязателен
+        if not (self.inventory_number or "").strip():
             raise ValueError("Учетный номер обязателен")
         return self
 

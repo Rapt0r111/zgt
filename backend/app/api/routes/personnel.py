@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 from app.core.database import get_db
 from app.api.deps import require_officer, verify_csrf, get_current_user
@@ -12,9 +12,6 @@ from app.schemas.personnel import (
 from app.services.personnel_service import PersonnelService
 
 router = APIRouter(prefix="/personnel", tags=["personnel"])
-
-# Единый dependency для мутирующих операций с персоналом
-_officer_csrf = lambda db=Depends(get_db), user=Depends(verify_csrf): (db, user)
 
 
 def _require_officer_csrf(
@@ -84,16 +81,24 @@ async def check_clearance(
 
     expiry = personnel.clearance_expiry_date
     is_expired = False
-    if expiry:
-        expiry_aware = expiry.replace(tzinfo=timezone.utc) if expiry.tzinfo is None else expiry
-        is_expired = expiry_aware < datetime.now(timezone.utc)
+    expiry_date_only = None
+
+    if expiry is not None:
+        # Нормализуем: может прийти как datetime или как date
+        if isinstance(expiry, datetime):
+            expiry_aware = expiry if expiry.tzinfo is not None else expiry.replace(tzinfo=timezone.utc)
+            is_expired = expiry_aware < datetime.now(timezone.utc)
+            expiry_date_only = expiry_aware.date().isoformat()
+        elif isinstance(expiry, date):
+            is_expired = expiry < datetime.now(timezone.utc).date()
+            expiry_date_only = expiry.isoformat()
 
     has_clearance = personnel.security_clearance_level is not None
     return {
         "personnel_id": personnel_id,
         "has_clearance": has_clearance,
         "clearance_level": personnel.security_clearance_level,
-        "expiry_date": expiry.date().isoformat() if expiry else None,
+        "expiry_date": expiry_date_only,
         "is_expired": is_expired,
         "is_valid": has_clearance and not is_expired,
     }

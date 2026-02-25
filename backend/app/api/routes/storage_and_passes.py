@@ -119,7 +119,8 @@ async def revoke_asset(
     _: User = Depends(verify_csrf),
 ):
     try:
+        # revoke_from_personnel теперь возвращает объект с обновлёнными данными
         asset = StorageAndPassService(db).revoke_from_personnel(asset_id)
-        return {**asset.__dict__, "assigned_to_name": None, "assigned_to_rank": None}
+        return _enrich(asset)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

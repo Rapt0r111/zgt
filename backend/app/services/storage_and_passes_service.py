@@ -20,10 +20,8 @@ class StorageAndPassService:
         status: Optional[str] = None,
         search: Optional[str] = None
     ) -> dict:
-        # 1. Базовый запрос с учетом активности
         base_query = self.db.query(StorageAndPass).filter(StorageAndPass.is_active == True)
         
-        # 2. Применяем фильтры для общего количества
         if asset_type:
             base_query = base_query.filter(StorageAndPass.asset_type == asset_type)
         if status:
@@ -37,7 +35,6 @@ class StorageAndPassService:
 
         total_assets = base_query.count()
 
-        # 3. Группировка по статусу (учитываем фильтр типа и поиска)
         status_q = self.db.query(StorageAndPass.status, func.count(StorageAndPass.id)).filter(StorageAndPass.is_active == True)
         if asset_type:
             status_q = status_q.filter(StorageAndPass.asset_type == asset_type)
@@ -46,7 +43,6 @@ class StorageAndPassService:
         
         by_status = dict(status_q.group_by(StorageAndPass.status).all())
 
-        # 4. Группировка по типу (учитываем фильтр статуса и поиска)
         type_q = self.db.query(StorageAndPass.asset_type, func.count(StorageAndPass.id)).filter(StorageAndPass.is_active == True)
         if status:
             type_q = type_q.filter(StorageAndPass.status == status)
@@ -134,16 +130,25 @@ class StorageAndPassService:
     def assign_to_personnel(self, asset_id: int, request: AssignmentRequest) -> StorageAndPass:
         try:
             with self.db.begin_nested():
-                asset = self.db.query(StorageAndPass).with_for_update().filter(
-                    StorageAndPass.id == asset_id,
-                    StorageAndPass.is_active == True
-                ).one_or_none()
+                # Eager-load assigned_to чтобы избежать DetachedInstanceError после commit
+                asset = (
+                    self.db.query(StorageAndPass)
+                    .options(joinedload(StorageAndPass.assigned_to))
+                    .with_for_update()
+                    .filter(
+                        StorageAndPass.id == asset_id,
+                        StorageAndPass.is_active == True
+                    )
+                    .one_or_none()
+                )
                 
                 if not asset:
                     raise ValueError("Актив не найден")
                 
                 if asset.status == 'in_use' and asset.assigned_to_id:
-                    raise ValueError(f"Актив уже выдан пользователю {asset.assigned_to.full_name}")
+                    # Теперь безопасно обращаться к .assigned_to.full_name
+                    owner_name = asset.assigned_to.full_name if asset.assigned_to else f"ID {asset.assigned_to_id}"
+                    raise ValueError(f"Актив уже выдан: {owner_name}")
                 
                 personnel = self.db.query(Personnel).filter(
                     Personnel.id == request.assigned_to_id,
@@ -163,8 +168,8 @@ class StorageAndPassService:
                 self.db.flush()
             
             self.db.commit()
-            self.db.refresh(asset)
-            return asset
+            # Перезагружаем с актуальными связями
+            return self.get_by_id(asset_id)  # type: ignore[return-value]
         except Exception as e:
             self.db.rollback()
             logger.error(f"Assignment error: {e}")

@@ -26,13 +26,15 @@ class EquipmentService:
         if is_personal is not None:
             query = query.filter(Equipment.is_personal == is_personal)
         if search:
-            search = sanitize_html(search)
+            search_clean = sanitize_html(search)
             query = query.filter(or_(
-                Equipment.inventory_number.ilike(f"%{search}%"),
-                Equipment.serial_number.ilike(f"%{search}%"),
-                Equipment.manufacturer.ilike(f"%{search}%"),
-                Equipment.model.ilike(f"%{search}%"),
-                Equipment.current_location.ilike(f"%{search}%"),
+                Equipment.inventory_number.ilike(f"%{search_clean}%"),
+                Equipment.serial_number.ilike(f"%{search_clean}%"),
+                Equipment.mni_serial_number.ilike(f"%{search_clean}%"),
+                Equipment.manufacturer.ilike(f"%{search_clean}%"),
+                Equipment.model.ilike(f"%{search_clean}%"),
+                Equipment.current_location.ilike(f"%{search_clean}%"),
+                Equipment.notes.ilike(f"%{search_clean}%"),
             ))
         return query
 
@@ -151,7 +153,11 @@ class EquipmentService:
             status_query = status_query.filter(Equipment.is_personal == is_personal)
         if search:
             search_clean = sanitize_html(search)
-            status_query = status_query.filter(Equipment.inventory_number.ilike(f"%{search_clean}%"))
+            status_query = status_query.filter(or_(
+                Equipment.inventory_number.ilike(f"%{search_clean}%"),
+                Equipment.serial_number.ilike(f"%{search_clean}%"),
+                Equipment.mni_serial_number.ilike(f"%{search_clean}%"),
+            ))
         by_status = dict(status_query.group_by(Equipment.status).all())
 
         type_query = self.db.query(Equipment.equipment_type, func.count(Equipment.id)).filter(Equipment.is_active == True)
@@ -184,12 +190,12 @@ class StorageDeviceService:
         if status:
             query = query.filter(StorageDevice.status == status)
         if search:
-            search = sanitize_html(search)
+            search_clean = sanitize_html(search)
             query = query.filter(or_(
-                StorageDevice.inventory_number.ilike(f"%{search}%"),
-                StorageDevice.serial_number.ilike(f"%{search}%"),
-                StorageDevice.manufacturer.ilike(f"%{search}%"),
-                StorageDevice.model.ilike(f"%{search}%"),
+                StorageDevice.inventory_number.ilike(f"%{search_clean}%"),
+                StorageDevice.serial_number.ilike(f"%{search_clean}%"),
+                StorageDevice.manufacturer.ilike(f"%{search_clean}%"),
+                StorageDevice.model.ilike(f"%{search_clean}%"),
             ))
         total = query.count()
         items = query.order_by(StorageDevice.inventory_number).offset(skip).limit(limit).all()

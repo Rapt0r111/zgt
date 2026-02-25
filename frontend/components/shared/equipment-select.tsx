@@ -19,20 +19,27 @@ interface EquipmentSelectProps {
 /**
  * Формирует читаемый лейбл для единицы техники.
  * Примеры:
- *   "Ноутбук Aquarius NS685U / 570/720/321"
- *   "АРМ Dell OptiPlex 7090 / 570/720/321"
- *   "Принтер / 001/002/003"  (если нет модели)
+ *   "Ноутбук Aquarius NS685U / уч.№ 570/720/321"
+ *   "АРМ Dell OptiPlex 7090 / уч.№ 001/002/003"
+ *   "Принтер / S/N: ABC123"  (если нет инвентарного, но есть серийный)
  */
 function formatEquipmentLabel(e: {
 	equipment_type: string;
 	manufacturer?: string;
 	model?: string;
-	inventory_number: string;
+	inventory_number?: string;
+	serial_number?: string;
+	mni_serial_number?: string;
 }): string {
-	const parts = [e.equipment_type];
-	if (e.manufacturer) parts.push(e.manufacturer);
-	if (e.model) parts.push(e.model);
-	return `${parts.join(" ")} / ${e.inventory_number}`;
+	const typeParts = [e.equipment_type];
+	if (e.manufacturer) typeParts.push(e.manufacturer);
+	if (e.model) typeParts.push(e.model);
+	const typeStr = typeParts.join(" ");
+
+	if (e.inventory_number) return `${typeStr} / уч.№ ${e.inventory_number}`;
+	if (e.mni_serial_number) return `${typeStr} / МНИ: ${e.mni_serial_number}`;
+	if (e.serial_number) return `${typeStr} / S/N: ${e.serial_number}`;
+	return typeStr;
 }
 
 export function EquipmentSelect({
@@ -77,9 +84,12 @@ export function EquipmentSelect({
 		return equipmentData.items.filter(
 			(e) =>
 				(e.inventory_number ?? "").toLowerCase().includes(q) ||
+				(e.serial_number ?? "").toLowerCase().includes(q) ||
+				(e.mni_serial_number ?? "").toLowerCase().includes(q) ||
 				(e.model ?? "").toLowerCase().includes(q) ||
 				(e.manufacturer ?? "").toLowerCase().includes(q) ||
-				(e.equipment_type ?? "").toLowerCase().includes(q),
+				(e.equipment_type ?? "").toLowerCase().includes(q) ||
+				(e.notes ?? "").toLowerCase().includes(q),
 		);
 	}, [equipmentData, search]);
 
@@ -120,7 +130,9 @@ export function EquipmentSelect({
 					)}
 					sideOffset={4}
 					align="start"
-					side="top"
+					side="bottom"
+					avoidCollisions
+					collisionPadding={8}
 					onCloseAutoFocus={(e) => e.preventDefault()}
 				>
 					{/* Поиск */}
@@ -130,7 +142,7 @@ export function EquipmentSelect({
 							ref={inputRef}
 							type="text"
 							autoComplete="off"
-							placeholder="Модель, тип, учетный номер..."
+							placeholder="Модель, тип, уч.номер, S/N, МНИ..."
 							className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
@@ -176,6 +188,12 @@ export function EquipmentSelect({
 								const label = formatEquipmentLabel(equipment);
 								const isSelected = equipment.id === value;
 
+								// Вспомогательная строка с идентификаторами
+								const subParts: string[] = [];
+								if (equipment.serial_number) subParts.push(`S/N: ${equipment.serial_number}`);
+								if (equipment.mni_serial_number) subParts.push(`МНИ: ${equipment.mni_serial_number}`);
+								const subLabel = subParts.join(" · ");
+
 								return (
 									<button
 										key={equipment.id}
@@ -195,9 +213,9 @@ export function EquipmentSelect({
 										)}
 										<div className="flex flex-col min-w-0">
 											<span className="line-clamp-1 font-medium">{label}</span>
-											{equipment.serial_number && (
+											{subLabel && (
 												<span className="text-xs text-muted-foreground font-mono truncate">
-													S/N: {equipment.serial_number}
+													{subLabel}
 												</span>
 											)}
 										</div>
