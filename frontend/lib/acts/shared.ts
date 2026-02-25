@@ -1,4 +1,3 @@
-
 export type ActType = "sdacha" | "vydacha";
 
 export const CONDITION_VALUES = ["ok", "defective", "absent", "cosmetic"] as const;
@@ -13,12 +12,10 @@ export interface KitItem {
 
 export interface UploadedPhoto {
   id: string;
-  file?: File; // только на клиенте
+  file?: File;
   dataUrl: string;
   caption: string;
 }
-
-// ─── Лейблы и цвета ──────────────────────────────────────────────────────────
 
 export const CONDITION_LABEL: Record<Condition, string> = {
   ok: "Исправно",
@@ -33,8 +30,6 @@ export const CONDITION_COLOR: Record<Condition, string> = {
   absent: "bg-slate-600/20 border-slate-500/50 text-slate-400",
   cosmetic: "bg-amber-600/20 border-amber-500/50 text-amber-300",
 };
-
-// ─── Грамматика ───────────────────────────────────────────────────────────────
 
 const ITEM_GENDER: Record<string, "m" | "f" | "n"> = {
   "ноутбук": "m",
@@ -77,8 +72,6 @@ export function itemGoesToAppendix(c: Condition): boolean {
   return c === "defective" || c === "absent" || c === "cosmetic";
 }
 
-// ─── Вычисление итогового состояния ──────────────────────────────────────────
-
 export interface OverallStateResult {
   text: string;
   hasAppendix: boolean;
@@ -94,8 +87,7 @@ export function computeOverallState(
   const hasPeripheryDefect = periphery.some((i) => i.condition === "defective");
   const hasPeripheryAbsent = periphery.some((i) => i.condition === "absent");
   const hasPeripheryCosmetic = periphery.some((i) => i.condition === "cosmetic");
-  const hasAppendixItems = kitItems.some((i) => itemGoesToAppendix(i.condition));
-  const hasAppendix = hasAppendixItems || hasCustomDefects;
+  const hasAppendix = kitItems.some((i) => itemGoesToAppendix(i.condition)) || hasCustomDefects;
 
   let text: string;
   if (hasLaptopDefect || hasCustomDefects) {
@@ -113,8 +105,6 @@ export function computeOverallState(
   return { text: noWidows(text), hasAppendix };
 }
 
-// ─── Дата ─────────────────────────────────────────────────────────────────────
-
 export const MONTHS_GEN = [
   "января", "февраля", "марта", "апреля", "мая", "июня",
   "июля", "августа", "сентября", "октября", "ноября", "декабря",
@@ -127,26 +117,17 @@ export function formatFullDate(day: string, month: string, year: string): string
   return `«${String(d).padStart(2, "0")}»\u00A0${MONTHS_GEN[m - 1]}\u00A0${year}\u00A0г.`;
 }
 
-/**
- * Разбирает строку даты вида «01» января 2026 г.
- * Возвращает { day, month, rest } или null если не распознана.
- */
 export function parseDateString(dateStr: string): { day: string; month: string; rest: string } | null {
-  const regex = /«([^»]+)»\s+([^\s]+)\s+(.*)/;
-  const match = dateStr.trim().match(regex);
+  const match = dateStr.trim().match(/«([^»]+)»\s+([^\s]+)\s+(.*)/);
   if (!match) return null;
   return { day: match[1], month: match[2], rest: match[3] };
 }
-
-// ─── Строки комплекта ─────────────────────────────────────────────────────────
 
 export function buildKitString(kitItems: Pick<KitItem, "name" | "condition">[]): string {
   return kitItems
     .map((it) => `${it.name}${conditionPhrase(it.condition, it.name)}`)
     .join(", ");
 }
-
-// ─── Пресеты ──────────────────────────────────────────────────────────────────
 
 export const KIT_PRESETS = [
   "ноутбук",
@@ -158,8 +139,6 @@ export const KIT_PRESETS = [
 ] as const;
 
 export const COMMANDER = { rank: "капитан", sign: "С. Тарасенко" } as const;
-
-// ─── Склонение ────────────────────────────────────────────────────────────────
 
 export function lcFirst(s: string): string {
   if (!s) return s;
@@ -215,15 +194,8 @@ function toGenitiveWord(word: string): string {
 }
 
 export function toGenitivePhrase(phrase: string): string {
-  const res = phrase
-    .split(/\s+/)
-    .map((t) => (/^\(/.test(t) ? t : toGenitiveWord(t)))
-    .join(" ");
-  return noWidows(res);
+  return noWidows(phrase.split(/\s+/).map((t) => (/^\(/.test(t) ? t : toGenitiveWord(t))).join(" "));
 }
-
-
-// ─── Форматирование персон ────────────────────────────────────────────────────
 
 export interface PersonLike {
   full_name: string;
@@ -238,15 +210,10 @@ export function getPersonInitials(fullName: string): string {
   return fullName;
 }
 
-/** «Фамилия И.О.» — для строк подписей */
 export function getPersonLastNameInitials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/);
-  if (parts.length >= 3) return `${parts[0]} ${parts[1][0]}.${parts[2][0]}.`;
-  if (parts.length === 2) return `${parts[0]} ${parts[1][0]}.`;
-  return fullName;
+  return getPersonInitials(fullName);
 }
 
-/** Именительный: «командир первого взвода лейтенант Халупа А.И.» */
 export function formatPersonNominative(p: PersonLike): string {
   const parts: string[] = [];
   if (p.position) parts.push(lcFirst(p.position));
@@ -255,7 +222,6 @@ export function formatPersonNominative(p: PersonLike): string {
   return noWidows(parts.join(" "));
 }
 
-/** Родительный: «командира первого взвода лейтенанта Халупы А.И.» */
 export function formatPersonGenitive(p: PersonLike): string {
   const parts: string[] = [];
   if (p.position) parts.push(toGenitivePhrase(lcFirst(p.position)));
@@ -272,13 +238,7 @@ export function formatPersonGenitive(p: PersonLike): string {
   return noWidows(parts.join(" "));
 }
 
-// ─── Неразрывные пробелы (anti-widows) ───────────────────────────────────────
-
 export const noWidows = (t: string): string => {
   if (!t) return t;
-  // Находит слова от 1 до 3 букв и заменяет следующий за ними пробел на неразрывный
-  return t.replace(
-    /(^|\s|&nbsp;)([а-яА-ЯёЁ]{1,3})\s+/g,
-    (_, prefix, word) => `${prefix}${word}\u00A0`
-  );
+  return t.replace(/(^|\s|&nbsp;)([а-яА-ЯёЁ]{1,3})\s+/g, (_, prefix, word) => `${prefix}${word}\u00A0`);
 };
