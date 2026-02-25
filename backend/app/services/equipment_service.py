@@ -14,6 +14,24 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _equipment_search_filter(search: str):
+    """Единое OR-условие поиска по оборудованию.
+    Используется и в get_list, и в get_statistics — чтобы счётчики
+    совпадали с отфильтрованным списком.
+    """
+    s = sanitize_html(search)
+    return or_(
+        Equipment.inventory_number.ilike(f"%{s}%"),
+        Equipment.serial_number.ilike(f"%{s}%"),
+        Equipment.mni_serial_number.ilike(f"%{s}%"),
+        Equipment.manufacturer.ilike(f"%{s}%"),
+        Equipment.model.ilike(f"%{s}%"),
+        Equipment.equipment_type.ilike(f"%{s}%"),
+        Equipment.current_location.ilike(f"%{s}%"),
+        Equipment.notes.ilike(f"%{s}%"),
+    )
+
+
 class EquipmentService:
     def __init__(self, db: Session):
         self.db = db
@@ -26,16 +44,7 @@ class EquipmentService:
         if is_personal is not None:
             query = query.filter(Equipment.is_personal == is_personal)
         if search:
-            search_clean = sanitize_html(search)
-            query = query.filter(or_(
-                Equipment.inventory_number.ilike(f"%{search_clean}%"),
-                Equipment.serial_number.ilike(f"%{search_clean}%"),
-                Equipment.mni_serial_number.ilike(f"%{search_clean}%"),
-                Equipment.manufacturer.ilike(f"%{search_clean}%"),
-                Equipment.model.ilike(f"%{search_clean}%"),
-                Equipment.current_location.ilike(f"%{search_clean}%"),
-                Equipment.notes.ilike(f"%{search_clean}%"),
-            ))
+            query = query.filter(_equipment_search_filter(search))
         return query
 
     def get_list(self, skip=0, limit=100, equipment_type=None, status=None, search=None, is_personal=None):
@@ -142,29 +151,35 @@ class EquipmentService:
         return items, total
 
     def get_statistics(self, equipment_type=None, status=None, search=None, is_personal=None) -> dict:
+        # Базовый запрос с полными фильтрами (включая search) — для total
         base_query = self.db.query(Equipment).filter(Equipment.is_active == True)
         base_query = self._apply_filters(base_query, equipment_type, status, search, is_personal)
         total = base_query.count()
 
-        status_query = self.db.query(Equipment.status, func.count(Equipment.id)).filter(Equipment.is_active == True)
+        # by_status: те же фильтры, кроме status — чтобы показать все статусы
+        status_query = (
+            self.db.query(Equipment.status, func.count(Equipment.id))
+            .filter(Equipment.is_active == True)
+        )
         if equipment_type:
             status_query = status_query.filter(Equipment.equipment_type == equipment_type)
         if is_personal is not None:
             status_query = status_query.filter(Equipment.is_personal == is_personal)
         if search:
-            search_clean = sanitize_html(search)
-            status_query = status_query.filter(or_(
-                Equipment.inventory_number.ilike(f"%{search_clean}%"),
-                Equipment.serial_number.ilike(f"%{search_clean}%"),
-                Equipment.mni_serial_number.ilike(f"%{search_clean}%"),
-            ))
+            status_query = status_query.filter(_equipment_search_filter(search))
         by_status = dict(status_query.group_by(Equipment.status).all())
 
-        type_query = self.db.query(Equipment.equipment_type, func.count(Equipment.id)).filter(Equipment.is_active == True)
+        # by_type: те же фильтры, кроме equipment_type
+        type_query = (
+            self.db.query(Equipment.equipment_type, func.count(Equipment.id))
+            .filter(Equipment.is_active == True)
+        )
         if status:
             type_query = type_query.filter(Equipment.status == status)
         if is_personal is not None:
             type_query = type_query.filter(Equipment.is_personal == is_personal)
+        if search:
+            type_query = type_query.filter(_equipment_search_filter(search))
         by_type = dict(type_query.group_by(Equipment.equipment_type).all())
 
         return {
@@ -196,6 +211,9 @@ class StorageDeviceService:
                 StorageDevice.serial_number.ilike(f"%{search_clean}%"),
                 StorageDevice.manufacturer.ilike(f"%{search_clean}%"),
                 StorageDevice.model.ilike(f"%{search_clean}%"),
+                StorageDevice.device_type.ilike(f"%{search_clean}%"),
+                StorageDevice.location.ilike(f"%{search_clean}%"),
+                StorageDevice.notes.ilike(f"%{search_clean}%"),
             ))
         total = query.count()
         items = query.order_by(StorageDevice.inventory_number).offset(skip).limit(limit).all()

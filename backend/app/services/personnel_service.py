@@ -31,11 +31,15 @@ class PersonnelService:
             query = query.filter(Personnel.status == status)
         
         if search:
+            # Расширенный поиск: ФИО, звание, должность, взвод,
+            # личный номер, табельный номер
             query = query.filter(or_(
                 Personnel.full_name.ilike(f"%{search}%"),
                 Personnel.rank.ilike(f"%{search}%"),
                 Personnel.position.ilike(f"%{search}%"),
-                Personnel.personal_number.ilike(f"%{search}%")
+                Personnel.platoon.ilike(f"%{search}%"),
+                Personnel.personal_number.ilike(f"%{search}%"),
+                Personnel.service_number.ilike(f"%{search}%"),
             ))
         
         total = query.count()

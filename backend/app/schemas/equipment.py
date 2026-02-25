@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
@@ -32,16 +32,6 @@ class EquipmentBase(BaseModel):
     notes: Optional[str] = None
     # Признак личного имущества (не МО)
     is_personal: bool = False
-
-    @model_validator(mode="after")
-    def validate_inventory_number(self):
-        # Личное имущество: инвентарный номер необязателен
-        if self.is_personal:
-            return self
-        # Все остальные единицы техники — инвентарный номер обязателен
-        if not (self.inventory_number or "").strip():
-            raise ValueError("Учетный номер обязателен")
-        return self
 
 
 class EquipmentCreate(EquipmentBase):

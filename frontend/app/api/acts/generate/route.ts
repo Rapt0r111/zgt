@@ -5,7 +5,7 @@ import { CONDITION_VALUES } from "@/lib/acts/shared";
 import { buildActDocument } from "@/lib/acts/docx-builder";
 
 const KitItemSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   name: z.string().min(1).max(200),
   condition: z.enum(CONDITION_VALUES).default("ok"),
   defectNote: z.string().max(500).nullish().transform((v) => v ?? ""),

@@ -56,7 +56,11 @@ export function EquipmentSelect({
 
 	const { data: equipmentData, isLoading } = useQuery({
 		queryKey: ["equipment", { limit: 1000 }],
-		queryFn: () => equipmentApi.getList({ limit: 1000 }),
+		queryFn: () => equipmentApi.getList({
+			equipment_type: "Ноутбук",
+			is_personal: false,
+			limit: 1000
+		}),
 		staleTime: 5 * 60 * 1000,
 	});
 

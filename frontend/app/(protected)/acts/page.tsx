@@ -6,7 +6,7 @@ import {
   useCallback,
   useMemo,
   useRef,
-  memo, 
+  memo,
 } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -120,11 +120,10 @@ const ConditionToggle = memo(function ConditionToggle({
           key={c}
           type="button"
           onClick={() => onChange(c)}
-          className={`px-2 py-0.5 rounded text-xs border transition-all ${
-            value === c
-              ? CONDITION_COLOR[c]
-              : "bg-slate-800/40 border-slate-700/40 text-slate-500 hover:border-slate-600 hover:text-slate-400"
-          }`}
+          className={`px-2 py-0.5 rounded text-xs border transition-all ${value === c
+            ? CONDITION_COLOR[c]
+            : "bg-slate-800/40 border-slate-700/40 text-slate-500 hover:border-slate-600 hover:text-slate-400"
+            }`}
         >
           {CONDITION_LABEL[c]}
         </button>
@@ -603,7 +602,11 @@ export default function ActsPage() {
 
   const { data: equipmentData } = useQuery({
     queryKey: ["equipment", { limit: 1000 }],
-    queryFn: () => equipmentApi.getList({ limit: 1000 }),
+    queryFn: () => equipmentApi.getList({
+      equipment_type: "Ноутбук",
+      is_personal: false,
+      limit: 1000
+    }),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -695,7 +698,10 @@ export default function ActsPage() {
       effectiveModel.trim() !== "" &&
       effectiveSerial.trim() !== "" &&
       form.kitItems.length > 0 &&
-      form.kitItems.every((it) => it.name.trim() !== "") &&
+      form.kitItems.every(
+        (it) => it.name.trim() !== "" &&
+          (it.condition !== "defective" || it.defectNote.trim() !== "")
+      ) &&
       (form.actType === "sdacha"
         ? form.surrenderPersonId != null && form.receiverPersonId != null
         : form.receiverPersonId != null && form.issuerPersonId != null),
@@ -871,11 +877,10 @@ export default function ActsPage() {
                 key={type}
                 type="button"
                 onClick={() => setField("actType")(type)}
-                className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border text-sm font-medium transition-all ${
-                  form.actType === type
-                    ? "bg-blue-600/20 border-blue-500/50 text-blue-300 shadow-lg shadow-blue-900/20"
-                    : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600"
-                }`}
+                className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border text-sm font-medium transition-all ${form.actType === type
+                  ? "bg-blue-600/20 border-blue-500/50 text-blue-300 shadow-lg shadow-blue-900/20"
+                  : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600"
+                  }`}
               >
                 {type === "sdacha" ? (
                   <ArrowUpFromLine className="w-4 h-4" />
@@ -1267,11 +1272,10 @@ export default function ActsPage() {
               type="button"
               onClick={handleGenerate}
               disabled={!canGenerate || isPending}
-              className={`w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl text-sm font-semibold transition-all ${
-                canGenerate && !isPending
-                  ? "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/30 active:scale-[0.98]"
-                  : "bg-slate-800/60 text-slate-600 cursor-not-allowed border border-slate-700/40"
-              }`}
+              className={`w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl text-sm font-semibold transition-all ${canGenerate && !isPending
+                ? "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/30 active:scale-[0.98]"
+                : "bg-slate-800/60 text-slate-600 cursor-not-allowed border border-slate-700/40"
+                }`}
             >
               {isPending ? (
                 <>

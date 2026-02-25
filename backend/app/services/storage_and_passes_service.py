@@ -6,9 +6,25 @@ from datetime import datetime
 from app.models.storage_and_passes import StorageAndPass
 from app.models.personnel import Personnel
 from app.schemas.storage_and_passes import StorageAndPassCreate, StorageAndPassUpdate, AssignmentRequest
+from app.core.validators import sanitize_html
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _apply_search(query, model, search: Optional[str]):
+    """Общая функция поиска по StorageAndPass: серийный номер, модель,
+    производитель, примечания."""
+    if not search:
+        return query
+    s = sanitize_html(search)
+    return query.filter(or_(
+        model.serial_number.ilike(f"%{s}%"),
+        model.model.ilike(f"%{s}%"),
+        model.manufacturer.ilike(f"%{s}%"),
+        model.notes.ilike(f"%{s}%"),
+    ))
+
 
 class StorageAndPassService:
     def __init__(self, db: Session):
@@ -26,29 +42,26 @@ class StorageAndPassService:
             base_query = base_query.filter(StorageAndPass.asset_type == asset_type)
         if status:
             base_query = base_query.filter(StorageAndPass.status == status)
-        if search:
-            base_query = base_query.filter(or_(
-                StorageAndPass.serial_number.ilike(f"%{search}%"),
-                StorageAndPass.model.ilike(f"%{search}%"),
-                StorageAndPass.manufacturer.ilike(f"%{search}%")
-            ))
+        base_query = _apply_search(base_query, StorageAndPass, search)
 
         total_assets = base_query.count()
 
-        status_q = self.db.query(StorageAndPass.status, func.count(StorageAndPass.id)).filter(StorageAndPass.is_active == True)
+        # by_status — не фильтруем по status (чтобы получить все статусы)
+        status_q = self.db.query(
+            StorageAndPass.status, func.count(StorageAndPass.id)
+        ).filter(StorageAndPass.is_active == True)
         if asset_type:
             status_q = status_q.filter(StorageAndPass.asset_type == asset_type)
-        if search:
-            status_q = status_q.filter(StorageAndPass.serial_number.ilike(f"%{search}%"))
-        
+        status_q = _apply_search(status_q, StorageAndPass, search)
         by_status = dict(status_q.group_by(StorageAndPass.status).all())
 
-        type_q = self.db.query(StorageAndPass.asset_type, func.count(StorageAndPass.id)).filter(StorageAndPass.is_active == True)
+        # by_type — не фильтруем по asset_type
+        type_q = self.db.query(
+            StorageAndPass.asset_type, func.count(StorageAndPass.id)
+        ).filter(StorageAndPass.is_active == True)
         if status:
             type_q = type_q.filter(StorageAndPass.status == status)
-        if search:
-            type_q = type_q.filter(StorageAndPass.serial_number.ilike(f"%{search}%"))
-            
+        type_q = _apply_search(type_q, StorageAndPass, search)
         by_type = dict(type_q.group_by(StorageAndPass.asset_type).all())
 
         return {
@@ -73,15 +86,12 @@ class StorageAndPassService:
             query = query.filter(StorageAndPass.asset_type == asset_type)
         if status:
             query = query.filter(StorageAndPass.status == status)
-        if search:
-            query = query.filter(or_(
-                StorageAndPass.serial_number.ilike(f"%{search}%"),
-                StorageAndPass.model.ilike(f"%{search}%"),
-                StorageAndPass.manufacturer.ilike(f"%{search}%")
-            ))
+        query = _apply_search(query, StorageAndPass, search)
         
         total = query.count()
-        items = query.order_by(StorageAndPass.asset_type, StorageAndPass.serial_number).offset(skip).limit(limit).all()
+        items = query.order_by(
+            StorageAndPass.asset_type, StorageAndPass.serial_number
+        ).offset(skip).limit(limit).all()
         return items, total
     
     def get_by_id(self, asset_id: int) -> Optional[StorageAndPass]:
@@ -130,7 +140,6 @@ class StorageAndPassService:
     def assign_to_personnel(self, asset_id: int, request: AssignmentRequest) -> StorageAndPass:
         try:
             with self.db.begin_nested():
-                # Eager-load assigned_to чтобы избежать DetachedInstanceError после commit
                 asset = (
                     self.db.query(StorageAndPass)
                     .options(joinedload(StorageAndPass.assigned_to))
@@ -146,7 +155,6 @@ class StorageAndPassService:
                     raise ValueError("Актив не найден")
                 
                 if asset.status == 'in_use' and asset.assigned_to_id:
-                    # Теперь безопасно обращаться к .assigned_to.full_name
                     owner_name = asset.assigned_to.full_name if asset.assigned_to else f"ID {asset.assigned_to_id}"
                     raise ValueError(f"Актив уже выдан: {owner_name}")
                 
@@ -168,7 +176,6 @@ class StorageAndPassService:
                 self.db.flush()
             
             self.db.commit()
-            # Перезагружаем с актуальными связями
             return self.get_by_id(asset_id)  # type: ignore[return-value]
         except Exception as e:
             self.db.rollback()
@@ -195,6 +202,7 @@ class StorageAndPassService:
                 self.db.flush()
             
             self.db.commit()
+            # После revoke assigned_to = None, refresh достаточен
             self.db.refresh(asset)
             return asset
         except Exception as e:

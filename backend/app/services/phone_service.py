@@ -29,11 +29,17 @@ class PhoneService:
             query = query.filter(Phone.owner_id == owner_id)
         if search:
             search_clean = sanitize_html(search)
+            # Расширенный поиск: модель, цвет, оба IMEI, серийный номер,
+            # местонахождение (ячейка) + ФИО владельца через JOIN
             query = query.join(Personnel).filter(or_(
                 Phone.model.ilike(f"%{search_clean}%"),
+                Phone.color.ilike(f"%{search_clean}%"),
                 Phone.imei_1.ilike(f"%{search_clean}%"),
                 Phone.imei_2.ilike(f"%{search_clean}%"),
-                Personnel.full_name.ilike(f"%{search_clean}%")
+                Phone.serial_number.ilike(f"%{search_clean}%"),
+                Phone.storage_location.ilike(f"%{search_clean}%"),
+                Personnel.full_name.ilike(f"%{search_clean}%"),
+                Personnel.rank.ilike(f"%{search_clean}%"),
             ))
         
         total = query.count()
@@ -83,7 +89,6 @@ class PhoneService:
     
     def batch_checkin(self, phone_ids: List[int]) -> int:
         """Принять телефоны (статус -> Сдан). Все проверки — до транзакции."""
-        # Загружаем телефоны с блокировкой
         phones = self.db.query(Phone).filter(
             Phone.id.in_(phone_ids),
             Phone.is_active == True
