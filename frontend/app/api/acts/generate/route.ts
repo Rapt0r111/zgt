@@ -349,6 +349,14 @@ function calcPhotoDimensions(originalW: number, originalH: number): PhotoDimensi
   };
 }
 
+function getDocxImageType(mimeType: string): "jpg" | "png" | "gif" | "bmp" {
+  if (mimeType.includes("png")) return "png";
+  if (mimeType.includes("gif")) return "gif";
+  if (mimeType.includes("bmp")) return "bmp";
+  // Для всех остальных (jpeg, webp и т.д.) используем "jpg"
+  return "jpg";
+}
+
 // ─── Приложение ──────────────────────────────────────────────────────────────
 
 async function buildAppendix(d: Payload): Promise<(Paragraph | Table)[]> {
@@ -400,30 +408,30 @@ async function buildAppendix(d: Payload): Promise<(Paragraph | Table)[]> {
     for (let i = 0; i < (d.photos ?? []).length; i++) {
       const photo = d.photos![i];
       try {
-        const base64 = photo.dataUrl.split(",")[1];
-        const mimeMatch = photo.dataUrl.match(/^data:(image\/[a-z+]+);base64/);
-        const mediaType = (mimeMatch?.[1] ?? "image/jpeg") as
-          | "image/jpeg"
-          | "image/png"
-          | "image/gif"
-          | "image/bmp"
-          | "image/webp";
+        const base64Data = photo.dataUrl.split(",")[1];
+        const mimeMatch = photo.dataUrl.match(/^data:(image\/[a-z+.-]+);base64/);
+        const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
 
-        const imageBuffer = Buffer.from(base64, "base64");
+        // Используем функцию маппинга для получения типа "jpg" | "png" | и т.д.
+        const docxType = getDocxImageType(mimeType);
+        const imageBuffer = new Uint8Array(Buffer.from(base64Data, "base64"));
 
         // Используем фиксированные размеры (без Sharp на сервере)
-        const dims = calcPhotoDimensions(800, 600); // safe default
+        const dims = calcPhotoDimensions(800, 600);
 
         photoBlocks.push(
           new Paragraph({
             children: [
               new ImageRun({
                 data: imageBuffer,
-                transformation: { width: dims.width, height: dims.height },
-                type: mediaType,
+                transformation: { 
+                  width: dims.width, 
+                  height: dims.height 
+                },
+                type: docxType,
               }),
             ],
-            spacing: { after: 0, line: 240, lineRule: "auto" },
+            spacing: { before: 120, after: 0, line: 240, lineRule: "auto" },
           }),
           new Paragraph({
             children: [
@@ -435,7 +443,8 @@ async function buildAppendix(d: Payload): Promise<(Paragraph | Table)[]> {
             spacing: { after: 120, line: 240, lineRule: "auto" },
           }),
         );
-      } catch {
+      } catch (err) {
+        console.error(`Ошибка обработки фото ${i}:`, err);
         // Пропускаем неудачное изображение
       }
     }
