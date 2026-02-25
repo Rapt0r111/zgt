@@ -379,7 +379,7 @@ export default function EquipmentDetailPage() {
 															</SelectContent>
 														</Select>
 													) : (
-														<div className="p-2.5 rounded-md bg-white/5 border border-transparent">{equipment.storage_type || "—"}</div>
+														<div className="p-2.5 rounded-md bg-white/5 border border-transparent">{equipment.storage_type || "–"}</div>
 													)}
 												</div>
 											</div>
@@ -461,7 +461,7 @@ export default function EquipmentDetailPage() {
 															<SelectValue />
 														</SelectTrigger>
 														<SelectContent className="glass border-white/10">
-															<SelectItem value="__no_person__">—</SelectItem>
+															<SelectItem value="__no_person__">–</SelectItem>
 															{personnelData?.items.map((person) => (
 																<SelectItem key={person.id} value={person.id.toString()}>
 																	{person.rank ? `${person.rank} ` : ""}{person.full_name}
@@ -478,7 +478,7 @@ export default function EquipmentDetailPage() {
 																	<div className="text-xs text-muted-foreground mt-0.5">{equipment.current_owner_rank}</div>
 																)}
 															</div>
-														) : "—"}
+														) : "–"}
 													</div>
 												)}
 											</div>
@@ -600,7 +600,7 @@ export default function EquipmentDetailPage() {
 													<div className="space-y-3">
 														<div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Источник</div>
 														<div className="space-y-1">
-															<div className="text-sm font-medium">{movement.from_location || "—"}</div>
+															<div className="text-sm font-medium">{movement.from_location || "–"}</div>
 															{movement.from_person_name && (
 																<div className="text-xs text-muted-foreground italic flex items-center gap-1.5">
 																	<UserIcon className="h-3 w-3" /> {movement.from_person_name}

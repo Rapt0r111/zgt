@@ -324,15 +324,15 @@ export default function EquipmentPage() {
                         </TableCell>
                         <TableCell className="px-6 py-4 font-mono text-[10px] text-muted-foreground">
                           <div className="flex flex-col gap-0.5">
-                            <span>S/N: {equipment.serial_number || "—"}</span>
-                            <span className="opacity-70 text-[9px]">МНИ: {equipment.mni_serial_number || "—"}</span>
+                            <span>S/N: {equipment.serial_number || "–"}</span>
+                            <span className="opacity-70 text-[9px]">МНИ: {equipment.mni_serial_number || "–"}</span>
                           </div>
                         </TableCell>
                         <TableCell className="px-6 py-4 leading-tight">
                           <div className="flex flex-col">
                             <div className="flex items-center gap-1.5 text-xs font-medium">
                               <UserIcon className="h-3 w-3 opacity-40" />
-                              <span className="truncate max-w-37.5">{equipment.current_owner_name || "—"}</span>
+                              <span className="truncate max-w-37.5">{equipment.current_owner_name || "–"}</span>
                             </div>
                             {equipment.current_owner_rank && (
                               <div className="text-[10px] text-muted-foreground pl-4.5 mt-0.5 opacity-80 italic">
@@ -344,7 +344,7 @@ export default function EquipmentPage() {
                         <TableCell className="px-6 py-4">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                             <MapPin className="h-3.5 w-3.5 opacity-40" />
-                            <span className="truncate max-w-30">{equipment.current_location || "—"}</span>
+                            <span className="truncate max-w-30">{equipment.current_location || "–"}</span>
                           </div>
                         </TableCell>
                         <TableCell className="px-6 py-4 text-center">

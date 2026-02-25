@@ -159,9 +159,9 @@ export default function PersonnelPage() {
                                                         {person.full_name}
                                                     </div>
 												</TableCell>
-												<TableCell className="px-6 py-4 text-muted-foreground">{person.rank || "—"}</TableCell>
-												<TableCell className="px-6 py-4 text-muted-foreground leading-snug">{person.position || "—"}</TableCell>
-												<TableCell className="px-6 py-4 font-mono text-[11px] text-primary/70">{person.platoon || "—"}</TableCell>
+												<TableCell className="px-6 py-4 text-muted-foreground">{person.rank || "–"}</TableCell>
+												<TableCell className="px-6 py-4 text-muted-foreground leading-snug">{person.position || "–"}</TableCell>
+												<TableCell className="px-6 py-4 font-mono text-[11px] text-primary/70">{person.platoon || "–"}</TableCell>
 												<TableCell className="px-6 py-4">
 													{getClearanceBadge(person.security_clearance_level)}
 												</TableCell>

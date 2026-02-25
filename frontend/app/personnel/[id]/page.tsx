@@ -277,7 +277,7 @@ export default function PersonnelDetailPage() {
 											</Select>
 										) : (
 											<div className="h-10 flex items-center px-3 bg-white/5 rounded-md border border-white/5 text-sm">
-                                                {personnel.rank || "—"}
+                                                {personnel.rank || "–"}
                                             </div>
 										)}
 									</div>
@@ -320,7 +320,7 @@ export default function PersonnelDetailPage() {
 											</Select>
 										) : (
 											<div className="h-10 flex items-center px-3 bg-white/5 rounded-md border border-white/5 text-sm font-mono text-primary/70">
-                                                {personnel.platoon || "—"}
+                                                {personnel.platoon || "–"}
                                             </div>
 										)}
 									</div>

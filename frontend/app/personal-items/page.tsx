@@ -140,7 +140,7 @@ function PhonesTab() {
                     <div className="flex flex-col">
                       <div className="flex items-center gap-1.5 text-xs font-semibold">
                         <UserIcon className="h-3.5 w-3.5 opacity-40" />
-                        {phone.owner_full_name || "—"}
+                        {phone.owner_full_name || "–"}
                       </div>
                       {phone.owner_rank && (
                         <div className="text-[10px] text-muted-foreground pl-5 mt-0.5 italic">{phone.owner_rank}</div>
@@ -149,20 +149,20 @@ function PhonesTab() {
                   </TableCell>
                   <TableCell className="px-6 py-4">
                     <div className="flex flex-col leading-tight">
-                      <span className="font-semibold">{phone.model || "—"}</span>
-                      <span className="text-[11px] text-muted-foreground uppercase">{phone.color || "—"}</span>
+                      <span className="font-semibold">{phone.model || "–"}</span>
+                      <span className="text-[11px] text-muted-foreground uppercase">{phone.color || "–"}</span>
                     </div>
                   </TableCell>
                   <TableCell className="px-6 py-4 font-mono text-[10px] text-muted-foreground">
                     <div className="flex flex-col gap-0.5">
                       {phone.imei_1 && <div className="flex items-center gap-1"><Hash className="h-3 w-3 opacity-30" />{phone.imei_1}</div>}
                       {phone.imei_2 && <div className="flex items-center gap-1"><Hash className="h-3 w-3 opacity-30" />{phone.imei_2}</div>}
-                      {!phone.imei_1 && !phone.imei_2 && "—"}
+                      {!phone.imei_1 && !phone.imei_2 && "–"}
                     </div>
                   </TableCell>
                   <TableCell className="px-6 py-4 text-center">
                     <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded border border-white/5 font-mono text-xs text-primary/80">
-                      <Box className="h-3 w-3 opacity-40" />{phone.storage_location || "—"}
+                      <Box className="h-3 w-3 opacity-40" />{phone.storage_location || "–"}
                     </div>
                   </TableCell>
                   <TableCell className="px-6 py-4 text-center">{getStatusBadge(phone.status)}</TableCell>
@@ -289,7 +289,7 @@ function PersonalLaptopsTab() {
                   <TableCell className="px-6 py-4 font-mono text-xs text-primary/80 group-hover:text-primary">
                     <div className="flex items-center gap-2">
                       <Hash className="h-3.5 w-3.5 opacity-40" />
-                      {laptop.inventory_number || "—"}
+                      {laptop.inventory_number || "–"}
                     </div>
                   </TableCell>
                   <TableCell className="px-6 py-4">
@@ -299,13 +299,13 @@ function PersonalLaptopsTab() {
                     </div>
                   </TableCell>
                   <TableCell className="px-6 py-4 font-mono text-[10px] text-muted-foreground">
-                    {laptop.serial_number || "—"}
+                    {laptop.serial_number || "–"}
                   </TableCell>
                   <TableCell className="px-6 py-4">
                     <div className="flex flex-col">
                       <div className="flex items-center gap-1.5 text-xs font-medium">
                         <UserIcon className="h-3 w-3 opacity-40" />
-                        <span className="truncate max-w-36">{laptop.current_owner_name || "—"}</span>
+                        <span className="truncate max-w-36">{laptop.current_owner_name || "–"}</span>
                       </div>
                       {laptop.current_owner_rank && (
                         <div className="text-[10px] text-muted-foreground pl-4.5 mt-0.5 italic">{laptop.current_owner_rank}</div>
@@ -315,7 +315,7 @@ function PersonalLaptopsTab() {
                   <TableCell className="px-6 py-4">
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-foreground">
                       <MapPin className="h-3.5 w-3.5 opacity-40" />
-                      <span className="truncate max-w-28">{laptop.current_location || "—"}</span>
+                      <span className="truncate max-w-28">{laptop.current_location || "–"}</span>
                     </div>
                   </TableCell>
                   <TableCell className="px-6 py-4 text-center">
@@ -393,7 +393,7 @@ export default function PersonalItemsPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">Всего телефонов</div>
-                  <div className="text-3xl font-bold">{phonesData?.total ?? "—"}</div>
+                  <div className="text-3xl font-bold">{phonesData?.total ?? "–"}</div>
                   {notSubmittedCount > 0 && (
                     <div className="text-[10px] text-orange-400 mt-1">
                       ⚠ {notSubmittedCount} не сдано
@@ -412,7 +412,7 @@ export default function PersonalItemsPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">Ноутбуков</div>
-                  <div className="text-3xl font-bold">{laptopsData?.total ?? "—"}</div>
+                  <div className="text-3xl font-bold">{laptopsData?.total ?? "–"}</div>
                   <div className="text-[10px] text-muted-foreground mt-1 opacity-70">Личных (не МО)</div>
                 </div>
                 <div className="p-2.5 bg-purple-500/10 rounded-xl group-hover:bg-purple-500/20 transition-colors">
@@ -427,9 +427,9 @@ export default function PersonalItemsPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">Телефонов сдано</div>
-                  <div className="text-3xl font-bold text-emerald-400">{statusReport?.checked_in ?? "—"}</div>
+                  <div className="text-3xl font-bold text-emerald-400">{statusReport?.checked_in ?? "–"}</div>
                   <div className="text-[10px] text-muted-foreground mt-1 opacity-70">
-                    из {statusReport?.total_phones ?? "—"} зарегистрированных
+                    из {statusReport?.total_phones ?? "–"} зарегистрированных
                   </div>
                 </div>
                 <div className="p-2.5 bg-emerald-500/10 rounded-xl group-hover:bg-emerald-500/20 transition-colors">

@@ -13,7 +13,7 @@ export interface ActKitItem {
  *
  * Изменение vs предыдущей версии:
  *   - поле `kit: string` удалено
- *   - добавлено `kitItems: ActKitItem[]` — полная матрица состояний
+ *   - добавлено `kitItems: ActKitItem[]` – полная матрица состояний
  */
 export interface ActPayload {
   actType:       ActType;

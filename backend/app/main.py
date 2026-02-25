@@ -23,7 +23,7 @@ app = FastAPI(
     openapi_url="/api/openapi.json" if settings.DEBUG else None
 )
 
-# CORS должен быть первым middleware — до всех остальных
+# CORS должен быть первым middleware – до всех остальных
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

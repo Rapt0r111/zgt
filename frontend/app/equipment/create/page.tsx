@@ -55,7 +55,7 @@ const equipmentSchema = z
 		notes: z.string().default(""),
 	})
 	.superRefine((data, ctx) => {
-		if (data.is_personal) return; // личное — инвентарный не обязателен
+		if (data.is_personal) return; // личное – инвентарный не обязателен
 		const isLaptopNotInUse = data.equipment_type === "Ноутбук" && data.status !== "В работе";
 		if (!isLaptopNotInUse && !data.inventory_number.trim()) {
 			ctx.addIssue({

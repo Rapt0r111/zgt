@@ -168,7 +168,7 @@ export default function PhonesPage() {
 														<div className="flex flex-col">
 															<div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                                                                 <UserIcon className="h-3.5 w-3.5 opacity-40" />
-                                                                {phone.owner_full_name || "—"}
+                                                                {phone.owner_full_name || "–"}
                                                             </div>
 															{phone.owner_rank && (
 																<div className="text-[10px] text-muted-foreground pl-5 mt-0.5 opacity-80">
@@ -179,21 +179,21 @@ export default function PhonesPage() {
 													</TableCell>
 													<TableCell className="px-6 py-4">
 														<div className="flex flex-col leading-tight">
-                                                            <span className="font-semibold text-foreground">{phone.model || "—"}</span>
-                                                            <span className="text-[11px] text-muted-foreground uppercase">{phone.color || "—"}</span>
+                                                            <span className="font-semibold text-foreground">{phone.model || "–"}</span>
+                                                            <span className="text-[11px] text-muted-foreground uppercase">{phone.color || "–"}</span>
                                                         </div>
 													</TableCell>
 													<TableCell className="px-6 py-4 font-mono text-[10px] text-muted-foreground">
 														<div className="flex flex-col gap-0.5">
 															{phone.imei_1 && <div className="flex items-center gap-1"><Hash className="h-3 w-3 opacity-30" /> {phone.imei_1}</div>}
 															{phone.imei_2 && <div className="flex items-center gap-1"><Hash className="h-3 w-3 opacity-30" /> {phone.imei_2}</div>}
-															{!phone.imei_1 && !phone.imei_2 && "—"}
+															{!phone.imei_1 && !phone.imei_2 && "–"}
 														</div>
 													</TableCell>
 													<TableCell className="px-6 py-4 text-center">
 														<div className="inline-flex items-center justify-center gap-1.5 px-2 py-1 bg-white/5 rounded border border-white/5 font-mono text-xs text-primary/80 group-hover:text-primary transition-colors">
                                                             <Box className="h-3 w-3 opacity-40" />
-                                                            {phone.storage_location || "—"}
+                                                            {phone.storage_location || "–"}
                                                         </div>
 													</TableCell>
 													<TableCell className="px-6 py-4 text-center">

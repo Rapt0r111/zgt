@@ -305,8 +305,8 @@ export default function StorageAndPassesPage() {
 													</TableCell>
 													<TableCell className="px-6 py-4">
 														<div className="flex flex-col leading-tight">
-															<span className="font-semibold text-foreground">{asset.manufacturer || "—"}</span>
-															<span className="text-[11px] text-muted-foreground italic">{asset.model || "—"}</span>
+															<span className="font-semibold text-foreground">{asset.manufacturer || "–"}</span>
+															<span className="text-[11px] text-muted-foreground italic">{asset.model || "–"}</span>
 														</div>
 													</TableCell>
 													<TableCell className="px-6 py-4">
@@ -332,7 +332,7 @@ export default function StorageAndPassesPage() {
 																)}
 															</div>
 														) : (
-															<span className="text-muted-foreground/50 text-xs">—</span>
+															<span className="text-muted-foreground/50 text-xs">–</span>
 														)}
 													</TableCell>
 													<TableCell className="px-6 py-4 text-center">

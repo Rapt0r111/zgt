@@ -45,7 +45,7 @@ async def login(
 
     rate_limiter.reset(client_ip)
 
-    # Явный UTC — корректно с DateTime(timezone=True)
+    # Явный UTC – корректно с DateTime(timezone=True)
     user.last_login = datetime.now(timezone.utc)
     db.commit()
 

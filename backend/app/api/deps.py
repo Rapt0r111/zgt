@@ -76,7 +76,7 @@ def require_min_role(min_role: str):
     return checker
 
 
-# Алиасы для удобства — убирают дублирование проверок по всему коду
+# Алиасы для удобства – убирают дублирование проверок по всему коду
 require_admin = require_min_role("admin")
 require_officer = require_min_role("officer")
 require_personnel_access = require_officer  # офицер+ видит личный состав

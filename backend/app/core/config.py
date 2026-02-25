@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
     # --- CSRF ---
-    # CSRF-токен живёт столько же, сколько сессия — чтобы мутирующие
+    # CSRF-токен живёт столько же, сколько сессия – чтобы мутирующие
     # запросы не падали с 403 раньше истечения сессии.
     @property
     def CSRF_TOKEN_EXPIRE(self) -> int:

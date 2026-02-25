@@ -135,7 +135,7 @@ export default function PersonalLaptopCreatePage() {
 					<div>
 						<h1 className="text-2xl font-bold">Добавить личный ноутбук</h1>
 						<p className="text-sm text-muted-foreground mt-0.5">
-							Личное имущество военнослужащего — не принадлежит министерству
+							Личное имущество военнослужащего – не принадлежит министерству
 						</p>
 					</div>
 				</div>

@@ -20,7 +20,7 @@ export function PersonnelSelect({
 	value,
 	onValueChange,
 	placeholder = "Выберите сотрудника",
-	emptyOptionLabel = "—",
+	emptyOptionLabel = "–",
 	disabled = false,
 	error = false,
 }: PersonnelSelectProps) {
@@ -109,7 +109,7 @@ export function PersonnelSelect({
 					// Не перехватывать фокус обратно на триггер при закрытии
 					onCloseAutoFocus={(e) => e.preventDefault()}
 				>
-					{/* Поисковая строка — обычный input, не внутри Radix Select */}
+					{/* Поисковая строка – обычный input, не внутри Radix Select */}
 					<div className="flex items-center border-b border-white/10 px-3 bg-slate-900/95 sticky top-0 z-10">
 						<Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
 						<input

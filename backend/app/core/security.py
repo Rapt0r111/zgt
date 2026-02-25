@@ -36,7 +36,7 @@ def verify_token(token: str) -> Optional[dict]:
     except JWTError:
         return None
 
-# Секрет для CSRF отдельный от JWT — компрометация одного не затрагивает другой
+# Секрет для CSRF отдельный от JWT – компрометация одного не затрагивает другой
 def _csrf_secret() -> str:
     return settings.SECRET_KEY + "_csrf"
 

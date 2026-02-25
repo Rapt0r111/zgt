@@ -71,7 +71,7 @@ export default function LoginPage() {
 
 			if (response.data?.access_token) {
 				const safeRedirect = validateRedirectUrl(redirectTo);
-				// Защита от петли: если redirect указывает на /login — идём на dashboard
+				// Защита от петли: если redirect указывает на /login – идём на dashboard
 				const finalRedirect = safeRedirect === "/login" ? "/dashboard" : safeRedirect;
 				router.push(finalRedirect);
 			} else {

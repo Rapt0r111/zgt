@@ -63,7 +63,7 @@ export default function EditUserPage() {
       setChangePassword(false);
       setNewPassword("");
     }
-  }, [user?.id]); // зависимость от id, а не от всего объекта — избегает лишних сбросов
+  }, [user?.id]); // зависимость от id, а не от всего объекта – избегает лишних сбросов
 
   const setField = <K extends keyof UserUpdate>(key: K) =>
     (value: UserUpdate[K]) => setForm((f) => ({ ...f, [key]: value }));
@@ -204,7 +204,7 @@ export default function EditUserPage() {
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Роль</Label>
                 {/*
                   ВАЖНО: value должен быть одним из значений ROLES.
-                  Если user.role не входит в список (например, устаревшее значение) —
+                  Если user.role не входит в список (например, устаревшее значение) –
                   Select покажет пустую строку, и при сохранении роль «слетит».
                   Решение: ROLES содержит все роли из бэкенда (VALID_ROLES в schemas/user.py).
                 */}

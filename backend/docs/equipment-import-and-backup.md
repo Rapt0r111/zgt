@@ -1,15 +1,15 @@
 # Импорт ноутбуков в раздел «Техника» и backup базы данных
 
-Ниже — готовый способ массово добавить список ноутбуков Aquarius Cmp NS685U R11 и сделать резервную копию БД.
+Ниже – готовый способ массово добавить список ноутбуков Aquarius Cmp NS685U R11 и сделать резервную копию БД.
 
 ## 1) Подготовка файла импорта
 
 В репозиторий добавлены отдельные файлы для импорта:
 
-- `backend/data/laptops_ns685u_r11.tsv` — исходные данные 40 ноутбуков;
-- `backend/app/importers/laptops_import.py` — отдельный модуль импорта в таблицу `equipment`.
+- `backend/data/laptops_ns685u_r11.tsv` – исходные данные 40 ноутбуков;
+- `backend/app/importers/laptops_import.py` – отдельный модуль импорта в таблицу `equipment`.
 
-Формат — табличный (разделитель `\t`) с колонками:
+Формат – табличный (разделитель `\t`) с колонками:
 
 - `№ п/п`
 - `МНИ`
@@ -49,7 +49,7 @@ python -m app.cli import-laptops --file /путь/к/файлу.tsv
 
 ## 3) Backup базы данных
 
-### Вариант A — через CLI проекта
+### Вариант A – через CLI проекта
 
 Автоматически создаёт файл в папке `backend/backups/`:
 
@@ -63,13 +63,13 @@ python -m app.cli backup-db
 python -m app.cli backup-db --output ./backups/manual_backup.sql
 ```
 
-### Вариант B — вручную (PostgreSQL)
+### Вариант B – вручную (PostgreSQL)
 
 ```bash
 pg_dump "$DATABASE_URL" -f ./backups/zgt_backup.sql
 ```
 
-### Вариант C — вручную (SQLite)
+### Вариант C – вручную (SQLite)
 
 ```bash
 cp ./zgt.db ./backups/zgt_backup.sqlite3

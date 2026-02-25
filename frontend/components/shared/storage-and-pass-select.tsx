@@ -143,7 +143,7 @@ export function StorageAndPassSelect({
 							onClick={() => { onValueChange(undefined); setOpen(false); }}
 						>
 							{value == null && <Check className="absolute right-2 h-4 w-4 text-primary" />}
-							—
+							–
 						</button>
 
 						{filteredItems.length === 0 ? (

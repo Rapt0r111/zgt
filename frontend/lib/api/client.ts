@@ -16,7 +16,7 @@ export async function refreshCsrfToken(): Promise<void> {
   try {
     await apiClient.get("/api/auth/csrf-token");
   } catch {
-    // Not authenticated — expected on /login
+    // Not authenticated – expected on /login
   }
 }
 

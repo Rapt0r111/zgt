@@ -39,7 +39,7 @@ export function EquipmentSelect({
 	value,
 	onValueChange,
 	placeholder = "Выберите технику",
-	emptyOptionLabel = "—",
+	emptyOptionLabel = "–",
 	disabled = false,
 	error = false,
 }: EquipmentSelectProps) {
