@@ -70,10 +70,9 @@ export const CONDITION_ADJECTIVE: Record<Condition, Record<"m" | "f" | "n", stri
 export function conditionPhrase(c: Condition, name: string): string {
   if (c === "ok") return "";
   const gender = getItemGender(name);
-  return ` (${CONDITION_ADJECTIVE[c][gender]})`;
+  return noWidows(` (${CONDITION_ADJECTIVE[c][gender]})`);
 }
 
-/** Позиции, попадающие в Приложение */
 export function itemGoesToAppendix(c: Condition): boolean {
   return c === "defective" || c === "absent" || c === "cosmetic";
 }
@@ -111,7 +110,7 @@ export function computeOverallState(
     text = " – в исправном состоянии";
   }
 
-  return { text, hasAppendix };
+  return { text: noWidows(text), hasAppendix };
 }
 
 // ─── Дата ─────────────────────────────────────────────────────────────────────
@@ -125,7 +124,7 @@ export function formatFullDate(day: string, month: string, year: string): string
   const d = parseInt(day);
   const m = parseInt(month);
   if (!d || !m || m < 1 || m > 12) return `«___» ___________ ${year} г.`;
-  return `«${String(d).padStart(2, "0")}» ${MONTHS_GEN[m - 1]} ${year} г.`;
+  return `«${String(d).padStart(2, "0")}»\u00A0${MONTHS_GEN[m - 1]}\u00A0${year}\u00A0г.`;
 }
 
 /**
@@ -216,11 +215,13 @@ function toGenitiveWord(word: string): string {
 }
 
 export function toGenitivePhrase(phrase: string): string {
-  return phrase
+  const res = phrase
     .split(/\s+/)
     .map((t) => (/^\(/.test(t) ? t : toGenitiveWord(t)))
     .join(" ");
+  return noWidows(res);
 }
+
 
 // ─── Форматирование персон ────────────────────────────────────────────────────
 
@@ -251,7 +252,7 @@ export function formatPersonNominative(p: PersonLike): string {
   if (p.position) parts.push(lcFirst(p.position));
   if (p.rank) parts.push(lcFirst(p.rank));
   parts.push(getPersonInitials(p.full_name));
-  return parts.join(" ");
+  return noWidows(parts.join(" "));
 }
 
 /** Родительный: «командира первого взвода лейтенанта Халупы А.И.» */
@@ -268,10 +269,16 @@ export function formatPersonGenitive(p: PersonLike): string {
         ? `${lastNameGen} ${nameParts[1][0]}.`
         : lastNameGen;
   parts.push(initialsStr);
-  return parts.join(" ");
+  return noWidows(parts.join(" "));
 }
 
 // ─── Неразрывные пробелы (anti-widows) ───────────────────────────────────────
 
-export const noWidows = (t: string): string =>
-  t.replace(/\b([авиксуоАВИКСУО])\s+/g, (_, p) => `${p}\u00A0`);
+export const noWidows = (t: string): string => {
+  if (!t) return t;
+  // Находит слова от 1 до 3 букв и заменяет следующий за ними пробел на неразрывный
+  return t.replace(
+    /(^|\s|&nbsp;)([а-яА-ЯёЁ]{1,3})\s+/g,
+    (_, prefix, word) => `${prefix}${word}\u00A0`
+  );
+};
