@@ -523,7 +523,7 @@ async function buildDoc(d: Payload): Promise<Document> {
   const receiverNom = (d.receiverLabel ?? "").trim() || MISSING;
 
   // Инициалы для строк подписей
-  const actionLabel = isSdacha ? "Сдал:    " : "Выдал: ";
+  const actionLabel = isSdacha ? "Сдал:    " : "Выдал:   ";
   const actionInitials = isSdacha
     ? (d.surrendererLastNameInitials ?? d.surrendererLabel ?? "").trim()
     : (d.issuerLastNameInitials ?? d.issuerLabel ?? "").trim();

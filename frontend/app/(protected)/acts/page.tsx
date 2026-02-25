@@ -426,7 +426,7 @@ const DocPreview = memo(function DocPreview({ data }: { data: PreviewData }) {
     : issuerGenLabel || issuerLabel || "___________";
 
   const receiverNom = receiverLabel || "___________";
-  const actionLabel = isSdacha ? "Сдал:       " : "Выдал:  ";
+  const actionLabel = isSdacha ? "Сдал:       " : "Выдал:    ";
   const actionInitials = isSdacha ? surrendererLastNameInitials : issuerLastNameInitials;
   const actNumberStr = actNumber.trim() ? ` № ${actNumber.trim()}` : "";
 
