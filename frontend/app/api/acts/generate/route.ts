@@ -10,20 +10,50 @@ import { z } from "zod";
 const CONDITION_VALUES = ["ok", "defective", "absent", "cosmetic"] as const;
 type Condition = (typeof CONDITION_VALUES)[number];
 
-const CONDITION_LABEL: Record<Condition, string> = {
-  ok:        "исправно",
-  defective: "неисправно",
-  absent:    "отсутствует",
-  cosmetic:  "имеются косметические дефекты",
+/**
+ * Согласование состояния с грамматическим родом существительного.
+ * Род передаётся явно при вызове, чтобы не гадать по имени позиции.
+ *
+ * Значения по умолчанию (средний род) — безопасный fallback для неизвестных позиций.
+ */
+function conditionAdjective(c: Condition, gender: "m" | "f" | "n" = "n"): string {
+  const forms: Record<Condition, Record<"m" | "f" | "n", string>> = {
+    ok:        { m: "исправен",       f: "исправна",       n: "исправно"       },
+    defective: { m: "неисправен",     f: "неисправна",     n: "неисправно"     },
+    absent:    { m: "отсутствует",    f: "отсутствует",    n: "отсутствует"    },
+    cosmetic:  { m: "имеет косметические дефекты", f: "имеет косметические дефекты", n: "имеет косметические дефекты" },
+  };
+  return forms[c][gender];
+}
+
+/**
+ * Таблица грамматического рода часто встречающихся позиций комплекта.
+ * Если позиция не найдена — используется средний род (безопасный fallback).
+ */
+const ITEM_GENDER: Record<string, "m" | "f" | "n"> = {
+  "ноутбук":               "m",
+  "зарядное устройство":   "n",
+  "компьютерная мышь":     "f",
+  "мышь":                  "f",
+  "сумка для ноутбука":    "f",
+  "сумка":                 "f",
+  "usb-концентратор":      "m",
+  "usb концентратор":      "m",
+  "кабель питания":        "m",
+  "кабель":                "m",
+  "адаптер питания":       "m",
+  "адаптер":               "m",
+  "блок питания":          "m",
 };
 
-function conditionPhrase(c: Condition): string {
-  switch (c) {
-    case "ok":        return "в исправном состоянии";
-    case "defective": return "в неисправном состоянии";
-    case "absent":    return "отсутствует";
-    case "cosmetic":  return "имеет косметические дефекты";
-  }
+function getItemGender(name: string): "m" | "f" | "n" {
+  return ITEM_GENDER[name.toLowerCase().trim()] ?? "n";
+}
+
+/** Фраза состояния в тексте пункта акта (родительный контекст). */
+function conditionPhrase(c: Condition, gender: "m" | "f" | "n"): string {
+  if (c === "ok") return "";
+  return ` (${conditionAdjective(c, gender)})`;
 }
 
 // ─── Схема валидации ──────────────────────────────────────────────────────────
@@ -42,10 +72,8 @@ const ActPayloadSchema = z.object({
   equipmentName: z.string().min(1).max(500),
   serialNumber:  z.string().min(1).max(200),
 
-  // Новый формат: массив позиций с матрицей состояний
   kitItems: z.array(KitItemSchema).min(1).max(20),
 
-  // Доп. поле свободного описания дефектов (обратная совместимость)
   defects: z.string().max(2000).nullable().optional(),
 
   flashDriveNumbers:        z.string().max(1000).nullable().optional(),
@@ -62,12 +90,22 @@ const ActPayloadSchema = z.object({
 
 type Payload = z.infer<typeof ActPayloadSchema>;
 
+// Расширяем схему дополнительными полями для родительного падежа и должностей
+const ActPayloadSchemaFull = ActPayloadSchema.extend({
+  surrendererPosition:      z.string().max(300).optional(),
+  receiverPosition:         z.string().max(300).optional(),
+  issuerPosition:           z.string().max(300).optional(),
+  surrendererGenitiveLabel: z.string().max(300).optional(),
+  issuerGenitiveLabel:      z.string().max(300).optional(),
+  receiverGenitiveLabel:    z.string().max(300).optional(),
+});
+
+type FullPayload = z.infer<typeof ActPayloadSchemaFull>;
+
 // ─── Утилиты ──────────────────────────────────────────────────────────────────
 
-/** Плейсхолдер для любых отсутствующих данных — юридически безопасный вариант. */
 const MISSING = "[ДАННЫЕ ОТСУТСТВУЮТ]";
 
-/** Возвращает значение или MISSING, если строка пустая / undefined / null. */
 function val(s: string | null | undefined): string {
   const t = (s ?? "").trim();
   return t.length > 0 ? t : MISSING;
@@ -76,6 +114,12 @@ function val(s: string | null | undefined): string {
 /** Убирает висячие предлоги и союзы (а, в, и, к, с, у, о). */
 const WIDOWS_RE = /\b([авиксуоАВИКСУО])\s+/g;
 const noWidows = (t: string) => t.replace(WIDOWS_RE, (_, p) => `${p}\u00A0`);
+
+/**
+ * Склоняет ФИО + должность/звание в родительный падеж для «принял от …».
+ * Поскольку автоматическое склонение ненадёжно, строка приходит уже готовой
+ * из фронтенда (функция formatPersonForActGenitive). Здесь просто val().
+ */
 
 // ─── Конструкторы параграфов ──────────────────────────────────────────────────
 
@@ -93,7 +137,7 @@ const bodyP = (children: TextRun[]) =>
     alignment: AlignmentType.BOTH,
   });
 
-// A4, поля: верх 2 см, право ~0,6 см, низ 2 см, лево ~3 см (переплёт)
+// A4, поля: верх ~2 см, право ~0,6 см, низ ~2 см, лево ~3 см (переплёт)
 const PAGE = {
   page: {
     size:   { width: 11906, height: 16838 },
@@ -136,16 +180,30 @@ function headerBlock(rank: string, sign: string, year: string): Paragraph[] {
     new Paragraph({
       children: [
         new TextRun({ text: "АКТ", font: "Times New Roman", size: 28, bold: true }),
-        new TextRun({ text: "приёма-передачи в эксплуатацию", font: "Times New Roman", size: 28, bold: true, break: 1 }),
-        new TextRun({ text: "оборудования", font: "Times New Roman", size: 28, bold: true, break: 1 }),
+        new TextRun({ text: "приёма-передачи оборудования", font: "Times New Roman", size: 28, bold: true, break: 1 }),
       ],
       spacing:   { after: 0, line: 240, lineRule: "auto" },
       alignment: AlignmentType.CENTER,
     }),
     new Paragraph({
-      children: [TNR(`г. Санкт-Петербург                                                        «___»___________ ${year} г.`)],
+      children: [
+        TNR("г. Санкт-Петербург"),
+        new TextRun({
+          text: "\t", // Символ табуляции
+          font: "Times New Roman",
+          size: 28,
+        }),
+        TNR(`«___»___________ ${year} г.`),
+      ],
+      tabStops: [
+        {
+          type: TabStopType.RIGHT,
+          position: 9355, // 11906 (ширина) - 1701 (лево) - 850 (право)
+        },
+      ],
       spacing:  { after: 0, line: 240, lineRule: "auto" },
     }),
+
     BL(), BL(),
   ];
 }
@@ -161,7 +219,7 @@ function signatureLine(label: string, name: string, year: string): Paragraph {
         size:      28,
         underline: { type: UnderlineType.SINGLE },
       }),
-      TNR(`/_______________\t\t«___»___________ ${year} г.`),
+      TNR(`/______________\t\t«___»___________ ${year} г.`),
     ],
     tabStops: [
       { type: TabStopType.RIGHT, position: 6237 },
@@ -172,36 +230,54 @@ function signatureLine(label: string, name: string, year: string): Paragraph {
 }
 
 /**
- * Пункт 1 акта — ноутбук с перечнем комплекта и матрицей состояний.
+ * Пункт 1 акта — ноутбук с перечнем комплекта.
  *
- * Логика итогового состояния:
- *   — хотя бы один элемент «неисправен» → ссылка на Приложение
- *   — только «отсутствующие» → передача в неполном комплекте
- *   — только «косметика» → исправен, с косметическими дефектами
- *   — иначе (акт выдачи) → в исправном состоянии
+ * Логика итогового состояния ноутбука как единицы техники:
+ *   — если у самого ноутбука (первая позиция с именем "ноутбук") есть дефект → ноутбук неисправен
+ *   — если дефекты только у периферии → ноутбук исправен, указываем дефекты периферии
+ *   — если есть свободное поле defects → ссылаемся на Приложение
+ *
+ * Перечень позиций в скобках всегда содержит точное состояние каждого элемента.
  */
 function buildItem1(d: Payload, isSdacha: boolean): Paragraph {
   const equipName = val(d.equipmentName);
   const serial    = val(d.serialNumber);
 
+  // Строим перечень комплекта с согласованными состояниями
   const kitParts = d.kitItems.map((item) => {
     const n = val(item.name);
-    return item.condition === "ok" ? n : `${n} (${conditionPhrase(item.condition)})`;
+    if (item.condition === "ok") return n;
+    const gender = getItemGender(item.name);
+    return `${n}${conditionPhrase(item.condition, gender)}`;
   });
   const kitStr = kitParts.length > 0 ? kitParts.join(", ") : MISSING;
 
-  const hasDefective     = d.kitItems.some((i) => i.condition === "defective");
-  const hasAbsent        = d.kitItems.some((i) => i.condition === "absent");
-  const hasCosmetic      = d.kitItems.some((i) => i.condition === "cosmetic");
+  // Определяем состояние самого ноутбука (позиция с именем "ноутбук")
+  const laptopItem = d.kitItems.find(
+    (i) => i.name.toLowerCase().trim() === "ноутбук",
+  );
+  const hasLaptopDefect  = laptopItem && laptopItem.condition !== "ok";
   const hasCustomDefects = !!(d.defects ?? "").trim();
 
+  // Состояние периферии (всё кроме ноутбука)
+  const peripheryItems = d.kitItems.filter(
+    (i) => i.name.toLowerCase().trim() !== "ноутбук",
+  );
+  const hasPeripheryDefect  = peripheryItems.some((i) => i.condition === "defective");
+  const hasPeripheryAbsent  = peripheryItems.some((i) => i.condition === "absent");
+  const hasPeripheryCosmetic = peripheryItems.some((i) => i.condition === "cosmetic");
+
   let overallState: string;
-  if (hasDefective || hasCustomDefects) {
+  if (hasLaptopDefect || hasCustomDefects) {
+    // Сам ноутбук неисправен или есть доп. описание → ссылка на Приложение
     overallState = " — в неисправном состоянии (подробности см. Приложение)";
-  } else if (hasAbsent) {
-    overallState = " — передаётся в неполном комплекте; отсутствующие позиции зафиксированы выше";
-  } else if (hasCosmetic) {
-    overallState = " — в исправном состоянии; имеются косметические дефекты";
+  } else if (hasPeripheryDefect) {
+    // Ноутбук исправен, но периферия — нет
+    overallState = " — ноутбук в исправном состоянии; неисправности периферии указаны в Приложении";
+  } else if (hasPeripheryAbsent) {
+    overallState = " — ноутбук в исправном состоянии; передаётся в неполном комплекте, отсутствующие позиции зафиксированы выше";
+  } else if (hasPeripheryCosmetic) {
+    overallState = " — ноутбук в исправном состоянии; отдельные позиции имеют косметические дефекты";
   } else if (!isSdacha) {
     overallState = " — в исправном состоянии";
   } else {
@@ -216,8 +292,6 @@ function buildItem1(d: Payload, isSdacha: boolean): Paragraph {
 
 /**
  * Пункты 2 и 3 — электронный пропуск и USB-накопитель.
- * Для акта сдачи — только при наличии номеров.
- * Для акта выдачи — всегда (с заглушкой при отсутствии данных).
  */
 function additionalItems(d: Payload): Paragraph[] {
   const isSdacha = d.actType === "sdacha";
@@ -250,12 +324,11 @@ function additionalItems(d: Payload): Paragraph[] {
 /**
  * Приложение с перечнем дефектов.
  *
- * Добавляется автоматически при наличии:
+ * Включается при наличии:
  *   — элементов со статусом «неисправен» или «отсутствует»
- *   — заполненного поля свободного описания дефектов
+ *   — заполненного поля defects
  *
- * Подпись принимающей стороны фиксирует, что дефекты выявлены совместно
- * и не могут быть оспорены как возникшие после приёма.
+ * Состояния согласуются с грамматическим родом позиции.
  */
 function appendix(d: Payload): Paragraph[] {
   const defectiveItems = d.kitItems.filter(
@@ -269,7 +342,9 @@ function appendix(d: Payload): Paragraph[] {
   const receiverLastNameInitials = val(d.receiverLastNameInitials);
 
   const defectLines: Paragraph[] = defectiveItems.map((item, idx) => {
-    const prefix = `${idx + 1}. ${val(item.name)} — ${CONDITION_LABEL[item.condition]}`;
+    const gender = getItemGender(item.name);
+    const stateWord = conditionAdjective(item.condition, gender);
+    const prefix = `${idx + 1}. ${val(item.name)} — ${stateWord}`;
     const note   = (item.defectNote ?? "").trim();
     return new Paragraph({
       children: [TNR(note ? `${prefix}: ${note}.` : `${prefix}.`)],
@@ -344,22 +419,35 @@ function appendix(d: Payload): Paragraph[] {
 
 // ─── Сборка документа ─────────────────────────────────────────────────────────
 
-function buildDoc(d: Payload): Document {
+function buildDoc(d: FullPayload): Document {
   const isSdacha = d.actType === "sdacha";
 
-  const thirdPartyRank = ((isSdacha ? d.surrendererRank : d.issuerRank) ?? "").trim();
-  const thirdPartyName = val(isSdacha ? d.surrendererName : d.issuerName);
-  const thirdParty     = [thirdPartyRank, thirdPartyName].filter(Boolean).join(" ");
+  const thirdPartyPos  = ((isSdacha ? d.surrendererPosition : d.issuerPosition) ?? "").trim();
+  const thirdPartyRank = ((isSdacha ? d.surrendererRank     : d.issuerRank)     ?? "").trim();
+  const thirdPartyName = val(isSdacha ? d.surrendererName   : d.issuerName);
+  // Именительный: должность звание Фамилия И.О.
+  const thirdPartyNom  = [thirdPartyPos, thirdPartyRank, thirdPartyName].filter(Boolean).join(" ");
 
-  const receiverRank = (d.receiverRank ?? "").trim();
+  // Родительный падеж — приходит готовым из фронтенда (или fallback на именительный)
+  const thirdPartyGenitiveLabel = d.actType === "sdacha"
+    ? (d.surrendererGenitiveLabel ?? "").trim() || thirdPartyNom
+    : (d.issuerGenitiveLabel ?? "").trim()       || thirdPartyNom;
+
+  const receiverPos  = (d.receiverPosition ?? "").trim();
+  const receiverRank = (d.receiverRank     ?? "").trim();
   const receiverName = val(d.receiverName);
-  const receiverFull = [receiverRank, receiverName].filter(Boolean).join(" ");
+  const receiverNom  = [receiverPos, receiverRank, receiverName].filter(Boolean).join(" ");
+
+  const receiverGenitiveLabel = (d.receiverGenitiveLabel ?? "").trim() || receiverNom;
 
   const verb = isSdacha ? "сдал" : "выдал";
 
+  // "составлен о том, что …" — правильная канцелярская формулировка
+  // Получатель — именительный падеж («кто принял»)
+  // Сдающий/выдающий — родительный падеж («принял от кого»)
   const intro = noWidows(
-    `Настоящий акт составлен в том, что ${val(receiverFull)} принял от ` +
-    `${val(thirdParty)}, который(-ая) ${verb} нижеперечисленное имущество:`,
+    `Настоящий акт составлен о том, что ${val(receiverNom)} принял от ` +
+    `${val(thirdPartyGenitiveLabel)}, который ${verb} нижеперечисленное имущество:`,
   );
 
   const actionLabel = isSdacha ? "Сдал:" : "Выдал:";
@@ -388,6 +476,8 @@ function buildDoc(d: Payload): Document {
 
 // ─── HTTP-обработчик ──────────────────────────────────────────────────────────
 
+
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!req.headers.get("content-type")?.includes("application/json")) {
     return NextResponse.json(
@@ -403,7 +493,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Некорректный JSON" }, { status: 400 });
   }
 
-  const parsed = ActPayloadSchema.safeParse(raw);
+  const parsed = ActPayloadSchemaFull.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Ошибка валидации данных", details: parsed.error.flatten() },
@@ -413,7 +503,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   try {
     const buffer = await Packer.toBuffer(buildDoc(parsed.data));
-    const d      = parsed.data;
+    const d = parsed.data;
 
     const personKey =
       d.actType === "sdacha"

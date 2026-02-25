@@ -19,7 +19,7 @@ import { PersonnelSelect } from "@/components/shared/personnel-select";
 import { EquipmentSelect } from "@/components/shared/equipment-select";
 import { StorageAndPassSelect } from "@/components/shared/storage-and-pass-select";
 
-// ─── Матрица состояний (синхронизирована с route.ts) ─────────────────────────
+// ─── Матрица состояний ────────────────────────────────────────────────────────
 
 const CONDITION_VALUES = ["ok", "defective", "absent", "cosmetic"] as const;
 type Condition = (typeof CONDITION_VALUES)[number];
@@ -37,6 +37,42 @@ const CONDITION_COLOR: Record<Condition, string> = {
   absent:    "bg-slate-600/20 border-slate-500/50 text-slate-400",
   cosmetic:  "bg-amber-600/20 border-amber-500/50 text-amber-300",
 };
+
+/**
+ * Таблица грамматического рода часто встречающихся позиций.
+ * Используется для правильного согласования состояний в предпросмотре.
+ */
+const ITEM_GENDER: Record<string, "m" | "f" | "n"> = {
+  "ноутбук":               "m",
+  "зарядное устройство":   "n",
+  "компьютерная мышь":     "f",
+  "мышь":                  "f",
+  "сумка для ноутбука":    "f",
+  "сумка":                 "f",
+  "usb-концентратор":      "m",
+  "кабель питания":        "m",
+  "кабель":                "m",
+  "адаптер питания":       "m",
+  "адаптер":               "m",
+  "блок питания":          "m",
+};
+
+function getItemGender(name: string): "m" | "f" | "n" {
+  return ITEM_GENDER[name.toLowerCase().trim()] ?? "n";
+}
+
+const CONDITION_ADJECTIVE: Record<Condition, Record<"m" | "f" | "n", string>> = {
+  ok:        { m: "исправен",   f: "исправна",   n: "исправно"   },
+  defective: { m: "неисправен", f: "неисправна", n: "неисправно" },
+  absent:    { m: "отсутствует", f: "отсутствует", n: "отсутствует" },
+  cosmetic:  { m: "имеет косметические дефекты", f: "имеет косметические дефекты", n: "имеет косметические дефекты" },
+};
+
+function conditionPhrase(c: Condition, name: string): string {
+  if (c === "ok") return "";
+  const gender = getItemGender(name);
+  return ` (${CONDITION_ADJECTIVE[c][gender]})`;
+}
 
 // ─── Константы ────────────────────────────────────────────────────────────────
 
@@ -100,15 +136,191 @@ function getPersonLastNameInitials(fullName: string): string {
   return parts.length >= 2 ? `${parts[1]?.[0] ?? ""}. ${parts[0]}` : fullName;
 }
 
-function formatPersonForAct(p: Personnel): string {
-  const role = lcFirst(p.position ?? p.rank ?? "");
+/**
+ * Именительный падеж: «оператор роты (научной) рядовой Галданов Г.Ж.»
+ * Формат: [должность] [звание] Фамилия И.О.
+ * Используется в строках подписей.
+ */
+function formatPersonNominative(p: Personnel): string {
+  const position = p.position ? lcFirst(p.position) : "";
+  const rank     = p.rank     ? lcFirst(p.rank)     : "";
   const initials = getPersonInitials(p.full_name);
-  return role ? `${role} ${initials}` : initials;
+  const prefix   = [position, rank].filter(Boolean).join(" ");
+  return prefix ? `${prefix} ${initials}` : initials;
+}
+
+/**
+ * Родительный падеж: «оператора роты (научной) рядового Галданова Г.Ж.»
+ * Формат: [должность_род] [звание_род] Фамилия_род И.О.
+ *
+ * Для должности и звания применяем эвристику склонения окончаний.
+ * Фамилия склоняется отдельной функцией.
+ */
+
+/** Склоняет мужскую фамилию в родительный падеж. */
+/**
+ * Склоняет мужскую фамилию в родительный падеж.
+ *
+ * Несклоняемые случаи (возвращаем без изменений):
+ *   — фамилии на -о/-е/-э (украинские/белорусские): Тарасенко, Шевченко, Коваленко
+ *   — фамилии на -а с предшествующей гласной: Халупа, Голуба — не склоняются как мужские
+ *     (их склонение совпадает с женским, и для акта приёма-передачи мужчин оставляем неизменными)
+ *   — короткие фамилии-аббревиатуры, иностранные
+ */
+function toGenitiveLastName(lastName: string): string {
+  // Украинские/белорусские несклоняемые окончания: -ко, -ло, -но, -то, -ро, -во, -хо, -жо и т.д.
+  if (/[кнлтрвхжшщзсдбпмф]о$/iu.test(lastName)) return lastName;
+  // Окончания на -е/-э (типа Гёте, Белье)
+  if (/[еэ]$/iu.test(lastName)) return lastName;
+
+  // Стандартные русские окончания
+  if (/[оеё]в$/iu.test(lastName))  return lastName + "а";
+  if (/[оеё]вич$/iu.test(lastName)) return lastName + "а";
+  if (/[иы]н$/iu.test(lastName))   return lastName + "а";
+  if (/ский$/iu.test(lastName))    return lastName.replace(/ский$/iu,  "ского");
+  if (/цкий$/iu.test(lastName))    return lastName.replace(/цкий$/iu,  "цкого");
+  if (/жий$/iu.test(lastName))     return lastName.replace(/жий$/iu,   "жего");
+  if (/шний$/iu.test(lastName))    return lastName.replace(/шний$/iu,  "шнего");
+  if (/жный$/iu.test(lastName))    return lastName.replace(/жный$/iu,  "жного");
+  if (/ный$/iu.test(lastName))     return lastName.replace(/ный$/iu,   "ного");
+  if (/ой$/iu.test(lastName))      return lastName.replace(/ой$/iu,    "ого");
+  if (/ий$/iu.test(lastName))      return lastName.replace(/ий$/iu,    "его");
+  // Фамилии на согласную (Борт, Смит, Резник и т.д.)
+  if (/[бвгджзклмнпрстфхцчшщ]$/iu.test(lastName)) return lastName + "а";
+  // Мужские фамилии на -жа/-ша/-ча/-ща → родительный на -и (шипящая + а):
+  // Горожа→Горожи, Стрельча→Стрельчи  (ДОЛЖНО БЫТЬ ДО общего правила на -а!)
+  if (/[жшщч]а$/iu.test(lastName)) return lastName.replace(/а$/u, "и");
+  // Мужские фамилии на согласную + -а → родительный на -ы (1-е склонение):
+  // Халупа→Халупы, Голуба→Голубы, Зима→Зимы, Мороза→Морозы
+  // Украинские на -ко/-но и т.д. уже отсечены первым правилом выше
+  if (/[бвгджзклмнпрстфхцчшщ]а$/iu.test(lastName)) return lastName.replace(/а$/u, "ы");
+  // Всё остальное — не склоняем (гласная + а, -я, -ь, иностранные)
+  return lastName;
+}
+
+/**
+ * Склоняет отдельное слово (звание / слово должности) в родительный падеж.
+ * Покрывает наиболее частотные воинские звания и слова должностей.
+ */
+function toGenitiveWord(word: string): string {
+  const w = word.trim();
+  const wl = w.toLowerCase();
+
+  // Словарь часто встречающихся целых слов (звания, должности)
+  const DICT: Record<string, string> = {
+    // Воинские звания
+    "маршал":              "маршала",
+    "генерал":             "генерала",
+    "полковник":           "полковника",
+    "подполковник":        "подполковника",
+    "майор":               "майора",
+    "капитан":             "капитана",
+    "лейтенант":           "лейтенанта",
+    "прапорщик":           "прапорщика",
+    "старшина":            "старшины",
+    "сержант":             "сержанта",
+    "ефрейтор":            "ефрейтора",
+    "рядовой":             "рядового",
+    "курсант":             "курсанта",
+    // Составные части воинских званий
+    "старший":             "старшего",
+    "младший":             "младшего",
+    "генерал-майор":       "генерал-майора",
+    "генерал-лейтенант":   "генерал-лейтенанта",
+    "генерал-полковник":   "генерал-полковника",
+    "генерал-армии":       "генерала армии",
+    "старший-лейтенант":   "старшего лейтенанта",
+    "старший-прапорщик":   "старшего прапорщика",
+    "старший-сержант":     "старшего сержанта",
+    "младший-лейтенант":   "младшего лейтенанта",
+    "младший-сержант":     "младшего сержанта",
+    // Типовые слова должностей
+    "оператор":            "оператора",
+    "командир":            "командира",
+    "начальник":           "начальника",
+    "заместитель":         "заместителя",
+    "офицер":              "офицера",
+    "специалист":          "специалиста",
+    "инженер":             "инженера",
+    "техник":              "техника",
+    "связист":             "связиста",
+    "программист":         "программиста",
+    "аналитик":            "аналитика",
+    "адъютант":            "адъютанта",
+    "дежурный":            "дежурного",
+    "писарь":              "писаря",
+    "санинструктор":       "санинструктора",
+    "водитель":            "водителя",
+    "механик":             "механика",
+    "снайпер":             "снайпера",
+    "переводчик":          "переводчика",
+    // Порядковые числительные (для «первого взвода», «второй роты» и т.д.)
+    "первого":   "первого",   "первый":   "первого",
+    "второго":   "второго",   "второй":   "второго",
+    "третьего":  "третьего",  "третий":   "третьего",
+    "четвёртого":"четвёртого","четвёртый":"четвёртого",
+    "пятого":    "пятого",    "пятый":    "пятого",
+    "шестого":   "шестого",   "шестой":   "шестого",
+    "седьмого":  "седьмого",  "седьмой":  "седьмого",
+    "восьмого":  "восьмого",  "восьмой":  "восьмого",
+    "девятого":  "девятого",  "девятый":  "девятого",
+    "десятого":  "десятого",  "десятый":  "десятого",
+    // Существительные в составе должности
+    "роты":      "роты",      "рота":     "роты",
+    "взвода":    "взвода",    "взвод":    "взвода",
+    "батальона": "батальона", "батальон": "батальона",
+    "отделения": "отделения", "отделение":"отделения",
+    "бригады":   "бригады",   "бригада":  "бригады",
+    "полка":     "полка",     "полк":     "полка",
+    "дивизии":   "дивизии",   "дивизия":  "дивизии",
+  };
+
+  if (DICT[wl]) {
+    // Сохраняем регистр первой буквы оригинала
+    const gen = DICT[wl];
+    return w[0] === w[0].toUpperCase() ? gen[0].toUpperCase() + gen.slice(1) : gen;
+  }
+
+  // Общие правила для неизвестных слов
+  if (/ый$/iu.test(w) || /ий$/iu.test(w)) return w.replace(/[ыи]й$/iu, (m) => m[0] === "ы" ? "ого" : "его");
+  if (/ник$/iu.test(w)) return w + "а";
+  if (/ист$/iu.test(w)) return w + "а";
+  if (/ор$/iu.test(w))  return w + "а";
+  if (/ер$/iu.test(w))  return w + "а";
+
+  return w; // fallback — не склоняем
+}
+
+/**
+ * Склоняет фразу (должность или звание) в родительный падеж пословно,
+ * пропуская скобочные части типа «(научной)».
+ */
+function toGenitivePhrase(phrase: string): string {
+  return phrase
+    .split(/\s+/)
+    .map((token) => {
+      if (/^\(/.test(token)) return token; // скобки не склоняем
+      return toGenitiveWord(token);
+    })
+    .join(" ");
+}
+
+function formatPersonGenitive(p: Personnel): string {
+  const positionGen = p.position ? toGenitivePhrase(lcFirst(p.position)) : "";
+  const rankGen     = p.rank     ? toGenitivePhrase(lcFirst(p.rank))     : "";
+  const parts       = p.full_name.trim().split(/\s+/);
+  const lastNameGen = toGenitiveLastName(parts[0] ?? "");
+  const initialsStr = parts.length >= 3
+    ? `${lastNameGen} ${parts[1][0]}.${parts[2][0]}.`
+    : parts.length === 2
+      ? `${lastNameGen} ${parts[1][0]}.`
+      : lastNameGen;
+  const prefix = [positionGen, rankGen].filter(Boolean).join(" ");
+  return prefix ? `${prefix} ${initialsStr}` : initialsStr;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-/** Переключатель состояния одного элемента комплекта — 4 варианта. */
 function ConditionToggle({
   value,
   onChange,
@@ -136,7 +348,6 @@ function ConditionToggle({
   );
 }
 
-/** Строка одного элемента комплекта с полной матрицей состояний. */
 function KitItemRow({
   item,
   onChange,
@@ -235,61 +446,79 @@ function MultiAssetSelect({
 // ─── Doc Preview ─────────────────────────────────────────────────────────────
 
 interface PreviewData {
-  actType:                 ActType;
-  year:                    string;
-  surrendererLabel:        string;
-  receiverLabel:           string;
-  issuerLabel:             string;
-  model:                   string;
-  serial:                  string;
-  kitItems:                KitItem[];
-  defects:                 string;
-  flashDriveNumbers:       string;
-  passNumbers:             string;
-  surrendererName:         string;
-  receiverName:            string;
-  issuerName:              string;
-  receiverRankShort:       string;
+  actType:              ActType;
+  year:                 string;
+  surrendererLabel:     string;    // именительный — для строки «Сдал:»
+  receiverLabel:        string;    // именительный — для строки «Принял:»
+  issuerLabel:          string;    // именительный — для строки «Выдал:»
+  surrendererGenLabel:  string;    // родительный  — для вводной части
+  receiverGenLabel:     string;    // родительный
+  issuerGenLabel:       string;    // родительный
+  model:                string;
+  serial:               string;
+  kitItems:             KitItem[];
+  defects:              string;
+  flashDriveNumbers:    string;
+  passNumbers:          string;
+  surrendererName:      string;
+  receiverName:         string;
+  issuerName:           string;
+  receiverRankShort:    string;
   receiverLastNameInitials: string;
 }
 
-function conditionPhrase(c: Condition): string {
-  switch (c) {
-    case "ok":        return "";
-    case "defective": return " (в неисправном состоянии)";
-    case "absent":    return " (отсутствует)";
-    case "cosmetic":  return " (имеет косметические дефекты)";
-  }
-}
-
 function DocPreview({ data }: { data: PreviewData }) {
-  const { actType, year, surrendererLabel, receiverLabel, issuerLabel,
-    model, serial, kitItems, defects, flashDriveNumbers, passNumbers } = data;
+  const {
+    actType, year, surrendererLabel, receiverLabel, issuerLabel,
+    surrendererGenLabel, receiverGenLabel, issuerGenLabel,
+    model, serial, kitItems, defects, flashDriveNumbers, passNumbers,
+  } = data;
 
   const isSdacha = actType === "sdacha";
 
-  const kitStr = kitItems.map((it) => `${it.name}${conditionPhrase(it.condition)}`).join(", ");
+  // Перечень комплекта с правильными согласованиями
+  const kitStr = kitItems.map((it) => `${it.name}${conditionPhrase(it.condition, it.name)}`).join(", ");
 
-  const hasDefective     = kitItems.some((i) => i.condition === "defective");
-  const hasAbsent        = kitItems.some((i) => i.condition === "absent");
-  const hasCosmetic      = kitItems.some((i) => i.condition === "cosmetic");
+  // Определяем общее состояние для предпросмотра (та же логика, что в route.ts)
+  const laptopItem = kitItems.find((i) => i.name.toLowerCase().trim() === "ноутбук");
+  const hasLaptopDefect  = laptopItem && laptopItem.condition !== "ok";
   const hasCustomDefects = !!defects.trim();
 
+  const peripheryItems = kitItems.filter((i) => i.name.toLowerCase().trim() !== "ноутбук");
+  const hasPeripheryDefect   = peripheryItems.some((i) => i.condition === "defective");
+  const hasPeripheryAbsent   = peripheryItems.some((i) => i.condition === "absent");
+  const hasPeripheryCosmetic = peripheryItems.some((i) => i.condition === "cosmetic");
+
   let overallState: string;
-  if (hasDefective || hasCustomDefects) {
+  if (hasLaptopDefect || hasCustomDefects) {
     overallState = " — в неисправном состоянии (подробности см. Приложение)";
-  } else if (hasAbsent) {
-    overallState = " — передаётся в неполном комплекте; отсутствующие позиции зафиксированы выше";
-  } else if (hasCosmetic) {
-    overallState = " — в исправном состоянии; имеются косметические дефекты";
+  } else if (hasPeripheryDefect) {
+    overallState = " — ноутбук в исправном состоянии; неисправности периферии указаны в Приложении";
+  } else if (hasPeripheryAbsent) {
+    overallState = " — ноутбук в исправном состоянии; передаётся в неполном комплекте, отсутствующие позиции зафиксированы выше";
+  } else if (hasPeripheryCosmetic) {
+    overallState = " — ноутбук в исправном состоянии; отдельные позиции имеют косметические дефекты";
   } else if (!isSdacha) {
     overallState = " — в исправном состоянии";
   } else {
     overallState = "";
   }
 
-  const actionLabel = actType === "sdacha" ? "Сдал:" : "Выдал:";
-  const actionName  = actType === "sdacha" ? data.surrendererName || "___________" : data.issuerName || "___________";
+  // Вводная часть акта:
+  //   получатель — именительный («кто принял»)
+  //   сдающий    — родительный  («принял от кого»)
+  const thirdPartyGenLabel = isSdacha
+    ? (surrendererGenLabel || surrendererLabel || "___________")
+    : (issuerGenLabel      || issuerLabel      || "___________");
+  // Именительный для получателя: «командир первого взвода лейтенант Халупа А.И.»
+  const receiverNom = receiverLabel || "___________";
+  const verb = isSdacha ? "сдал" : "выдал";
+
+  // Строки подписей
+  const actionLabel = isSdacha ? "Сдал:" : "Выдал:";
+  const actionSignName = isSdacha
+    ? (data.surrendererName || "___________")
+    : (data.issuerName      || "___________");
 
   const showAppendix =
     kitItems.some((i) => i.condition === "defective" || i.condition === "absent") ||
@@ -310,7 +539,7 @@ function DocPreview({ data }: { data: PreviewData }) {
         <div style={{ height: "24px" }} />
 
         <div style={{ textAlign: "center", fontWeight: "bold", lineHeight: "1.4" }}>
-          АКТ<br />приёма-передачи в эксплуатацию<br />оборудования
+          АКТ<br />приёма-передачи оборудования
         </div>
 
         <div style={{ marginTop: "8px" }}>
@@ -322,15 +551,9 @@ function DocPreview({ data }: { data: PreviewData }) {
 
         {/* Вводная часть */}
         <div style={{ textIndent: "1.25cm", textAlign: "justify" }}>
-          {isSdacha ? (
-            <>Настоящий акт составлен в том, что{" "}
-              <strong>{receiverLabel || "___________"}</strong> принял от{" "}
-              <strong>{surrendererLabel || "___________"}</strong>, который(-ая) сдал нижеперечисленное имущество:</>
-          ) : (
-            <>Настоящий акт составлен в том, что{" "}
-              <strong>{receiverLabel || "___________"}</strong> принял от{" "}
-              <strong>{issuerLabel || "___________"}</strong>, который(-ая) выдал нижеперечисленное имущество:</>
-          )}
+          Настоящий акт составлен о том, что{" "}
+          <strong>{receiverNom}</strong> принял от{" "}
+          <strong>{thirdPartyGenLabel}</strong>, который {verb} нижеперечисленное имущество:
         </div>
         <div style={{ height: "8px" }} />
 
@@ -358,7 +581,7 @@ function DocPreview({ data }: { data: PreviewData }) {
 
         {/* Подписи */}
         <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <div>{actionLabel} <u>{actionName}</u> /_______________</div>
+          <div>{actionLabel} <u>{actionSignName}</u> /_______________</div>
           <div>«___»___________ {year || "____"} г.</div>
         </div>
         <div style={{ height: "16px" }} />
@@ -378,12 +601,16 @@ function DocPreview({ data }: { data: PreviewData }) {
             <div style={{ marginLeft: "1.25cm", marginTop: "8px" }}>
               {kitItems
                 .filter((i) => i.condition === "defective" || i.condition === "absent")
-                .map((item, idx) => (
-                  <div key={item.id}>
-                    {idx + 1}. {item.name} — {CONDITION_LABEL[item.condition].toLowerCase()}
-                    {item.defectNote ? `: ${item.defectNote}` : ""}.
-                  </div>
-                ))}
+                .map((item, idx) => {
+                  const gender = getItemGender(item.name);
+                  const stateWord = CONDITION_ADJECTIVE[item.condition][gender];
+                  return (
+                    <div key={item.id}>
+                      {idx + 1}. {item.name} — {stateWord}
+                      {item.defectNote ? `: ${item.defectNote}` : ""}.
+                    </div>
+                  );
+                })}
               {hasCustomDefects && (
                 <div>
                   {kitItems.filter((i) => i.condition === "defective" || i.condition === "absent").length + 1}.
@@ -539,7 +766,6 @@ export default function ActsPage() {
 
     startTransition(async () => {
       try {
-        // Формируем payload с новым форматом kitItems
         const payload = {
           actType:       form.actType,
           year:          form.year,
@@ -555,12 +781,25 @@ export default function ActsPage() {
           defects:           form.defects.trim() || null,
           flashDriveNumbers: selectedFlashNumbers || null,
           passNumbers:       selectedPassNumbers || null,
-          surrendererRank:   lcFirst(surrenderer?.position ?? surrenderer?.rank ?? ""),
-          surrendererName:   surrenderer ? getPersonInitials(surrenderer.full_name) : "",
-          receiverRank:      lcFirst(receiver?.position ?? receiver?.rank ?? ""),
-          receiverName:      receiver ? getPersonInitials(receiver.full_name) : "",
-          issuerRank:        lcFirst(issuer?.position ?? issuer?.rank ?? ""),
-          issuerName:        issuer ? getPersonInitials(issuer.full_name) : "",
+
+          // Именительный падеж — для строк подписей
+          // Должность и звание передаём раздельно
+          surrendererPosition: lcFirst(surrenderer?.position ?? ""),
+          surrendererRank:     lcFirst(surrenderer?.rank ?? ""),
+          surrendererName:     surrenderer ? getPersonInitials(surrenderer.full_name) : "",
+          receiverPosition:    lcFirst(receiver?.position ?? ""),
+          receiverRank:        lcFirst(receiver?.rank ?? ""),
+          receiverName:        receiver ? getPersonInitials(receiver.full_name) : "",
+          issuerPosition:      lcFirst(issuer?.position ?? ""),
+          issuerRank:          lcFirst(issuer?.rank ?? ""),
+          issuerName:          issuer ? getPersonInitials(issuer.full_name) : "",
+
+          // Родительный падеж — для вводной части «принял от …»
+          surrendererGenitiveLabel: surrenderer ? formatPersonGenitive(surrenderer) : "",
+          receiverGenitiveLabel:    receiver    ? formatPersonGenitive(receiver)    : "",
+          issuerGenitiveLabel:      issuer      ? formatPersonGenitive(issuer)      : "",
+
+          // Для Приложения
           receiverRankShort:           receiver?.rank?.split(" ").at(-1) ?? "рядовой",
           receiverLastNameInitials:    receiver ? getPersonLastNameInitials(receiver.full_name) : "",
         };
@@ -593,21 +832,24 @@ export default function ActsPage() {
   };
 
   const previewData: PreviewData = {
-    actType:                 form.actType,
-    year:                    form.year,
-    surrendererLabel:        surrenderer ? formatPersonForAct(surrenderer) : "",
-    receiverLabel:           receiver ? formatPersonForAct(receiver) : "",
-    issuerLabel:             issuer ? formatPersonForAct(issuer) : "",
-    model:                   effectiveModel,
-    serial:                  effectiveSerial,
-    kitItems:                form.kitItems,
-    defects:                 form.defects,
-    flashDriveNumbers:       selectedFlashNumbers,
-    passNumbers:             selectedPassNumbers,
-    surrendererName:         surrenderer ? getPersonInitials(surrenderer.full_name) : "",
-    receiverName:            receiver ? getPersonInitials(receiver.full_name) : "",
-    issuerName:              issuer ? getPersonInitials(issuer.full_name) : "",
-    receiverRankShort:       receiver?.rank?.split(" ").at(-1) ?? "рядовой",
+    actType:              form.actType,
+    year:                 form.year,
+    surrendererLabel:     surrenderer ? formatPersonNominative(surrenderer) : "",
+    receiverLabel:        receiver    ? formatPersonNominative(receiver)    : "",
+    issuerLabel:          issuer      ? formatPersonNominative(issuer)      : "",
+    surrendererGenLabel:  surrenderer ? formatPersonGenitive(surrenderer)   : "",
+    receiverGenLabel:     receiver    ? formatPersonGenitive(receiver)      : "",
+    issuerGenLabel:       issuer      ? formatPersonGenitive(issuer)        : "",
+    model:                effectiveModel,
+    serial:               effectiveSerial,
+    kitItems:             form.kitItems,
+    defects:              form.defects,
+    flashDriveNumbers:    selectedFlashNumbers,
+    passNumbers:          selectedPassNumbers,
+    surrendererName:      surrenderer ? getPersonInitials(surrenderer.full_name) : "",
+    receiverName:         receiver    ? getPersonInitials(receiver.full_name)    : "",
+    issuerName:           issuer      ? getPersonInitials(issuer.full_name)      : "",
+    receiverRankShort:    receiver?.rank?.split(" ").at(-1) ?? "рядовой",
     receiverLastNameInitials: receiver ? getPersonLastNameInitials(receiver.full_name) : "",
   };
 
@@ -798,7 +1040,7 @@ export default function ActsPage() {
                 assetType="electronic_pass" ids={form.passIds} onChange={setField("passIds")} />
             </div>
 
-            {/* Комплектация с матрицей состояний */}
+            {/* Комплектация */}
             <div className="bg-slate-900/60 border border-slate-800/60 rounded-2xl p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -806,7 +1048,7 @@ export default function ActsPage() {
                   <h2 className="text-sm font-semibold text-slate-200">Комплектация</h2>
                 </div>
                 <div className="flex gap-1 items-center text-xs text-slate-500">
-                  <span className="hidden sm:inline">Состояние каждой позиции:</span>
+                  <span className="hidden sm:inline">Состояние:</span>
                   {CONDITION_VALUES.map((c) => (
                     <span key={c} className={`px-1.5 py-0.5 rounded border text-xs ${CONDITION_COLOR[c]}`}>
                       {CONDITION_LABEL[c]}
@@ -826,7 +1068,6 @@ export default function ActsPage() {
                 ))}
               </div>
 
-              {/* Добавить позицию */}
               <div className="space-y-2">
                 <div className="flex flex-wrap gap-1.5">
                   {KIT_PRESETS.filter(
@@ -847,7 +1088,7 @@ export default function ActsPage() {
               </div>
             </div>
 
-            {/* Дефекты (свободный текст) */}
+            {/* Дефекты */}
             <div className={sectionCls}>
               <div className="flex items-center gap-2 mb-1">
                 <Shield className="w-4 h-4 text-amber-400" />
@@ -858,7 +1099,7 @@ export default function ActsPage() {
               </div>
               <div className="space-y-1.5">
                 <textarea value={form.defects} onChange={(e) => setField("defects")(e.target.value)}
-                  placeholder="Дефекты самого ноутбука (корпус, матрица и пр.) не отражённые в комплекте"
+                  placeholder="Дефекты корпуса, матрицы и пр., не отражённые в комплекте"
                   rows={2}
                   className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition-all resize-none" />
                 <p className="text-xs text-slate-600">
@@ -894,7 +1135,7 @@ export default function ActsPage() {
               </div>
             )}
 
-            {/* Кнопка генерации */}
+            {/* Кнопка */}
             <button type="button" onClick={handleGenerate} disabled={!canGenerate || isPending}
               className={`w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl text-sm font-semibold transition-all ${
                 canGenerate && !isPending
