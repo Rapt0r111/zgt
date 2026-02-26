@@ -1,53 +1,54 @@
-import secrets
-
-from pydantic_settings import BaseSettings
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # --- Приложение ---
     APP_NAME: str = "Military Asset Management System"
     PROJECT_NAME: str = "ZGT System"
     VERSION: str = "1.0.0"
     DEBUG: bool = False
 
-    # --- Безопасность ---
-    SECRET_KEY: str = secrets.token_urlsafe(32)
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     SECURE_COOKIES: bool = False
 
-    # --- База данных ---
-    DATABASE_URL: str = "sqlite:///./dev.db"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/zgt"
 
-    # --- JWT / сессия ---
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
-    # --- CSRF ---
-    # CSRF-токен живёт столько же, сколько сессия – чтобы мутирующие
-    # запросы не падали с 403 раньше истечения сессии.
+    BACKEND_CORS_ORIGINS: str = "http://localhost:3000"
+    COOKIE_DOMAIN: str = ""
+
+    BCRYPT_ROUNDS: int = 12
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="allow",
+    )
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def validate_secret_key(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("SECRET_KEY must be set in environment")
+        return value
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def validate_database_url(cls, value: str) -> str:
+        if not value.startswith("postgresql+asyncpg://"):
+            raise ValueError("DATABASE_URL must use async DSN with postgresql+asyncpg://")
+        return value
+
     @property
     def CSRF_TOKEN_EXPIRE(self) -> int:
         return self.ACCESS_TOKEN_EXPIRE_MINUTES * 60
 
-    # --- CORS ---
-    # Объявляем как str, а не list[str]: pydantic-settings пытается парсить
-    # list-поля как JSON, и падает на строках вида "http://a.com, http://b.com".
-    # Разбиение по запятой делается в @property ниже.
-    BACKEND_CORS_ORIGINS: str = "http://localhost:3000"
-    COOKIE_DOMAIN: str = ""
-
     @property
     def cors_origins(self) -> list[str]:
-        """Список разрешённых origins для CORS-middleware."""
-        return [o.strip() for o in self.BACKEND_CORS_ORIGINS.split(",") if o.strip()]
-
-    # --- Хеширование паролей ---
-    BCRYPT_ROUNDS: int = 12
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
-        extra = "allow"  # не падать при появлении новых переменных в .env
+        return [origin.strip() for origin in self.BACKEND_CORS_ORIGINS.split(",") if origin.strip()]
 
 
 settings = Settings()
