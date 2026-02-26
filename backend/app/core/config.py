@@ -28,6 +28,16 @@ class Settings(BaseSettings):
         extra="allow",
     )
 
+    CSRF_SECRET_KEY: str = ""  # если пустой — генерируется из SECRET_KEY+соли
+
+    @field_validator("CSRF_SECRET_KEY")
+    @classmethod
+    def validate_csrf_key(cls, v, info) -> str:
+        if not v or not v.strip():
+            # Fallback: производная с фиксированной солью отличной от "_csrf"
+            return info.data.get("SECRET_KEY", "") + "_csrf_v2_salt"
+        return v
+
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, value: str) -> str:

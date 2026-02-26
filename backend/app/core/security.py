@@ -38,7 +38,7 @@ def verify_token(token: str) -> Optional[dict]:
 
 # Секрет для CSRF отдельный от JWT – компрометация одного не затрагивает другой
 def _csrf_secret() -> str:
-    return settings.SECRET_KEY + "_csrf"
+    return settings.CSRF_SECRET_KEY
 
 def generate_csrf_token(user_id: int) -> str:
     """Генерирует CSRF-токен привязанный к user_id.

@@ -83,7 +83,7 @@ class UserService:
         user = await self.get_by_id(user_id)
         if not user:
             return False
-        await self.db.delete(user)
+        user.is_active = False
         await self.db.commit()
         return True
 

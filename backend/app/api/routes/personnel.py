@@ -5,7 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from sqlalchemy import update
+from app.models.storage_and_passes import StorageAndPass
+from app.models.equipment import Equipment
 from app.api.deps import require_officer, verify_csrf
 from app.core.database import get_db
 from app.models.personnel import Personnel
@@ -149,9 +151,26 @@ async def delete_personnel(
     _: User = Depends(require_officer),
     __: User = Depends(verify_csrf),
 ):
+    
+
     personnel = await db.get(Personnel, personnel_id)
     if personnel is None or not personnel.is_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Военнослужащий не найден")
 
-    personnel.is_active = False
+    async with db.begin_nested():
+        # 1. Отозвать все носители и пропуска
+        await db.execute(
+            update(StorageAndPass)
+            .where(StorageAndPass.assigned_to_id == personnel_id)
+            .values(status="stock", assigned_to_id=None, return_date=datetime.now(timezone.utc))
+        )
+        # 2. Освободить технику
+        await db.execute(
+            update(Equipment)
+            .where(Equipment.current_owner_id == personnel_id)
+            .values(current_owner_id=None)
+        )
+        # 3. Деактивировать
+        personnel.is_active = False
+
     await db.commit()

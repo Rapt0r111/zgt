@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -6,6 +6,10 @@ from app.core.database import Base
 class Phone(Base):
     __tablename__ = "phones"
     
+    __table_args__ = (
+        UniqueConstraint("imei_1", name="uq_phone_imei_1"),
+    )
+
     id = Column(Integer, primary_key=True, index=True)
     
     # Владелец (связь с Personnel)

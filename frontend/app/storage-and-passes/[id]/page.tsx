@@ -167,12 +167,9 @@ export default function StorageAndPassDetailPage() {
 		setError("");
 		updateMutation.mutate(data);
 	};
-	const onInvalid = (errors: any) => {
-		console.error("Ошибки валидации:", errors);
-		toast.error("Проверьте правильность заполнения полей", {
-			description: Object.values(errors).map((e: any) => e.message).join(", ")
-		});
-	};
+	const onInvalid = () => {
+		toast.error("Проверьте правильность заполнения полей");
+	}
 	const handleAssign = () => {
 		if (selectedPersonnelId) {
 			assignMutation.mutate(selectedPersonnelId);

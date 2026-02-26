@@ -3,6 +3,7 @@ import { Packer } from "docx";
 import { z } from "zod";
 import { CONDITION_VALUES } from "@/lib/acts/shared";
 import { buildActDocument } from "@/lib/acts/docx-builder";
+import { cookies } from "next/headers";
 
 const KitItemSchema = z.object({
   id: z.string().optional(),
@@ -44,6 +45,11 @@ const ActPayloadSchema = z.object({
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("access_token");
+  if (!accessToken?.value) {
+    return NextResponse.json({ error: "Требуется авторизация" }, { status: 401 });
+  }
   if (!req.headers.get("content-type")?.includes("application/json")) {
     return NextResponse.json({ error: "Content-Type должен быть application/json" }, { status: 415 });
   }

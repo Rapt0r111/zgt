@@ -166,6 +166,14 @@ class StorageAndPassService:
         if personnel is None:
             raise ValueError("Сотрудник не найден")
 
+        if asset.access_level is not None:
+            if personnel.security_clearance_level is None or \
+            personnel.security_clearance_level < asset.access_level:
+                raise ValueError(
+                    f"Уровень допуска сотрудника ({personnel.security_clearance_level or 'нет'}) "
+                    f"недостаточен для актива с уровнем доступа {asset.access_level}"
+                )
+
         asset.assigned_to_id = request.assigned_to_id
         asset.status = "in_use"
         asset.issue_date = datetime.now(timezone.utc)

@@ -17,6 +17,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { personnelApi } from "@/lib/api/personnel";
+import { toast } from "sonner";
 
 const STATUS_VARIANTS = {
 	"В строю": "default",
@@ -61,6 +62,9 @@ export default function PersonnelPage() {
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["personnel"] });
 		},
+		onError: () => {
+			toast.error("Ошибка при удалении военнослужащего");
+		},
 	});
 
 	const getClearanceBadge = (level?: number) => {
@@ -70,17 +74,17 @@ export default function PersonnelPage() {
 			2: "Форма 2",
 			3: "Форма 3",
 		};
-        // Особый стиль для высокой формы допуска
+		// Особый стиль для высокой формы допуска
 		return (
-            <Badge className={level === 1 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : "bg-primary/10 text-primary border-primary/20"}>
-                <ShieldAlert className="mr-1 h-3 w-3" />
-                {labels[level]}
-            </Badge>
-        );
+			<Badge className={level === 1 ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : "bg-primary/10 text-primary border-primary/20"}>
+				<ShieldAlert className="mr-1 h-3 w-3" />
+				{labels[level]}
+			</Badge>
+		);
 	};
 
 	return (
-        /* Фон страницы в соответствии с темной темой */
+		/* Фон страницы в соответствии с темной темой */
 		<div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
 			<div className="mx-auto">
 				<div className="mb-6">
@@ -105,14 +109,14 @@ export default function PersonnelPage() {
 				<Card className="glass-elevated border-white/10 shadow-2xl overflow-hidden">
 					<CardHeader className="bg-white/5 border-b pt-6 border-white/10 pb-6">
 						<div className="flex items-center justify-between mb-4">
-                            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                                <Search className="h-4 w-4 text-muted-foreground" />
-                                Поиск по базе
-                            </CardTitle>
-                            <Badge variant="outline" className="bg-white/5 border-white/10 text-muted-foreground">
-                                Всего записей: {data?.total || 0}
-                            </Badge>
-                        </div>
+							<CardTitle className="text-lg font-semibold flex items-center gap-2">
+								<Search className="h-4 w-4 text-muted-foreground" />
+								Поиск по базе
+							</CardTitle>
+							<Badge variant="outline" className="bg-white/5 border-white/10 text-muted-foreground">
+								Всего записей: {data?.total || 0}
+							</Badge>
+						</div>
 						<div className="flex gap-2">
 							<div className="relative flex-1">
 								<Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -129,9 +133,9 @@ export default function PersonnelPage() {
 					<CardContent className="p-0">
 						{isLoading ? (
 							<div className="text-center py-20 text-muted-foreground">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                                Загрузка базы данных...
-                            </div>
+								<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+								Загрузка базы данных...
+							</div>
 						) : (
 							<div className="overflow-x-auto">
 								<Table>
@@ -149,15 +153,15 @@ export default function PersonnelPage() {
 
 									<TableBody>
 										{sortedPersonnel.map((person) => (
-											<TableRow 
-                                                key={person.id} 
-                                                className="hover:bg-white/6 border-white/5 transition-colors group"
-                                            >
+											<TableRow
+												key={person.id}
+												className="hover:bg-white/6 border-white/5 transition-colors group"
+											>
 												<TableCell className="px-6 py-4 font-medium text-foreground group-hover:text-primary transition-colors">
 													<div className="flex items-center gap-2">
-                                                        <User className="h-3.5 w-3.5 opacity-40" />
-                                                        {person.full_name}
-                                                    </div>
+														<User className="h-3.5 w-3.5 opacity-40" />
+														{person.full_name}
+													</div>
 												</TableCell>
 												<TableCell className="px-6 py-4 text-muted-foreground">{person.rank || "–"}</TableCell>
 												<TableCell className="px-6 py-4 text-muted-foreground leading-snug">{person.position || "–"}</TableCell>
@@ -169,22 +173,22 @@ export default function PersonnelPage() {
 													<Badge
 														variant={
 															STATUS_VARIANTS[
-																person.status as keyof typeof STATUS_VARIANTS
+															person.status as keyof typeof STATUS_VARIANTS
 															] || "default"
 														}
-                                                        className="whitespace-nowrap px-2 py-0.5 shadow-sm"
+														className="whitespace-nowrap px-2 py-0.5 shadow-sm"
 													>
 														{person.status}
 													</Badge>
 												</TableCell>
 												<TableCell className="px-6 py-4 text-right">
 													<div className="flex justify-end gap-2">
-														<Button 
-                                                            size="sm" 
-                                                            variant="ghost" 
-                                                            asChild
-                                                            className="h-8 hover:bg-white/10 hover:text-primary transition-colors"
-                                                        >
+														<Button
+															size="sm"
+															variant="ghost"
+															asChild
+															className="h-8 hover:bg-white/10 hover:text-primary transition-colors"
+														>
 															<Link href={`/personnel/${person.id}`}>
 																Открыть
 															</Link>
@@ -192,7 +196,7 @@ export default function PersonnelPage() {
 														<Button
 															size="sm"
 															variant="ghost"
-                                                            className="h-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
+															className="h-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
 															disabled={deleteMutation.isPending}
 															onClick={() => {
 																if (confirm(`Удалить ${person.full_name}?`)) {

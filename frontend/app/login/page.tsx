@@ -90,8 +90,7 @@ export default function LoginPage() {
 				errorData.code === "ECONNABORTED" ||
 				errorData.message?.includes("timeout")
 			) {
-				setError(
-					`Сервер не отвечает по адресу ${API_BASE_URL}`,);
+				setError("Сервер не отвечает. Обратитесь к системному администратору.");
 			} else if (
 				errorData.code === "ERR_NETWORK" ||
 				errorData.message?.includes("Network Error")

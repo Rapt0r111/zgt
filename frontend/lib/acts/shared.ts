@@ -138,7 +138,10 @@ export const KIT_PRESETS = [
   "кабель питания",
 ] as const;
 
-export const COMMANDER = { rank: "капитан", sign: "С. Тарасенко" } as const;
+export const COMMANDER = {
+  rank: process.env.NEXT_PUBLIC_COMMANDER_RANK || "капитан",
+  sign: process.env.NEXT_PUBLIC_COMMANDER_SIGN || "",
+} as const;
 
 export function lcFirst(s: string): string {
   if (!s) return s;

@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, func, select
 from sqlalchemy.exc import IntegrityError
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 from app.models.equipment import Equipment, EquipmentMovement, StorageDevice
@@ -127,7 +127,8 @@ class EquipmentService:
                 # Проверка на дублирование перемещения
                 check_stmt = select(EquipmentMovement).where(
                     EquipmentMovement.equipment_id == equipment.id,
-                    EquipmentMovement.created_at > datetime.now() - timedelta(minutes=5)
+                    EquipmentMovement.created_at > datetime.now(timezone.utc) - timedelta(minutes=5)
+
                 )
                 check_res = await self.db.execute(check_stmt)
                 if check_res.scalars().first():
