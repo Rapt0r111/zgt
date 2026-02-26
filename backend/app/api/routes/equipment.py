@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from app.core.database import get_db
@@ -51,23 +51,23 @@ async def list_storage_devices(
     equipment_id: Optional[int] = None,
     status: Optional[str] = None,
     search: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
     service = StorageDeviceService(db)
-    items, total = service.get_list(skip=skip, limit=limit, equipment_id=equipment_id, status=status, search=search)
+    items, total = await service.get_list(skip=skip, limit=limit, equipment_id=equipment_id, status=status, search=search)
     return StorageDeviceListResponse(total=total, items=[_enrich_device(d) for d in items])
 
 
 @storage_router.post("/", response_model=StorageDeviceResponse, status_code=status.HTTP_201_CREATED)
 async def create_storage_device(
     device: StorageDeviceCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(verify_csrf),
 ):
     service = StorageDeviceService(db)
     try:
-        return _enrich_device(service.create(device))
+        return _enrich_device(await service.create(device))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -75,11 +75,11 @@ async def create_storage_device(
 @storage_router.get("/{device_id}", response_model=StorageDeviceResponse)
 async def get_storage_device(
     device_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
     service = StorageDeviceService(db)
-    device = service.get_by_id(device_id)
+    device = await service.get_by_id(device_id)
     if not device:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Носитель не найден")
     return _enrich_device(device)
@@ -89,11 +89,11 @@ async def get_storage_device(
 async def update_storage_device(
     device_id: int,
     device_data: StorageDeviceUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(verify_csrf),
 ):
     service = StorageDeviceService(db)
-    device = service.update(device_id, device_data)
+    device = await service.update(device_id, device_data)
     if not device:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Носитель не найден")
     return _enrich_device(device)
@@ -102,11 +102,11 @@ async def update_storage_device(
 @storage_router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_storage_device(
     device_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(verify_csrf),
 ):
     service = StorageDeviceService(db)
-    if not service.delete(device_id):
+    if not await service.delete(device_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Носитель не найден")
 
 
@@ -126,11 +126,11 @@ async def list_equipment(
     status: Optional[str] = None,
     search: Optional[str] = None,
     is_personal: Optional[bool] = None,  # <-- добавлено
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
     service = EquipmentService(db)
-    items, total = service.get_list(
+    items, total = await service.get_list(
         skip=skip, limit=limit,
         equipment_type=equipment_type, status=status,
         search=search, is_personal=is_personal,
@@ -141,13 +141,13 @@ async def list_equipment(
 @router.post("/", response_model=EquipmentResponse, status_code=status.HTTP_201_CREATED)
 async def create_equipment(
     equipment: EquipmentCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(verify_csrf),
 ):
     service = EquipmentService(db)
     try:
-        new_equipment = service.create(equipment)
-        db.refresh(new_equipment, ['current_owner'])
+        new_equipment = await service.create(equipment)
+        await db.refresh(new_equipment, ['current_owner'])
         return _enrich_equipment(new_equipment)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -159,10 +159,10 @@ async def get_statistics(
     status: Optional[str] = None,
     search: Optional[str] = None,
     is_personal: Optional[bool] = None,  # <-- добавлено
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    return EquipmentService(db).get_statistics(
+    return await EquipmentService(db).get_statistics(
         equipment_type=equipment_type, status=status,
         search=search, is_personal=is_personal,
     )
@@ -171,12 +171,12 @@ async def get_statistics(
 @router.post("/movements", response_model=MovementResponse, status_code=status.HTTP_201_CREATED)
 async def create_movement(
     movement: MovementCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(verify_csrf),
 ):
     service = EquipmentService(db)
     try:
-        return _enrich_movement(service.create_movement(movement, current_user.id))
+        return _enrich_movement(await service.create_movement(movement, current_user.id))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -184,11 +184,11 @@ async def create_movement(
 @router.get("/{equipment_id}", response_model=EquipmentResponse)
 async def get_equipment(
     equipment_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
     service = EquipmentService(db)
-    equipment = service.get_by_id(equipment_id)
+    equipment = await service.get_by_id(equipment_id)
     if not equipment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Техника не найдена")
     return _enrich_equipment(equipment)
@@ -198,11 +198,11 @@ async def get_equipment(
 async def update_equipment(
     equipment_id: int,
     equipment_data: EquipmentUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(verify_csrf),
 ):
     service = EquipmentService(db)
-    equipment = service.update(equipment_id, equipment_data)
+    equipment = await service.update(equipment_id, equipment_data)
     if not equipment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Техника не найдена")
     return _enrich_equipment(equipment)
@@ -211,10 +211,10 @@ async def update_equipment(
 @router.delete("/{equipment_id}")
 async def delete_equipment(
     equipment_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    if not EquipmentService(db).delete(equipment_id):
+    if not await EquipmentService(db).delete(equipment_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Техника не найдена")
     return {"message": "Техника удалена"}
 
@@ -224,9 +224,9 @@ async def get_movement_history(
     equipment_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
     service = EquipmentService(db)
-    items, total = service.get_movement_history(equipment_id, skip, limit)
+    items, total = await service.get_movement_history(equipment_id, skip, limit)
     return MovementListResponse(total=total, items=[_enrich_movement(m) for m in items])
