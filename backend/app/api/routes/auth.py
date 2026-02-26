@@ -1,7 +1,8 @@
 import logging
 from datetime import timedelta, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import verify_password, create_access_token, generate_csrf_token
@@ -20,7 +21,7 @@ async def login(
     login_data: LoginRequest,
     response: Response,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     client_ip = request.client.host if request.client else "unknown"
 
@@ -30,7 +31,7 @@ async def login(
             detail="Слишком много неудачных попыток. Попробуйте через 15 минут.",
         )
 
-    user = db.query(User).filter(User.username == login_data.username).first()
+    user = (await db.execute(select(User).where(User.username == login_data.username))).scalars().first()
 
     if not user or not verify_password(login_data.password, user.password_hash):
         rate_limiter.record_attempt(client_ip)
@@ -47,7 +48,7 @@ async def login(
 
     # Явный UTC – корректно с DateTime(timezone=True)
     user.last_login = datetime.now(timezone.utc)
-    db.commit()
+    await db.commit()
 
     access_token = create_access_token(
         data={"sub": user.username, "role": user.role},
