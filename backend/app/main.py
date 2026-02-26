@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.api.routes import auth, personnel, phones, equipment, users, storage_and_passes
+from app.core.exceptions import register_exception_handlers
 
 import logging
 import time
@@ -22,6 +23,8 @@ app = FastAPI(
     redoc_url="/api/redoc" if settings.DEBUG else None,
     openapi_url="/api/openapi.json" if settings.DEBUG else None
 )
+
+register_exception_handlers(app)
 
 # CORS должен быть первым middleware – до всех остальных
 app.add_middleware(

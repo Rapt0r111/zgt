@@ -1,90 +1,36 @@
-import logging
-import time
-from contextlib import contextmanager
-from typing import Generator
+from collections.abc import AsyncGenerator
 
-from sqlalchemy import create_engine, event, text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.exc import OperationalError
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
 
 from app.core.config import settings
 
-logger = logging.getLogger(__name__)
 
-_is_postgres = settings.DATABASE_URL.startswith(
-    ("postgresql://", "postgres://", "postgresql+psycopg2://")
-)
-
-connect_args = {} if _is_postgres else {"check_same_thread": False}
-
-engine = create_engine(
+engine = create_async_engine(
     settings.DATABASE_URL,
-    connect_args=connect_args,
+    echo=False,
     pool_pre_ping=True,
-    pool_recycle=3600,
-    echo=settings.DEBUG,
 )
 
-if not _is_postgres:
-    @event.listens_for(engine, "connect")
-    def _set_sqlite_pragma(dbapi_conn, _):
-        cursor = dbapi_conn.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    autoflush=False,
+    autocommit=False,
+    expire_on_commit=False,
+)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-
-_MAX_RETRIES = 3
-_RETRY_DELAY = 0.5
 
 
 def utcnow_expr():
-    """
-    Кросс-платформенное SQL-выражение текущего UTC времени.
-    PostgreSQL: timezone('UTC', now())
-    SQLite:     strftime('%Y-%m-%dT%H:%M:%f', 'now')
-    """
-    if _is_postgres:
-        return text("timezone('UTC', now())")
-    return text("(strftime('%Y-%m-%dT%H:%M:%f', 'now'))")
+    return text("timezone('UTC', now())")
 
 
-def _create_session_with_retry() -> Session:
-    last_exc = None
-    for attempt in range(1, _MAX_RETRIES + 1):
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
         try:
-            session = SessionLocal()
-            session.execute(text("SELECT 1"))
-            return session
-        except OperationalError as exc:
-            last_exc = exc
-            logger.warning("БД недоступна (попытка %d/%d): %s", attempt, _MAX_RETRIES, exc)
-            if attempt < _MAX_RETRIES:
-                time.sleep(_RETRY_DELAY * attempt)
-    raise RuntimeError(f"Не удалось подключиться к БД после {_MAX_RETRIES} попыток") from last_exc
-
-
-def get_db() -> Generator[Session, None, None]:
-    db = _create_session_with_retry()
-    try:
-        yield db
-    except Exception:
-        db.rollback()
-        raise
-    finally:
-        db.close()
-
-
-@contextmanager
-def get_db_context():
-    db = _create_session_with_retry()
-    try:
-        yield db
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
-    finally:
-        db.close()
+            yield session
+        finally:
+            await session.close()
