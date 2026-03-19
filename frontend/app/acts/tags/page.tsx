@@ -81,7 +81,7 @@ function makeInitialState(): TagFormState {
 	return {
 		personnelId: undefined,
 		equipmentId: undefined,
-		responsibleName: "",
+		responsibleName: "Халупа А.И.",
 		copyNumber: "1",
 		day: String(now.getDate()).padStart(2, "0"),
 		month: String(now.getMonth() + 1).padStart(2, "0"),
@@ -670,15 +670,18 @@ export default function TagsPage() {
 							>
 								<EquipmentSelect
 									value={form.equipmentId}
-									onValueChange={(id) =>
+									onValueChange={(id) => {
+										const eq = equipmentData?.items.find((e) => e.id === id);
 										setForm((prev) => ({
 											...prev,
 											equipmentId: id,
 											manualInventory: "",
 											manualMniSerial: "",
 											manualUserName: "",
-										}))
-									}
+											// автоматически выбираем владельца из базы, если он есть
+											personnelId: eq?.current_owner_id ?? prev.personnelId,
+										}));
+									}}
 									placeholder="Поиск по модели, номеру…"
 								/>
 							</Field>
@@ -695,14 +698,14 @@ export default function TagsPage() {
 									)}
 									{(selectedEquipment.mni_serial_number ||
 										selectedEquipment.serial_number) && (
-										<div>
-											МНИ / S/N:{" "}
-											<span className="font-mono font-semibold">
-												{selectedEquipment.mni_serial_number ||
-													selectedEquipment.serial_number}
-											</span>
-										</div>
-									)}
+											<div>
+												МНИ / S/N:{" "}
+												<span className="font-mono font-semibold">
+													{selectedEquipment.mni_serial_number ||
+														selectedEquipment.serial_number}
+												</span>
+											</div>
+										)}
 									{selectedEquipment.current_owner_name && (
 										<div>
 											Владелец:{" "}
@@ -947,11 +950,10 @@ export default function TagsPage() {
 							type="button"
 							onClick={handleGenerate}
 							disabled={!canGenerate || isPending}
-							className={`w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl text-sm font-semibold transition-all ${
-								canGenerate && !isPending
+							className={`w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-xl text-sm font-semibold transition-all ${canGenerate && !isPending
 									? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30 active:scale-[0.98]"
 									: "bg-slate-800/60 text-slate-600 cursor-not-allowed border border-slate-700/40"
-							}`}
+								}`}
 						>
 							{isPending ? (
 								<>
