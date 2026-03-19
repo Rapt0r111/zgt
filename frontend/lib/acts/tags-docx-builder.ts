@@ -36,14 +36,12 @@ const INFO_COL4 = 851;
 const B_SOLID   = { style: BorderStyle.SINGLE, size: 4,  color: "000000" } as const;
 const B_THICK   = { style: BorderStyle.SINGLE, size: 6,  color: "000000" } as const;
 const B_THICK12 = { style: BorderStyle.SINGLE, size: 12, color: "auto"   } as const;
-const B_AUTO    = { style: BorderStyle.SINGLE, size: 4,  color: "auto"   } as const;
-const B_DASHED  = { style: BorderStyle.SINGLE, size: 4,  color: "000000" } as const; // renamed but now solid
-const B_INFO    = { style: BorderStyle.SINGLE, size: 8,  color: "000000" } as const; // bold borders for info table
+// B_INFO: bold borders specifically for Table 3 (Рис. 3) — size 18 ≈ 2.25pt
+const B_INFO    = { style: BorderStyle.SINGLE, size: 18, color: "000000" } as const;
 const B_NIL     = { style: BorderStyle.NIL,    size: 0,  color: "FFFFFF" } as const;
 
 const CELL_MAR = { top: 50, bottom: 50, left: 80, right: 80 };
 
-// docx types verticalAlign as TableVerticalAlign = "top"|"center"|"bottom"
 const VA_CENTER = VerticalAlignTable.CENTER;
 const VA_TOP    = VerticalAlignTable.TOP;
 const VA_BOTTOM = VerticalAlignTable.BOTTOM;
@@ -97,6 +95,7 @@ function buildStamp1Large(d: TagData): Table {
 		width: { size: W_STAMP1, type: WidthType.DXA },
 		columnWidths: [STAMP1_COL1, STAMP1_COL2, STAMP1_COL3],
 		rows: [
+			// Row 1: [Уч.№ (col1+col2)] | [ДСП (col3)]
 			new TableRow({
 				height: { value: 510, rule: HeightRule.EXACT },
 				children: [
@@ -105,7 +104,8 @@ function buildStamp1Large(d: TagData): Table {
 						width: { size: STAMP1_COL1 + STAMP1_COL2, type: WidthType.DXA },
 						margins: CELL_MAR,
 						verticalAlign: VA_CENTER,
-						borders: { top: B_SOLID, left: B_SOLID, bottom: B_NIL, right: B_NIL },
+						// All 4 borders present
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
 						children: [ppc([
 							tr("Уч. №"),
 							tr(d.inventoryNumber, { bold: true, underline: { type: UnderlineType.SINGLE } }),
@@ -114,11 +114,12 @@ function buildStamp1Large(d: TagData): Table {
 					new TableCell({
 						width: { size: STAMP1_COL3, type: WidthType.DXA },
 						verticalAlign: VA_CENTER,
-						borders: { top: B_AUTO, left: B_DASHED, bottom: B_SOLID, right: B_AUTO },
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
 						children: [ppc([tr("Для служебного пользования")])],
 					}),
 				],
 			}),
+			// Row 2: [Экз.№ (col1)] | [Аббр. (col2+col3)]
 			new TableRow({
 				height: { value: 340, rule: HeightRule.EXACT },
 				children: [
@@ -126,8 +127,9 @@ function buildStamp1Large(d: TagData): Table {
 						width: { size: STAMP1_COL1, type: WidthType.DXA },
 						margins: CELL_MAR,
 						verticalAlign: VA_CENTER,
-						borders: { top: B_NIL, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
-						children: [ppc([tr(`Экз. №${d.copyNumber}`, { size: 22 })])],
+						// All 4 borders present
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
+						children: [ppc([tr(`Экз. №${d.copyNumber}`, { size: 20 })])],
 					}),
 					new TableCell({
 						columnSpan: 2,
@@ -139,6 +141,7 @@ function buildStamp1Large(d: TagData): Table {
 					}),
 				],
 			}),
+			// Row 3: [Дата/подпись (col1)] | [Подразделение×2 (col2+col3)]
 			new TableRow({
 				height: { value: 1020, rule: HeightRule.EXACT },
 				children: [
@@ -160,16 +163,18 @@ function buildStamp1Large(d: TagData): Table {
 							ppc([tr("(подпись)", { size: 16 })]),
 						],
 					}),
+					// Subdivision cell: centered, bottom-aligned, font size 7pt (size: 14)
 					new TableCell({
 						columnSpan: 2,
 						width: { size: STAMP1_COL2 + STAMP1_COL3, type: WidthType.DXA },
 						margins: CELL_MAR,
-						verticalAlign: VA_TOP,
+						verticalAlign: VA_BOTTOM,
 						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
 						children: [
-							pp([tr(d.subdivision)]),
-							pp([tr("______________________________________", { size: 10 })]),
-							pp([tr("(наименование структурного подразделения)", { size: 14 })]),
+							ppc([tr(d.subdivision, { size: 14 })]),
+							ppc([tr("_________________________________________", { size: 12 })]),
+							ppc([tr("(наименование структурного подразделения)", { size: 12 })]),
+							ppc([tr("", { size: 12 })]),
 						],
 					}),
 				],
@@ -191,7 +196,8 @@ function buildStamp1Small(d: TagData): Table {
 				children: [
 					new TableCell({
 						width: { size: STAMP2_COL1, type: WidthType.DXA }, margins: CELL_MAR, verticalAlign: VA_CENTER,
-						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_AUTO },
+						// All 4 borders
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
 						children: [ppc([
 							tr("Уч. №", { size: 12, underline: { type: UnderlineType.SINGLE } }),
 							tr(d.inventoryNumber, { size: 12, bold: true, underline: { type: UnderlineType.SINGLE } }),
@@ -199,8 +205,9 @@ function buildStamp1Small(d: TagData): Table {
 					}),
 					new TableCell({
 						width: { size: STAMP2_COL2, type: WidthType.DXA }, margins: CELL_MAR, verticalAlign: VA_CENTER,
-						borders: { top: B_AUTO, left: B_AUTO, bottom: B_AUTO, right: B_AUTO },
-						children: [ppc([tr("Не секретный")])],
+						// All 4 borders
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
+						children: [ppc([tr("Не секретный", { size: 12 })])],
 					}),
 				],
 			}),
@@ -214,7 +221,8 @@ function buildStamp1Small(d: TagData): Table {
 					}),
 					new TableCell({
 						width: { size: STAMP2_COL2, type: WidthType.DXA }, margins: CELL_MAR, verticalAlign: VA_CENTER,
-						borders: { top: B_AUTO, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
+						// All 4 borders
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
 						children: [ppc([tr(orgAbbr, { size: 12 })])],
 					}),
 				],
@@ -238,15 +246,16 @@ function buildStamp1Small(d: TagData): Table {
 	});
 }
 
-// ─── TABLE 3: Main Info Label (13 × 4 cm) ─────────────────────────────────────
+// ─── TABLE 3: Main Info Label (13 × 4 cm) — ALL BOLD BORDERS ─────────────────
 function buildMainLabel(d: TagData): Table {
+	// B_INFO has size: 18 (≈2.25pt) — visually bold/thick borders
 	const ALL_INFO = { top: B_INFO, left: B_INFO, bottom: B_INFO, right: B_INFO };
 	return new Table({
 		width: { size: W_INFO, type: WidthType.DXA },
 		columnWidths: [INFO_COL1, INFO_COL2, INFO_COL3, INFO_COL4],
 		rows: [
 			new TableRow({
-				height: { value: 567, rule: HeightRule.EXACT },
+				height: { value: 510, rule: HeightRule.EXACT },
 				children: [
 					new TableCell({
 						columnSpan: 4, width: { size: W_INFO, type: WidthType.DXA }, margins: CELL_MAR,
@@ -298,7 +307,7 @@ function buildMainLabel(d: TagData): Table {
 				],
 			}),
 			new TableRow({
-				height: { value: 454, rule: HeightRule.EXACT },
+				height: { value: 510, rule: HeightRule.EXACT },
 				children: [
 					new TableCell({ width: { size: INFO_COL1 + 1, type: WidthType.DXA }, margins: CELL_MAR,
 						borders: ALL_INFO,

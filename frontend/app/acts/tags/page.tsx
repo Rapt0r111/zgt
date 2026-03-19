@@ -160,6 +160,11 @@ function TagPreview({
 		color: "#000",
 	};
 
+	// Solid border for all tables
+	const cellBorder = "1px solid #000";
+	// Bold border for Table 3 (Info label)
+	const cellBorderBold = "2px solid #000";
+
 	return (
 		<div className="space-y-6">
 			{/* Stamp 1 Large */}
@@ -175,16 +180,17 @@ function TagPreview({
 						style={{ borderCollapse: "collapse", width: "100%", fontSize: "8px" }}
 					>
 						<tbody>
+							{/* Row 1: Уч.№ | Уч.№ | ДСП — all borders */}
 							<tr style={{ height: "28px" }}>
-								<td style={{ border: "1px solid #000", padding: "2px 4px", width: "34%" }}>
+								<td style={{ border: cellBorder, padding: "2px 4px", width: "34%" }}>
 									Уч. №<strong>{inventory || "___"}</strong>
 								</td>
-								<td style={{ border: "1px solid #000", padding: "2px 4px", width: "34%" }}>
+								<td style={{ border: cellBorder, padding: "2px 4px", width: "34%" }}>
 									Уч. №<strong>{inventory || "___"}</strong>
 								</td>
 								<td
 									style={{
-										border: "1px solid #000",
+										border: cellBorder,
 										padding: "2px 4px",
 										textAlign: "center",
 										fontSize: "7px",
@@ -194,13 +200,14 @@ function TagPreview({
 									Для служебного пользования
 								</td>
 							</tr>
+							{/* Row 2: Экз.№ | Аббр. | Аббр. — all borders */}
 							<tr style={{ height: "18px" }}>
-								<td style={{ border: "1px solid #000", padding: "2px 4px" }}>
+								<td style={{ border: cellBorder, padding: "2px 4px" }}>
 									Экз. №{copyNumber}
 								</td>
 								<td
 									style={{
-										border: "1px solid #000",
+										border: cellBorder,
 										padding: "2px 4px",
 										textAlign: "center",
 									}}
@@ -209,7 +216,7 @@ function TagPreview({
 								</td>
 								<td
 									style={{
-										border: "1px solid #000",
+										border: cellBorder,
 										padding: "2px 4px",
 										textAlign: "center",
 									}}
@@ -217,52 +224,40 @@ function TagPreview({
 									{orgAbbr}
 								</td>
 							</tr>
+							{/* Row 3: Дата/подпись | Подразделение (centered, bottom, 7px) */}
 							<tr style={{ height: "54px" }}>
 								<td
 									style={{
-										border: "1px solid #000",
+										border: cellBorder,
 										padding: "2px 4px",
 										verticalAlign: "top",
 										fontSize: "7px",
+										width: "34%",
 									}}
 								>
 									{dateStr}
 									<br />
-									<span style={{ borderBottom: "1px solid #000", display: "inline-block", width: "80px" }}>
+									<span style={{ borderBottom: cellBorder, display: "inline-block", width: "80px" }}>
 										&nbsp;
 									</span>
 									<br />
 									<span style={{ fontSize: "6px" }}>(подпись)</span>
 								</td>
+								{/* Cell spanning cols 2+3: centered, bottom, font 7px */}
 								<td
+									colSpan={2}
 									style={{
-										border: "1px solid #000",
+										border: cellBorder,
 										padding: "2px 4px",
-										verticalAlign: "top",
+										verticalAlign: "bottom",
 										fontSize: "7px",
+										textAlign: "center",
+										width: "66%",
 									}}
 								>
-									{subdivision}
-									<br />
-									<span style={{ borderBottom: "1px solid #000", display: "block" }}>
-										&nbsp;
-									</span>
-									<span style={{ fontSize: "6px" }}>(наименование структурного подразделения)</span>
-								</td>
-								<td
-									style={{
-										border: "1px solid #000",
-										padding: "2px 4px",
-										verticalAlign: "top",
-										fontSize: "7px",
-									}}
-								>
-									{subdivision}
-									<br />
-									<span style={{ borderBottom: "1px solid #000", display: "block" }}>
-										&nbsp;
-									</span>
-									<span style={{ fontSize: "6px" }}>(наименование структурного подразделения)</span>
+									<div>{subdivision}</div>
+									<div style={{ borderBottom: cellBorder, width: "100%" }}>&nbsp;</div>
+									<div style={{ fontSize: "6px" }}>(наименование структурного подразделения)</div>
 								</td>
 							</tr>
 						</tbody>
@@ -284,12 +279,12 @@ function TagPreview({
 					>
 						<tbody>
 							<tr style={{ height: "16px" }}>
-								<td style={{ border: "1px solid #000", padding: "1px 3px", width: "47%" }}>
+								<td style={{ border: cellBorder, padding: "1px 3px", width: "47%" }}>
 									Уч. №<strong>{inventory || "___"}</strong>
 								</td>
 								<td
 									style={{
-										border: "1px solid #000",
+										border: cellBorder,
 										padding: "1px 3px",
 										textAlign: "center",
 										width: "53%",
@@ -300,12 +295,12 @@ function TagPreview({
 								</td>
 							</tr>
 							<tr style={{ height: "12px" }}>
-								<td style={{ border: "1px solid #000", padding: "1px 3px" }}>
+								<td style={{ border: cellBorder, padding: "1px 3px" }}>
 									Экз. №{copyNumber}
 								</td>
 								<td
 									style={{
-										border: "1px solid #000",
+										border: cellBorder,
 										padding: "1px 3px",
 										textAlign: "center",
 									}}
@@ -316,20 +311,20 @@ function TagPreview({
 							<tr style={{ height: "28px" }}>
 								<td
 									style={{
-										border: "1px solid #000",
+										border: cellBorder,
 										padding: "1px 3px",
 										fontSize: "7px",
-										verticalAlign: "top",
+										verticalAlign: "bottom",
 									}}
 								>
 									{dateStr}
 								</td>
 								<td
 									style={{
-										border: "1px solid #000",
+										border: cellBorder,
 										padding: "1px 3px",
 										fontSize: "7px",
-										verticalAlign: "top",
+										verticalAlign: "center",
 									}}
 								>
 									{subdivision}
@@ -340,7 +335,7 @@ function TagPreview({
 				</div>
 			</div>
 
-			{/* Main label */}
+			{/* Main label — Рис. 3: ALL BOLD borders (2px) */}
 			<div>
 				<p className="text-[10px] text-slate-500 uppercase tracking-widest mb-2">
 					Рис. 3 — Информационная табличка (13 × 4 см)
@@ -353,11 +348,11 @@ function TagPreview({
 						style={{ borderCollapse: "collapse", width: "100%", fontSize: "9px" }}
 					>
 						<tbody>
-							<tr style={{ height: "30px" }}>
+							<tr style={{ height: "27px" }}>
 								<td
 									colSpan={4}
 									style={{
-										border: "1px solid #000",
+										border: cellBorderBold,
 										padding: "2px 4px",
 										textAlign: "center",
 										fontWeight: "bold",
@@ -369,38 +364,38 @@ function TagPreview({
 								</td>
 							</tr>
 							<tr style={{ height: "18px" }}>
-								<td style={{ border: "1px solid #000", padding: "2px 4px", width: "35%" }}>
+								<td style={{ border: cellBorderBold, padding: "2px 4px", width: "35%" }}>
 									Пользователь
 								</td>
-								<td style={{ border: "1px solid #000", padding: "2px 4px", width: "12%" }} />
-								<td style={{ border: "1px solid #000", padding: "2px 4px", width: "41%" }}>
+								<td style={{ border: cellBorderBold, padding: "2px 4px", width: "12%" }} />
+								<td style={{ border: cellBorderBold, padding: "2px 4px", width: "41%" }}>
 									{userName || "___"}
 								</td>
-								<td style={{ border: "1px solid #000", padding: "2px 4px", width: "12%" }} />
+								<td style={{ border: cellBorderBold, padding: "2px 4px", width: "12%" }} />
 							</tr>
 							<tr style={{ height: "18px" }}>
-								<td style={{ border: "1px solid #000", padding: "2px 4px" }}>
+								<td style={{ border: cellBorderBold, padding: "2px 4px" }}>
 									Отв. за ЗИ
 								</td>
-								<td style={{ border: "1px solid #000", padding: "2px 4px" }} />
-								<td style={{ border: "1px solid #000", padding: "2px 4px" }}>
+								<td style={{ border: cellBorderBold, padding: "2px 4px" }} />
+								<td style={{ border: cellBorderBold, padding: "2px 4px" }}>
 									{responsible || "___"}
 								</td>
-								<td style={{ border: "1px solid #000", padding: "2px 4px" }} />
+								<td style={{ border: cellBorderBold, padding: "2px 4px" }} />
 							</tr>
-							<tr style={{ height: "22px" }}>
-								<td style={{ border: "1px solid #000", padding: "2px 4px" }}>
+							<tr style={{ height: "25px" }}>
+								<td style={{ border: cellBorderBold, padding: "2px 4px" }}>
 									Установлены МНИ:
 								</td>
-								<td style={{ border: "1px solid #000", padding: "2px 4px", fontSize: "8px" }}>
+								<td style={{ border: cellBorderBold, padding: "2px 4px", fontSize: "8px" }}>
 									{mniType}
 								</td>
-								<td style={{ border: "1px solid #000", padding: "2px 4px", fontSize: "8px" }}>
+								<td style={{ border: cellBorderBold, padding: "2px 4px", fontSize: "8px" }}>
 									Уч. № {inventory || "___"}
 									<br />
 									Зав. №{mniSerial || "___"}
 								</td>
-								<td style={{ border: "1px solid #000", padding: "2px 4px", fontSize: "8px" }}>
+								<td style={{ border: cellBorderBold, padding: "2px 4px", fontSize: "8px" }}>
 									Уч. № {inventory || "___"}
 									<br />
 									Зав. №{mniSerial || "___"}
@@ -410,7 +405,7 @@ function TagPreview({
 								<td
 									colSpan={4}
 									style={{
-										border: "1px solid #000",
+										border: cellBorderBold,
 										padding: "2px 4px",
 										textAlign: "center",
 										fontWeight: "bold",
@@ -441,7 +436,7 @@ function TagPreview({
 								<tr style={{ height: "26px" }}>
 									<td
 										style={{
-											border: "1px solid #000",
+											border: "2px solid #000",
 											padding: "2px 8px",
 											textAlign: "center",
 											fontWeight: "bold",
@@ -464,7 +459,7 @@ function TagPreview({
 								<tr style={{ height: "26px" }}>
 									<td
 										style={{
-											border: "1px solid #000",
+											border: "2px solid #000",
 											padding: "2px 8px",
 											textAlign: "center",
 											fontWeight: "bold",
@@ -1026,6 +1021,7 @@ export default function TagsPage() {
 								A4, Times New Roman. Генерируются все 4 вида бирок согласно
 								образцам: Штамп №1 (7,5×3,5 и 4,5×2 см), информационная
 								табличка (13×4 см) и предупредительные таблички (15×1 см).
+								Таблица Рис. 3 — с жирными границами.
 							</p>
 						</div>
 					</div>
