@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  FileText, Download, ArrowUpFromLine, ArrowDownToLine, ArrowLeft,
+  FileText, Download, ArrowUpFromLine, ArrowDownToLine, ArrowLeft, Tag,
   ChevronDown, ChevronUp, RefreshCw, Shield, User, Cpu, CalendarDays,
   Package, AlertCircle, Database, PenLine, HardDrive, CreditCard,
   Plus, Trash2, Camera, X, Hash, FileSignature,
@@ -867,6 +867,15 @@ export default function ActsPage() {
         </div>
 
         {/* Тип документа */}
+        <div className="mb-6 flex gap-3">
+          <Link
+            href="/acts/tags"
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-emerald-500/30 bg-emerald-600/10 text-emerald-300 text-sm font-medium hover:bg-emerald-600/20 transition-all"
+          >
+            <Tag className="w-4 h-4" />
+            Бирки на СВТ
+          </Link>
+        </div>
         <div className="mb-8">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">
             Тип документа

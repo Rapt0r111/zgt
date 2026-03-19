@@ -9,351 +9,322 @@ import {
 	WidthType,
 	BorderStyle,
 	HeightRule,
+	UnderlineType,
+	VerticalAlignTable,
 	Packer,
 } from "docx";
 
-const V_CENTER = "center" as const;
-
 const FONT = "Times New Roman";
 
-const SOLID_BORDER = {
-	style: BorderStyle.SINGLE,
-	size: 8,
-	color: "000000",
-} as const;
+const W_STAMP1 = 4253;
+const W_STAMP2 = 2552;
+const W_INFO   = 7371;
+const W_WARN   = 8505;
 
-function dxa(cm: number): number {
-	return Math.round(cm * 567);
+const STAMP1_COL1 = 1696;
+const STAMP1_COL2 = 567;
+const STAMP1_COL3 = 1990;
+
+const STAMP2_COL1 = 1191;
+const STAMP2_COL2 = 1361;
+
+const INFO_COL1 = 2551;
+const INFO_COL2 = 851;
+const INFO_COL3 = 3118;
+const INFO_COL4 = 851;
+
+const B_SOLID   = { style: BorderStyle.SINGLE, size: 4,  color: "000000" } as const;
+const B_THICK   = { style: BorderStyle.SINGLE, size: 6,  color: "000000" } as const;
+const B_THICK12 = { style: BorderStyle.SINGLE, size: 12, color: "auto"   } as const;
+const B_AUTO    = { style: BorderStyle.SINGLE, size: 4,  color: "auto"   } as const;
+const B_DASHED  = { style: BorderStyle.SINGLE, size: 4,  color: "000000" } as const; // renamed but now solid
+const B_INFO    = { style: BorderStyle.SINGLE, size: 8,  color: "000000" } as const; // bold borders for info table
+const B_NIL     = { style: BorderStyle.NIL,    size: 0,  color: "FFFFFF" } as const;
+
+const CELL_MAR = { top: 50, bottom: 50, left: 80, right: 80 };
+
+// docx types verticalAlign as TableVerticalAlign = "top"|"center"|"bottom"
+const VA_CENTER = VerticalAlignTable.CENTER;
+const VA_TOP    = VerticalAlignTable.TOP;
+const VA_BOTTOM = VerticalAlignTable.BOTTOM;
+
+export interface TagData {
+	inventoryNumber: string;
+	mniSerial:       string;
+	userName:        string;
+	responsible:     string;
+	copyNumber:      string;
+	day:             string;
+	month:           string;
+	year:            string;
+	subdivision:     string;
+	organization:    string;
+	mniType:         string;
 }
 
-function cell(
-	paragraphs: Paragraph[],
-	widthCm: number,
-	borders?: Record<string, typeof SOLID_BORDER>,
-	vAlign: "top" | "center" | "bottom" = V_CENTER,
-	margins?: { top?: number; bottom?: number; left?: number; right?: number },
-): TableCell {
-	return new TableCell({
-		children: paragraphs,
-		width: { size: dxa(widthCm), type: WidthType.DXA },
-		verticalAlign: vAlign,
-		borders: borders ?? {
-			top: SOLID_BORDER,
-			bottom: SOLID_BORDER,
-			left: SOLID_BORDER,
-			right: SOLID_BORDER,
-		},
-		margins: margins ?? { top: 50, bottom: 50, left: 80, right: 80 },
-	});
+function tr(text: string, opts: Record<string, unknown> = {}): TextRun {
+	return new TextRun({ text, font: FONT, ...opts });
 }
 
-function run(
-	text: string,
-	sizePt: number,
-	bold = false,
-	align: (typeof AlignmentType)[keyof typeof AlignmentType] = AlignmentType.LEFT,
-): Paragraph {
+function pp(children: TextRun[], align: (typeof AlignmentType)[keyof typeof AlignmentType] = AlignmentType.LEFT): Paragraph {
 	return new Paragraph({
-		children: [
-			new TextRun({
-				text,
-				font: FONT,
-				size: sizePt * 2, // half-points
-				bold,
-			}),
-		],
+		children,
 		alignment: align,
 		spacing: { before: 0, after: 0, line: 240, lineRule: "auto" },
 	});
 }
 
-function runCenter(text: string, sizePt: number, bold = false): Paragraph {
-	return run(text, sizePt, bold, AlignmentType.CENTER);
+function ppc(children: TextRun[]): Paragraph {
+	return pp(children, AlignmentType.CENTER);
 }
 
-export interface TagData {
-	inventoryNumber: string; // e.g. "616/806дсп"
-	mniSerial: string; // e.g. "2M012LQSK9UT"
-	userName: string; // e.g. "Баймаков Д.А."
-	responsible: string; // e.g. "Халупа А.И."
-	copyNumber: string; // e.g. "1"
-	day: string;
-	month: string;
-	year: string;
-	subdivision: string; // e.g. "Научная рота"
-	organization: string; // e.g. "Военная академия связи"
-	mniType: string; // e.g. "SSD M.2"
+function caption(text: string, spacingBefore = 200): Paragraph {
+	return new Paragraph({
+		children: [new TextRun({ text, font: FONT, size: 18, italics: true })],
+		spacing: { before: spacingBefore, after: 60 },
+	});
 }
 
-// ─── STAMP #1 LARGE (7.5 × 3.5 cm) ─────────────────────────────────────────
+function emptyP(spacingAfter = 60): Paragraph {
+	return new Paragraph({ children: [], spacing: { after: spacingAfter } });
+}
 
+// ─── TABLE 1: Stamp #1 Large (7.5 × 3.5 cm) ──────────────────────────────────
 function buildStamp1Large(d: TagData): Table {
-	const invNum = d.inventoryNumber;
-	const dateStr = `«${d.day}»  ${d.month}  ${d.year} г.`;
+	const orgAbbr = d.organization.split(" ").map((w: string) => w[0]).join("").slice(0, 3).toUpperCase() || "ВАС";
 
 	return new Table({
-		width: { size: dxa(7.5), type: WidthType.DXA },
+		width: { size: W_STAMP1, type: WidthType.DXA },
+		columnWidths: [STAMP1_COL1, STAMP1_COL2, STAMP1_COL3],
 		rows: [
-			// Row 1: Уч. №XXX | Уч. №XXX | ДСП
 			new TableRow({
-				height: { value: dxa(0.9), rule: HeightRule.EXACT },
+				height: { value: 510, rule: HeightRule.EXACT },
 				children: [
-					cell(
-						[
-							new Paragraph({
-								children: [
-									new TextRun({ text: "Уч. №", font: FONT, size: 16 }),
-									new TextRun({ text: invNum, font: FONT, size: 16, bold: true }),
-								],
-								spacing: { before: 0, after: 0 },
-							}),
-						],
-						4.0,
-					),
-					cell(
-						[
-							new Paragraph({
-								children: [
-									new TextRun({ text: "Уч. №", font: FONT, size: 16 }),
-									new TextRun({ text: invNum, font: FONT, size: 16, bold: true }),
-								],
-								spacing: { before: 0, after: 0 },
-							}),
-						],
-						4.0,
-					),
-					cell(
-						[runCenter("Для служебного пользования", 8)],
-						3.5,
-					),
+					new TableCell({
+						columnSpan: 2,
+						width: { size: STAMP1_COL1 + STAMP1_COL2, type: WidthType.DXA },
+						margins: CELL_MAR,
+						verticalAlign: VA_CENTER,
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_NIL, right: B_NIL },
+						children: [ppc([
+							tr("Уч. №"),
+							tr(d.inventoryNumber, { bold: true, underline: { type: UnderlineType.SINGLE } }),
+						])],
+					}),
+					new TableCell({
+						width: { size: STAMP1_COL3, type: WidthType.DXA },
+						verticalAlign: VA_CENTER,
+						borders: { top: B_AUTO, left: B_DASHED, bottom: B_SOLID, right: B_AUTO },
+						children: [ppc([tr("Для служебного пользования")])],
+					}),
 				],
 			}),
-			// Row 2: Экз. №X | ВАС | ВАС
 			new TableRow({
-				height: { value: dxa(0.6), rule: HeightRule.EXACT },
+				height: { value: 340, rule: HeightRule.EXACT },
 				children: [
-					cell([run(`Экз. №${d.copyNumber}`, 8)], 3.0),
-					cell([runCenter(d.organization.split(" ").map(w => w[0]).join("").slice(0, 3) || "ВАС", 9)], 4.5),
-					cell([runCenter(d.organization.split(" ").map(w => w[0]).join("").slice(0, 3) || "ВАС", 9)], 4.5),
+					new TableCell({
+						width: { size: STAMP1_COL1, type: WidthType.DXA },
+						margins: CELL_MAR,
+						verticalAlign: VA_CENTER,
+						borders: { top: B_NIL, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
+						children: [ppc([tr(`Экз. №${d.copyNumber}`, { size: 22 })])],
+					}),
+					new TableCell({
+						columnSpan: 2,
+						width: { size: STAMP1_COL2 + STAMP1_COL3, type: WidthType.DXA },
+						margins: CELL_MAR,
+						verticalAlign: VA_CENTER,
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
+						children: [ppc([tr(orgAbbr)])],
+					}),
 				],
 			}),
-			// Row 3: date | subdivision | subdivision
 			new TableRow({
-				height: { value: dxa(1.8), rule: HeightRule.EXACT },
+				height: { value: 1020, rule: HeightRule.EXACT },
 				children: [
-					cell(
-						[
-							run(dateStr, 8),
-							new Paragraph({
-								children: [
-									new TextRun({ text: "", font: FONT, size: 8, break: 1 }),
-									new TextRun({ text: "________________", font: FONT, size: 4, bold: true }),
-								],
-								spacing: { before: 0, after: 0 },
-							}),
-							run("(подпись)", 6),
+					new TableCell({
+						width: { size: STAMP1_COL1, type: WidthType.DXA },
+						margins: CELL_MAR,
+						verticalAlign: VA_CENTER,
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
+						children: [
+							ppc([
+								tr("«", { size: 16 }),
+								tr(d.day, { size: 16, underline: { type: UnderlineType.SINGLE } }),
+								tr("» ", { size: 16 }),
+								tr(d.month, { size: 16, underline: { type: UnderlineType.SINGLE } }),
+							]),
+							ppc([tr(`${d.year} г.`, { size: 16 })]),
+							ppc([]),
+							ppc([tr("________________", { size: 8, bold: true })]),
+							ppc([tr("(подпись)", { size: 16 })]),
 						],
-						3.0,
-					),
-					cell(
-						[
-							run(d.subdivision, 7),
-							new Paragraph({
-								children: [
-									new TextRun({ text: "______________________________________", font: FONT, size: 6, bold: true }),
-								],
-								spacing: { before: 0, after: 0 },
-							}),
-							run("(наименование структурного подразделения)", 6),
+					}),
+					new TableCell({
+						columnSpan: 2,
+						width: { size: STAMP1_COL2 + STAMP1_COL3, type: WidthType.DXA },
+						margins: CELL_MAR,
+						verticalAlign: VA_TOP,
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
+						children: [
+							pp([tr(d.subdivision)]),
+							pp([tr("______________________________________", { size: 10 })]),
+							pp([tr("(наименование структурного подразделения)", { size: 14 })]),
 						],
-						4.5,
-					),
-					cell(
-						[
-							run(d.subdivision, 7),
-							new Paragraph({
-								children: [
-									new TextRun({ text: "______________________________________", font: FONT, size: 6, bold: true }),
-								],
-								spacing: { before: 0, after: 0 },
-							}),
-							run("(наименование структурного подразделения)", 6),
-						],
-						4.5,
-					),
+					}),
 				],
 			}),
 		],
 	});
 }
 
-// ─── STAMP #1 SMALL (4.5 × 2 cm) ────────────────────────────────────────────
-
+// ─── TABLE 2: Stamp #1 Small (4.5 × 2 cm) ────────────────────────────────────
 function buildStamp1Small(d: TagData): Table {
-	const invNum = d.inventoryNumber;
-	const orgAbbr = d.organization.split(" ").map(w => w[0]).join("").slice(0, 3) || "ВАС";
-	const dateStr = `«${d.day}»  ${d.month}  ${d.year} г.`;
+	const orgAbbr = d.organization.split(" ").map((w: string) => w[0]).join("").slice(0, 3).toUpperCase() || "ВАС";
 
 	return new Table({
-		width: { size: dxa(4.5), type: WidthType.DXA },
+		width: { size: W_STAMP2, type: WidthType.DXA },
+		columnWidths: [STAMP2_COL1, STAMP2_COL2],
 		rows: [
-			// Row 1: Уч. №XXX | Не секретный
 			new TableRow({
-				height: { value: dxa(0.5), rule: HeightRule.EXACT },
+				height: { value: 284, rule: HeightRule.EXACT },
 				children: [
-					cell(
-						[
-							new Paragraph({
-								children: [
-									new TextRun({ text: "Уч. ", font: FONT, size: 12 }),
-									new TextRun({ text: "№", font: FONT, size: 12 }),
-									new TextRun({ text: invNum, font: FONT, size: 12, bold: true }),
-								],
-								spacing: { before: 0, after: 0 },
-							}),
-						],
-						2.1,
-					),
-					cell([runCenter("Не секретный", 8)], 2.4),
+					new TableCell({
+						width: { size: STAMP2_COL1, type: WidthType.DXA }, margins: CELL_MAR, verticalAlign: VA_CENTER,
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_AUTO },
+						children: [ppc([
+							tr("Уч. №", { size: 12, underline: { type: UnderlineType.SINGLE } }),
+							tr(d.inventoryNumber, { size: 12, bold: true, underline: { type: UnderlineType.SINGLE } }),
+						])],
+					}),
+					new TableCell({
+						width: { size: STAMP2_COL2, type: WidthType.DXA }, margins: CELL_MAR, verticalAlign: VA_CENTER,
+						borders: { top: B_AUTO, left: B_AUTO, bottom: B_AUTO, right: B_AUTO },
+						children: [ppc([tr("Не секретный")])],
+					}),
 				],
 			}),
-			// Row 2: Экз. №X | ВАС
 			new TableRow({
-				height: { value: dxa(0.4), rule: HeightRule.EXACT },
+				height: { value: 227, rule: HeightRule.EXACT },
 				children: [
-					cell([run(`Экз. №${d.copyNumber}`, 8)], 2.1),
-					cell([runCenter(orgAbbr, 8)], 2.4),
+					new TableCell({
+						width: { size: STAMP2_COL1, type: WidthType.DXA }, margins: CELL_MAR, verticalAlign: VA_CENTER,
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
+						children: [ppc([tr(`Экз. №${d.copyNumber}`, { size: 12 })])],
+					}),
+					new TableCell({
+						width: { size: STAMP2_COL2, type: WidthType.DXA }, margins: CELL_MAR, verticalAlign: VA_CENTER,
+						borders: { top: B_AUTO, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
+						children: [ppc([tr(orgAbbr, { size: 12 })])],
+					}),
 				],
 			}),
-			// Row 3: date | subdivision
 			new TableRow({
-				height: { value: dxa(0.9), rule: HeightRule.EXACT },
+				height: { value: 510, rule: HeightRule.EXACT },
 				children: [
-					cell([run(dateStr, 8)], 2.1),
-					cell([run(d.subdivision, 8)], 2.4),
+					new TableCell({
+						width: { size: STAMP2_COL1, type: WidthType.DXA }, margins: CELL_MAR, verticalAlign: VA_BOTTOM,
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
+						children: [ppc([tr(`«${d.day}»  ${d.month}  ${d.year} г.`, { size: 12 })])],
+					}),
+					new TableCell({
+						width: { size: STAMP2_COL2, type: WidthType.DXA }, margins: CELL_MAR, verticalAlign: VA_CENTER,
+						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
+						children: [ppc([tr(d.subdivision, { size: 12 })])],
+					}),
 				],
 			}),
 		],
 	});
 }
 
-// ─── MAIN INFO LABEL (13 × 4 cm) ─────────────────────────────────────────────
-
+// ─── TABLE 3: Main Info Label (13 × 4 cm) ─────────────────────────────────────
 function buildMainLabel(d: TagData): Table {
-	const invNum = d.inventoryNumber;
-
-	const mniCell = (widthCm: number) =>
-		new TableCell({
-			children: [
-				new Paragraph({
-					children: [
-						new TextRun({ text: `Уч. № `, font: FONT, size: 18 }),
-						new TextRun({ text: invNum, font: FONT, size: 18 }),
-					],
-					spacing: { before: 0, after: 0 },
-				}),
-				new Paragraph({
-					children: [
-						new TextRun({ text: `Зав. №`, font: FONT, size: 18 }),
-						new TextRun({ text: d.mniSerial, font: FONT, size: 18 }),
-					],
-					spacing: { before: 0, after: 0 },
-				}),
-			],
-			width: { size: dxa(widthCm), type: WidthType.DXA },
-			verticalAlign: V_CENTER,
-			borders: {
-				top: SOLID_BORDER,
-				bottom: SOLID_BORDER,
-				left: SOLID_BORDER,
-				right: SOLID_BORDER,
-			},
-			margins: { top: 50, bottom: 50, left: 80, right: 80 },
-		});
-
+	const ALL_INFO = { top: B_INFO, left: B_INFO, bottom: B_INFO, right: B_INFO };
 	return new Table({
-		width: { size: dxa(13.0), type: WidthType.DXA },
+		width: { size: W_INFO, type: WidthType.DXA },
+		columnWidths: [INFO_COL1, INFO_COL2, INFO_COL3, INFO_COL4],
 		rows: [
-			// Row 0: header spanning full width x2 (merged)
 			new TableRow({
-				height: { value: dxa(1.0), rule: HeightRule.EXACT },
+				height: { value: 567, rule: HeightRule.EXACT },
 				children: [
 					new TableCell({
-						columnSpan: 4,
-						children: [
-							new Paragraph({
-								children: [
-									new TextRun({ text: d.organization, font: FONT, size: 18, bold: true }),
-								],
-								alignment: AlignmentType.CENTER,
-								spacing: { before: 0, after: 0 },
-							}),
-							new Paragraph({
-								children: [
-									new TextRun({ text: d.subdivision, font: FONT, size: 18, bold: true }),
-								],
-								alignment: AlignmentType.CENTER,
-								spacing: { before: 0, after: 0 },
-							}),
-						],
-						width: { size: dxa(13.0), type: WidthType.DXA },
-						verticalAlign: V_CENTER,
-						borders: {
-							top: SOLID_BORDER,
-							bottom: SOLID_BORDER,
-							left: SOLID_BORDER,
-							right: SOLID_BORDER,
-						},
+						columnSpan: 4, width: { size: W_INFO, type: WidthType.DXA }, margins: CELL_MAR,
+						verticalAlign: VA_CENTER, borders: ALL_INFO,
+						children: [ppc([tr(d.organization, { size: 18, bold: true })]), ppc([tr(d.subdivision, { size: 18, bold: true })])],
 					}),
 				],
 			}),
-			// Row 1: Пользователь | (empty) | name | (empty)
 			new TableRow({
-				height: { value: dxa(0.6), rule: HeightRule.EXACT },
+				height: { value: 340, rule: HeightRule.EXACT },
 				children: [
-					cell([run("Пользователь", 9)], 4.5),
-					cell([run("", 9)], 1.5),
-					cell([run(d.userName, 9)], 5.5),
-					cell([run("", 9)], 1.5),
+					new TableCell({ width: { size: INFO_COL1 + 1, type: WidthType.DXA }, margins: CELL_MAR,
+						verticalAlign: VA_CENTER, borders: ALL_INFO,
+						children: [pp([tr("Пользователь", { size: 18 })])],
+					}),
+					new TableCell({ width: { size: INFO_COL2, type: WidthType.DXA }, margins: CELL_MAR,
+						borders: ALL_INFO,
+						children: [new Paragraph({ children: [] })],
+					}),
+					new TableCell({ width: { size: INFO_COL3 + 1, type: WidthType.DXA }, margins: CELL_MAR,
+						verticalAlign: VA_CENTER, borders: ALL_INFO,
+						children: [pp([tr(d.userName)])],
+					}),
+					new TableCell({ width: { size: INFO_COL4, type: WidthType.DXA }, margins: CELL_MAR,
+						borders: ALL_INFO,
+						children: [ppc([])],
+					}),
 				],
 			}),
-			// Row 2: Отв. за ЗИ | (empty) | responsible | (empty)
 			new TableRow({
-				height: { value: dxa(0.6), rule: HeightRule.EXACT },
+				height: { value: 340, rule: HeightRule.EXACT },
 				children: [
-					cell([run("Отв. за ЗИ", 9)], 4.5),
-					cell([run("", 9)], 1.5),
-					cell([run(d.responsible, 9)], 5.5),
-					cell([run("", 9)], 1.5),
+					new TableCell({ width: { size: INFO_COL1 + 1, type: WidthType.DXA }, margins: CELL_MAR,
+						verticalAlign: VA_CENTER, borders: ALL_INFO,
+						children: [pp([tr("Отв. за ЗИ", { size: 18 })])],
+					}),
+					new TableCell({ width: { size: INFO_COL2, type: WidthType.DXA }, margins: CELL_MAR,
+						borders: ALL_INFO,
+						children: [new Paragraph({ children: [] })],
+					}),
+					new TableCell({ width: { size: INFO_COL3 + 1, type: WidthType.DXA }, margins: CELL_MAR,
+						verticalAlign: VA_CENTER, borders: ALL_INFO,
+						children: [pp([tr(d.responsible, { size: 18 })])],
+					}),
+					new TableCell({ width: { size: INFO_COL4, type: WidthType.DXA }, margins: CELL_MAR,
+						borders: ALL_INFO,
+						children: [ppc([])],
+					}),
 				],
 			}),
-			// Row 3: Установлены МНИ | type | уч/зав (x2)
 			new TableRow({
-				height: { value: dxa(0.8), rule: HeightRule.EXACT },
+				height: { value: 454, rule: HeightRule.EXACT },
 				children: [
-					cell([run("Установлены МНИ:", 9)], 4.5),
-					cell([run(d.mniType, 9)], 1.5),
-					mniCell(3.5),
-					mniCell(3.5),
+					new TableCell({ width: { size: INFO_COL1 + 1, type: WidthType.DXA }, margins: CELL_MAR,
+						borders: ALL_INFO,
+						children: [pp([tr("Установлены МНИ:", { size: 18 })])],
+					}),
+					new TableCell({ width: { size: INFO_COL2, type: WidthType.DXA }, margins: CELL_MAR,
+						verticalAlign: VA_CENTER, borders: ALL_INFO,
+						children: [ppc([tr(d.mniType, { size: 18 })])],
+					}),
+					new TableCell({
+						columnSpan: 2, width: { size: INFO_COL3 + INFO_COL4, type: WidthType.DXA }, margins: CELL_MAR,
+						borders: ALL_INFO,
+						children: [
+							pp([tr(`Уч. № ${d.inventoryNumber}`, { size: 18 })]),
+							pp([tr(`Зав. №${d.mniSerial}`, { size: 18 })]),
+						],
+					}),
 				],
 			}),
-			// Row 4: evacuation notice
 			new TableRow({
-				height: { value: dxa(0.5), rule: HeightRule.EXACT },
+				height: { value: 283, rule: HeightRule.EXACT },
 				children: [
 					new TableCell({
-						columnSpan: 4,
-						children: [
-							runCenter("Эвакуируется во 2 очередь", 9, true),
-						],
-						width: { size: dxa(13.0), type: WidthType.DXA },
-						verticalAlign: V_CENTER,
-						borders: {
-							top: SOLID_BORDER,
-							bottom: SOLID_BORDER,
-							left: SOLID_BORDER,
-							right: SOLID_BORDER,
-						},
+						columnSpan: 4, width: { size: W_INFO, type: WidthType.DXA }, margins: CELL_MAR,
+						borders: ALL_INFO,
+						children: [pp([tr("Эвакуируется во 2 очередь", { size: 18, bold: true })])],
 					}),
 				],
 			}),
@@ -361,98 +332,82 @@ function buildMainLabel(d: TagData): Table {
 	});
 }
 
-// ─── WARNING LABEL (15 × 1 cm) ───────────────────────────────────────────────
-
+// ─── TABLE 4: Warning — обработка (15 × 1 cm) ────────────────────────────────
 function buildWarningLabel1(): Table {
 	return new Table({
-		width: { size: dxa(15.0), type: WidthType.DXA },
-		rows: [
-			new TableRow({
-				height: { value: dxa(0.9), rule: HeightRule.EXACT },
-				children: [
-					cell(
-						[runCenter("Обработка секретной информации запрещена!", 10, true)],
-						15.0,
-					),
-				],
-			}),
-		],
+		width: { size: W_WARN, type: WidthType.DXA },
+		columnWidths: [W_WARN],
+		rows: [new TableRow({
+			height: { value: 510, rule: HeightRule.EXACT },
+			children: [new TableCell({
+				width: { size: W_WARN, type: WidthType.DXA }, margins: CELL_MAR, verticalAlign: VA_CENTER,
+				borders: { top: B_THICK, left: B_THICK, bottom: B_THICK, right: B_THICK },
+				children: [new Paragraph({
+					children: [tr("Обработка секретной информации запрещена!", { bold: true, italics: true })],
+					alignment: AlignmentType.CENTER,
+					spacing: { before: 30, after: 30 },
+				})],
+			})],
+		})],
 	});
 }
 
+// ─── TABLE 5: Warning — вредоносное ПО (15 × 1 cm) ───────────────────────────
 function buildWarningLabel2(): Table {
 	return new Table({
-		width: { size: dxa(15.0), type: WidthType.DXA },
-		rows: [
-			new TableRow({
-				height: { value: dxa(0.9), rule: HeightRule.EXACT },
-				children: [
-					cell(
-						[
-							runCenter(
-								"При обнаружении вредоносного программного обеспечения сообщить в службу защиты государственной тайны по телефону 9555",
-								9,
-								true,
-							),
-						],
-						15.0,
-					),
-				],
-			}),
-		],
-	});
-}
-
-function spacer(): Paragraph {
-	return new Paragraph({
-		children: [],
-		spacing: { before: 0, after: 160, line: 240, lineRule: "auto" },
-	});
-}
-
-function sectionTitle(text: string): Paragraph {
-	return new Paragraph({
-		children: [
-			new TextRun({ text, font: FONT, size: 20, bold: true, italics: true }),
-		],
-		spacing: { before: 240, after: 80, line: 240, lineRule: "auto" },
+		width: { size: W_WARN, type: WidthType.DXA },
+		columnWidths: [W_WARN],
+		rows: [new TableRow({
+			height: { value: 510, rule: HeightRule.EXACT },
+			children: [new TableCell({
+				width: { size: W_WARN, type: WidthType.DXA }, margins: CELL_MAR,
+				borders: { top: B_THICK, left: B_THICK, bottom: B_THICK, right: B_THICK },
+				children: [new Paragraph({
+					children: [tr("При обнаружении вредоносного программного обеспечения сообщить в службу защиты государственной тайны по телефону 9555", { size: 18, bold: true, italics: true })],
+					alignment: AlignmentType.CENTER,
+					spacing: { before: 30, after: 30 },
+				})],
+			})],
+		})],
 	});
 }
 
 // ─── MAIN BUILDER ─────────────────────────────────────────────────────────────
-
 export async function buildTagsDocument(d: TagData): Promise<Buffer> {
 	const doc = new Document({
-		sections: [
-			{
-				properties: {
-					page: {
-						size: { width: 11906, height: 16838 }, // A4
-						margin: { top: 720, right: 720, bottom: 720, left: 720 },
-					},
+		sections: [{
+			properties: {
+				page: {
+					size: { width: 11906, height: 16838 },
+					margin: { top: 720, right: 720, bottom: 720, left: 720 },
 				},
-				children: [
-					sectionTitle("Рис. 1 – Штамп №1 (7,5 × 3,5 см)"),
-					buildStamp1Large(d),
-					spacer(),
-
-					sectionTitle("Рис. 2 – Штамп №1 для ноутбуков Aquarius (4,5 × 2 см)"),
-					buildStamp1Small(d),
-					spacer(),
-
-					sectionTitle("Рис. 3 – Табличка на корпус СВТ (13 × 4 см)"),
-					buildMainLabel(d),
-					spacer(),
-
-					sectionTitle("Рис. 4а – Предупреждение об обработке секретной информации (15 × 1 см)"),
-					buildWarningLabel1(),
-					spacer(),
-
-					sectionTitle("Рис. 4б – Предупреждение о вредоносном ПО (15 × 1 см)"),
-					buildWarningLabel2(),
-				],
 			},
-		],
+			children: [
+				new Paragraph({
+					children: [tr("Образцы штампа №1 и информационных табличек, наносимых на корпус средств вычислительной техники", { bold: true, size: 22 })],
+					alignment: AlignmentType.CENTER,
+					spacing: { after: 200 },
+				}),
+				buildStamp1Large(d),
+				caption("Рис. 1 – Образец штампа №1 прикрепляемого к МНИ (идентификатору доступа, средству вычислительной техники) (длина – 7,5 см, высота – 3,5 см)"),
+				buildStamp1Small(d),
+				caption("Рис. 2 – Образец штампа №1 прикрепляемого к МНИ (для ноутбуков Aquarius CMP NS685U R11) (длина – 4,5 см, высота – 2 см)"),
+				buildMainLabel(d),
+				caption("Рис. 3 – Образец таблички, наносимой на корпус средства вычислительной техники (моноблока, ноутбука, системного блока) (длина – 13 см, высота – 4 см)"),
+				emptyP(60),
+				buildWarningLabel1(),
+				emptyP(120),
+				buildWarningLabel2(),
+				new Paragraph({
+					children: [tr("⁴ Образцы представлены в натуральном размере, рекомендуется наносить таблички на двусторонний скотч либо клей ПВА.", { size: 16 })],
+					spacing: { before: 120, after: 60 },
+				}),
+				new Paragraph({
+					children: [tr("⁵ Указывается серийный номер МНИ.", { size: 16 })],
+					spacing: { before: 0, after: 0 },
+				}),
+			],
+		}],
 	});
 
 	return Packer.toBuffer(doc);
