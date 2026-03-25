@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import SessionLocal
+from app.core.database_sync import SessionLocal
 from app.core.security import generate_secure_password, get_password_hash
 from app.importers.laptops_import import DEFAULT_IMPORT_FILE, import_laptops_to_equipment
 from app.models.user import User

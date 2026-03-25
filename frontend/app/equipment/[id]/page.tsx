@@ -187,16 +187,32 @@ export default function EquipmentDetailPage() {
 	const currentStatus = watch("status");
 	const currentOwnerId = watch("current_owner_id");
 	const currentStorageType = watch("storage_type");
-	const hasOpticalDrive = watch("has_optical_drive");
-	const hasCardReader = watch("has_card_reader");
-	const hasLaptop = watch("has_laptop");
-	const hasCharger = watch("has_charger");
-	const hasMouse = watch("has_mouse");
-	const hasBag = watch("has_bag");
-	const laptopFunctional = watch("laptop_functional");
-	const chargerFunctional = watch("charger_functional");
-	const mouseFunctional = watch("mouse_functional");
-	const bagFunctional = watch("bag_functional");
+	type PeripheryItem = {
+		id:
+		| "has_optical_drive"
+		| "has_card_reader"
+		| "has_laptop"
+		| "has_charger"
+		| "has_mouse"
+		| "has_bag";
+		label: string;
+		type?: string;
+		subId?:
+		| "laptop_functional"
+		| "charger_functional"
+		| "mouse_functional"
+		| "bag_functional";
+		subLabel?: string;
+	};
+
+	const peripheryItems: PeripheryItem[] = [
+		{ id: "has_optical_drive", label: "Оптический привод", type: "check" },
+		{ id: "has_card_reader", label: "Картридер", type: "check" },
+		{ id: "has_laptop", label: "Ноутбук", subId: "laptop_functional", subLabel: "Исправен" },
+		{ id: "has_charger", label: "Зарядка", subId: "charger_functional", subLabel: "Исправна" },
+		{ id: "has_mouse", label: "Мышь", subId: "mouse_functional", subLabel: "Исправна" },
+		{ id: "has_bag", label: "Сумка", subId: "bag_functional", subLabel: "Исправна" },
+	];
 
 	if (isLoading) {
 		return (
@@ -251,8 +267,8 @@ export default function EquipmentDetailPage() {
 						</p>
 					</div>
 					<div className="flex gap-3">
-						<Button 
-							variant={isEditing ? "outline" : "secondary"} 
+						<Button
+							variant={isEditing ? "outline" : "secondary"}
 							onClick={() => setIsEditing(!isEditing)}
 							className={!isEditing ? "bg-white/10 hover:bg-white/20 border-0" : "bg-transparent border-white/20"}
 						>
@@ -399,31 +415,24 @@ export default function EquipmentDetailPage() {
 												<Label className="text-xs font-bold uppercase tracking-widest text-primary/70">Периферия и аксессуары</Label>
 												<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 													{/* Индивидуальные блоки для ноутбучных аксессуаров */}
-													{[
-														{ id: "has_optical_drive", label: "Оптический привод", type: "check" },
-														{ id: "has_card_reader", label: "Картридер", type: "check" },
-														{ id: "has_laptop", label: "Ноутбук", subId: "laptop_functional", subLabel: "Исправен" },
-														{ id: "has_charger", label: "Зарядка", subId: "charger_functional", subLabel: "Исправна" },
-														{ id: "has_mouse", label: "Мышь", subId: "mouse_functional", subLabel: "Исправна" },
-														{ id: "has_bag", label: "Сумка", subId: "bag_functional", subLabel: "Исправна" },
-													].map((item: any) => (
+													{peripheryItems.map((item) => (
 														<div key={item.id} className="rounded-xl border border-white/5 bg-white/5 p-4 flex flex-col justify-center">
 															<div className="flex items-center justify-between">
 																<Label htmlFor={item.id} className="font-medium cursor-pointer">{item.label}</Label>
 																<Checkbox
 																	id={item.id}
-																	checked={watch(item.id as any)}
-																	onCheckedChange={(val) => setValue(item.id as any, val as boolean)}
+																	checked={watch(item.id)}
+																	onCheckedChange={(val) => setValue(item.id, val as boolean)}
 																	disabled={!isEditing}
 																/>
 															</div>
-															{item.subId && watch(item.id as any) && (
+															{item.subId && watch(item.id) && (
 																<div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-muted-foreground">
 																	<span>{item.subLabel}</span>
 																	<Checkbox
 																		id={item.subId}
-																		checked={watch(item.subId as any)}
-																		onCheckedChange={(val) => setValue(item.subId as any, val as boolean)}
+																		checked={watch(item.subId)}
+																		onCheckedChange={(val) => setValue(item.subId!, val as boolean)}
 																		disabled={!isEditing}
 																	/>
 																</div>
