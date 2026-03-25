@@ -115,7 +115,7 @@ function buildStamp1Large(d: TagData): Table {
 						width: { size: STAMP1_COL3, type: WidthType.DXA },
 						verticalAlign: VA_CENTER,
 						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
-						children: [ppc([tr("Для служебного пользования")])],
+						children: [ppc([tr("Несекретно")])],
 					}),
 				],
 			}),
@@ -207,7 +207,7 @@ function buildStamp1Small(d: TagData): Table {
 						width: { size: STAMP2_COL2, type: WidthType.DXA }, margins: CELL_MAR, verticalAlign: VA_CENTER,
 						// All 4 borders
 						borders: { top: B_SOLID, left: B_SOLID, bottom: B_SOLID, right: B_SOLID },
-						children: [ppc([tr("Не секретный", { size: 12 })])],
+						children: [ppc([tr("Несекретно", { size: 12 })])],
 					}),
 				],
 			}),

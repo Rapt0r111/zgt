@@ -197,7 +197,7 @@ function TagPreview({
 										width: "32%",
 									}}
 								>
-									Для служебного пользования
+									Несекретно
 								</td>
 							</tr>
 							{/* Row 2: Экз.№ | Аббр. | Аббр. — all borders */}
@@ -291,7 +291,7 @@ function TagPreview({
 										fontSize: "7px",
 									}}
 								>
-									Не секретный
+									Несекретно
 								</td>
 							</tr>
 							<tr style={{ height: "12px" }}>

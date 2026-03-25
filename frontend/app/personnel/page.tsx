@@ -110,7 +110,6 @@ export default function PersonnelPage() {
 					<CardHeader className="bg-white/5 border-b pt-6 border-white/10 pb-6">
 						<div className="flex items-center justify-between mb-4">
 							<CardTitle className="text-lg font-semibold flex items-center gap-2">
-								<Search className="h-4 w-4 text-muted-foreground" />
 								Поиск по базе
 							</CardTitle>
 							<Badge variant="outline" className="bg-white/5 border-white/10 text-muted-foreground">
