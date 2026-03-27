@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ShieldCheck, Lock, Loader2, AlertCircle } from "lucide-react";
@@ -30,7 +31,7 @@ interface LoginError {
 	};
 }
 
-export default function LoginPage() {
+function LoginForm() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const redirectTo = searchParams.get("redirect");
@@ -47,7 +48,6 @@ export default function LoginPage() {
 	const [error, setError] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 
-
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setError("");
@@ -60,18 +60,12 @@ export default function LoginPage() {
 		try {
 			const response = await apiClient.post(
 				"/api/auth/login",
-				{
-					username,
-					password,
-				},
-				{
-					signal: controller.signal,
-				},
+				{ username, password },
+				{ signal: controller.signal },
 			);
 
 			if (response.data?.access_token) {
 				const safeRedirect = validateRedirectUrl(redirectTo);
-				// Защита от петли: если redirect указывает на /login – идём на dashboard
 				const finalRedirect = safeRedirect === "/login" ? "/dashboard" : safeRedirect;
 				router.push(finalRedirect);
 			} else {
@@ -83,9 +77,7 @@ export default function LoginPage() {
 				errorData.code === "ERR_CANCELED" ||
 				errorData.message?.includes("canceled")
 			) {
-				setError(
-					"Превышено время ожидания ответа сервера. Проверьте соединение.",
-				);
+				setError("Превышено время ожидания ответа сервера. Проверьте соединение.");
 			} else if (
 				errorData.code === "ECONNABORTED" ||
 				errorData.message?.includes("timeout")
@@ -95,13 +87,9 @@ export default function LoginPage() {
 				errorData.code === "ERR_NETWORK" ||
 				errorData.message?.includes("Network Error")
 			) {
-				setError(
-					"Ошибка сети. Проверьте запуск backend и настройки CORS.",
-				);
+				setError("Ошибка сети. Проверьте запуск backend и настройки CORS.");
 			} else if (errorData.response?.status === 429) {
-				setError(
-					"Слишком много попыток входа. Попробуйте через 15 минут.",
-				);
+				setError("Слишком много попыток входа. Попробуйте через 15 минут.");
 			} else if (errorData.response?.status === 401) {
 				setError("Неверный логин или пароль");
 			} else if (errorData.response?.data?.detail) {
@@ -117,11 +105,9 @@ export default function LoginPage() {
 
 	return (
 		<div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-4 text-foreground">
-			{/* Фоновый эффект свечения */}
 			<div className="absolute w-96 h-96 bg-primary/10 rounded-full blur-[100px] -z-10 animate-pulse" />
 
 			<Card className="w-full max-w-md glass-elevated border-white/10 shadow-2xl overflow-hidden">
-				{/* Декоративная линия сверху */}
 				<div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-primary/50 to-transparent" />
 
 				<CardHeader className="text-center space-y-2 pt-8">
@@ -166,7 +152,7 @@ export default function LoginPage() {
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="password" id="pass-label" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							<Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
 								Пароль
 							</Label>
 							<Input
@@ -211,5 +197,17 @@ export default function LoginPage() {
 				</div>
 			</Card>
 		</div>
+	);
+}
+
+export default function LoginPage() {
+	return (
+		<Suspense fallback={
+			<div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-950 via-slate-900 to-slate-950">
+				<Loader2 className="h-10 w-10 animate-spin text-primary" />
+			</div>
+		}>
+			<LoginForm />
+		</Suspense>
 	);
 }
