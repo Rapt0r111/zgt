@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { equipmentApi } from "@/lib/api/equipment";
 import { cleanEmptyStrings } from "@/lib/utils/transform";
-
+import type { EquipmentCreate } from "@/types/equipment";
 const EQUIPMENT_TYPES = ["АРМ", "ПЭВМ", "Ноутбук", "Сервер", "Принтер", "Другое"];
 const STATUSES = ["В работе", "На складе", "В ремонте", "Сломан"];
 const STORAGE_TYPES = ["HDD", "SSD", "NVMe", "Другое"];
@@ -109,7 +109,7 @@ function CreateEquipmentForm() {
 
 	const createMutation = useMutation({
 		mutationFn: (data: EquipmentFormData) =>
-			equipmentApi.create(cleanEmptyStrings(data) as any),
+			equipmentApi.create(cleanEmptyStrings(data) as EquipmentCreate),
 		onSuccess: (_, variables) => {
 			toast.success(variables.is_personal ? "Личный ноутбук добавлен" : "Техника добавлена");
 			router.push(variables.is_personal ? "/personal-items" : "/equipment");
@@ -130,7 +130,9 @@ function CreateEquipmentForm() {
 	const onInvalidSubmit = (formErrors: FieldErrors<EquipmentFormInput>) => {
 		toast.error("Проверьте обязательные поля формы");
 		const firstErrorField = Object.keys(formErrors)[0] as keyof EquipmentFormInput | undefined;
-		if (firstErrorField && firstErrorField !== "inventory_number") setFocus(firstErrorField as any);
+		type FocusableField = Exclude<keyof EquipmentFormInput, "inventory_number">;
+		if (firstErrorField && firstErrorField !== "inventory_number")
+			setFocus(firstErrorField as FocusableField);
 	};
 
 	return (
@@ -162,11 +164,10 @@ function CreateEquipmentForm() {
 							<button
 								type="button"
 								onClick={() => setValue("is_personal", !isPersonal)}
-								className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all ${
-									isPersonal
-										? "bg-purple-500/15 border-purple-500/30"
-										: "bg-white/5 border-white/10 hover:bg-white/10"
-								}`}
+								className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all ${isPersonal
+									? "bg-purple-500/15 border-purple-500/30"
+									: "bg-white/5 border-white/10 hover:bg-white/10"
+									}`}
 							>
 								<div className={`relative w-9 h-5 rounded-full transition-colors ${isPersonal ? "bg-purple-500" : "bg-white/20"}`}>
 									<div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isPersonal ? "translate-x-4" : "translate-x-0.5"}`} />
