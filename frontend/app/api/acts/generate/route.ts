@@ -70,7 +70,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const doc = await buildActDocument(parsed.data);
+    const docData = {
+      ...parsed.data,
+      kitItems: parsed.data.kitItems.map((item) => ({
+        ...item,
+        id: item.id ?? crypto.randomUUID(),
+      })),
+    };
+    const doc = await buildActDocument(docData);
     const buffer = await Packer.toBuffer(doc);
     const d = parsed.data;
 
