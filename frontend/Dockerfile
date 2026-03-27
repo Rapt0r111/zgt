@@ -3,7 +3,7 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 
 # Install bun
-RUN npm install -g bun@1.1.34
+RUN npm install -g bun
 
 COPY package.json bun.lockb* package-lock.json* ./
 RUN bun install --frozen-lockfile
@@ -12,7 +12,7 @@ RUN bun install --frozen-lockfile
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-RUN npm install -g bun@1.1.34
+RUN npm install -g bun
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
