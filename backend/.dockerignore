@@ -1,0 +1,19 @@
+# backend/.dockerignore — создать вручную:
+cat > backend/.dockerignore <<'EOF'
+__pycache__
+*.pyc
+*.pyo
+.Python
+.git
+.env
+.env.*
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.coverage
+backups/
+data/
+*.db
+*.sqlite
+EOF

@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+	// Обязательно для Docker (создаёт .next/standalone)
+	output: "standalone",
+
 	async headers() {
 		return [
 			{
@@ -14,7 +17,8 @@ const nextConfig: NextConfig = {
 							"style-src 'self' 'unsafe-inline'",
 							"img-src 'self' data: https:",
 							"font-src 'self' data:",
-							"connect-src 'self' http://localhost:8000 ws://localhost:3000",
+							// Позволяем подключение как к localhost, так и к IP сети
+							"connect-src 'self' http://localhost:8000 http://192.168.0.0/16 ws://localhost:3000",
 							"frame-ancestors 'none'",
 						].join("; "),
 					},

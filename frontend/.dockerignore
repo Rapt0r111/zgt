@@ -1,0 +1,9 @@
+cat > frontend/.dockerignore <<'EOF'
+node_modules
+.next
+.git
+*.log
+.env
+.env.*
+coverage
+EOF
