@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft, Monitor, Laptop, Cpu, HardDrive, MapPin, User as UserIcon, Save, Info } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { type FieldErrors, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -55,7 +55,7 @@ const equipmentSchema = z
 		notes: z.string().default(""),
 	})
 	.superRefine((data, ctx) => {
-		if (data.is_personal) return; // личное – инвентарный не обязателен
+		if (data.is_personal) return;
 		const isLaptopNotInUse = data.equipment_type === "Ноутбук" && data.status !== "В работе";
 		if (!isLaptopNotInUse && !data.inventory_number.trim()) {
 			ctx.addIssue({
@@ -69,7 +69,7 @@ const equipmentSchema = z
 type EquipmentFormInput = z.input<typeof equipmentSchema>;
 type EquipmentFormData = z.output<typeof equipmentSchema>;
 
-export default function CreateEquipmentPage() {
+function CreateEquipmentForm() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const [error, setError] = useState("");
@@ -159,7 +159,6 @@ export default function CreateEquipmentPage() {
 								Форма регистрации
 							</CardTitle>
 
-							{/* Переключатель личного имущества */}
 							<button
 								type="button"
 								onClick={() => setValue("is_personal", !isPersonal)}
@@ -169,7 +168,6 @@ export default function CreateEquipmentPage() {
 										: "bg-white/5 border-white/10 hover:bg-white/10"
 								}`}
 							>
-								{/* Самодельный toggle */}
 								<div className={`relative w-9 h-5 rounded-full transition-colors ${isPersonal ? "bg-purple-500" : "bg-white/20"}`}>
 									<div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isPersonal ? "translate-x-4" : "translate-x-0.5"}`} />
 								</div>
@@ -184,7 +182,6 @@ export default function CreateEquipmentPage() {
 							</button>
 						</div>
 
-						{/* Плашка когда личное */}
 						{isPersonal && (
 							<div className="flex items-start gap-3 mt-4 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
 								<Laptop className="h-4 w-4 text-purple-400 mt-0.5 shrink-0" />
@@ -204,7 +201,7 @@ export default function CreateEquipmentPage() {
 								</Alert>
 							)}
 
-							{/* Секция: Основная информация */}
+							{/* Основная информация */}
 							<div className="space-y-4">
 								<h3 className="text-sm font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2">
 									Основная информация
@@ -241,7 +238,6 @@ export default function CreateEquipmentPage() {
 											placeholder="570/720/321"
 											className={`bg-background/50 border-white/10 font-mono focus:border-primary/50 ${errors.inventory_number ? "border-destructive/50" : ""}`}
 										/>
-										<p className="text-[10px] text-muted-foreground opacity-70">Пример: 570/720/321</p>
 										{errors.inventory_number && <p className="text-xs text-destructive">{errors.inventory_number.message}</p>}
 									</div>
 								</div>
@@ -273,7 +269,7 @@ export default function CreateEquipmentPage() {
 								</div>
 							</div>
 
-							{/* Секция: Характеристики */}
+							{/* Характеристики */}
 							<div className="space-y-4">
 								<h3 className="text-sm font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2 flex items-center gap-2">
 									<Cpu className="h-4 w-4" /> Характеристики
@@ -361,7 +357,7 @@ export default function CreateEquipmentPage() {
 								</div>
 							</div>
 
-							{/* Секция: Размещение */}
+							{/* Размещение */}
 							<div className="space-y-4">
 								<h3 className="text-sm font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2 flex items-center gap-2">
 									<MapPin className="h-4 w-4" /> Размещение
@@ -391,7 +387,7 @@ export default function CreateEquipmentPage() {
 								</div>
 							</div>
 
-							{/* Секция: Дополнительно */}
+							{/* Дополнительно */}
 							<div className="space-y-4">
 								<h3 className="text-sm font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2 flex items-center gap-2">
 									<Info className="h-4 w-4" /> Дополнительно
@@ -427,5 +423,17 @@ export default function CreateEquipmentPage() {
 				</Card>
 			</div>
 		</div>
+	);
+}
+
+export default function CreateEquipmentPage() {
+	return (
+		<Suspense fallback={
+			<div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+			</div>
+		}>
+			<CreateEquipmentForm />
+		</Suspense>
 	);
 }
