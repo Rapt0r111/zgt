@@ -1,5 +1,3 @@
-# backend/.dockerignore — создать вручную:
-cat > backend/.dockerignore <<'EOF'
 __pycache__
 *.pyc
 *.pyo
