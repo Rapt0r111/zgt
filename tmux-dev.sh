@@ -114,7 +114,7 @@ cmd_status() {
     info "=== Здоровье сервисов ==="
     for svc in backend frontend; do
         local url
-        [[ "$svc" == "backend" ]] && url="http://localhost:8000/health" || url="http://localhost:3000/"
+        [[ "$svc" == "backend" ]] && url="http://localhost:38801/health" || url="http://localhost:38800/"
         if curl -sf "$url" &>/dev/null; then
             echo -e "  ${GREEN}✓${NC} $svc — OK ($url)"
         else

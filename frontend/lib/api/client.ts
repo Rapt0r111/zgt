@@ -1,7 +1,7 @@
 import axios, { type AxiosResponse } from "axios";
 import { toast } from "sonner";
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7801";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:38801";
 
 
 const apiClient = axios.create({
