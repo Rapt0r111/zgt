@@ -11,14 +11,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-zgt}
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./zgt.sql:/docker-entrypoint-initdb.d/zgt.sql  # ← добавь эту строку
     networks:
       - zgt_net
     ports:
-      # Привязан только к localhost — для psql/pgAdmin без exposing в сеть.
-      # Порт 34599 максимально нестандартный, не конфликтует ни с PostgreSQL
-      # (5432/5433), ни с Hyper-V/WSL2 зарезервированными диапазонами.
-      # Меняется через DB_LOCAL_PORT в .env
       - "127.0.0.1:${DB_LOCAL_PORT:-34599}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-zgt}"]
@@ -60,9 +55,6 @@ services:
     networks:
       - zgt_net
     ports:
-      # Порт 38801 — нестандартный, не пересекается с распространёнными сервисами,
-      # не попадает в диапазоны, резервируемые Hyper-V/WSL2 на Windows.
-      # Меняется через BACKEND_PORT в .env
       - "${BACKEND_HOST:-0.0.0.0}:${BACKEND_PORT:-38801}:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -77,8 +69,6 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # NEXT_PUBLIC_API_URL вшивается в бандл при сборке.
-        # После изменения — пересобрать: docker compose build frontend
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:38801}
     restart: unless-stopped
     env_file: .env
@@ -88,8 +78,6 @@ services:
     networks:
       - zgt_net
     ports:
-      # Порт 38800 — нестандартный, пара к backend 38801.
-      # Меняется через FRONTEND_PORT в .env
       - "${FRONTEND_HOST:-0.0.0.0}:${FRONTEND_PORT:-38800}:3000"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/"]
@@ -103,8 +91,5 @@ volumes:
     driver: local
 
 networks:
-  # Одна внутренняя сеть — достаточно для связи db↔backend.
-  # Frontend обращается к backend через браузер клиента (NEXT_PUBLIC_API_URL),
-  # а не напрямую контейнер→контейнер.
   zgt_net:
     driver: bridge
