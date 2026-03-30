@@ -11,6 +11,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-zgt}
     volumes:
       - pg_data:/var/lib/postgresql/data
+      - ./zgt.sql:/docker-entrypoint-initdb.d/zgt.sql  # ← добавь эту строку
     networks:
       - zgt_net
     ports:
