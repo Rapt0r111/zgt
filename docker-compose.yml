@@ -12,37 +12,17 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
     networks:
-      - internal
+      - zgt_net
+    ports:
+      # Привязан только к localhost — для psql/pgAdmin без exposing в сеть
+      # Нестандартный порт 5433 не конфликтует с локальным PostgreSQL (5432)
+      - "127.0.0.1:${DB_LOCAL_PORT:-5433}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-zgt}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
-
-  # ── Backend ─────────────────────────────────────────────────────────────────
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-zgt}
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - internal
-      - public
-    ports:
-      - "${BACKEND_PORT:-7801}:8000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
 
   # ── Migration job (runs once, then exits) ───────────────────────────────────
   migrate:
@@ -57,8 +37,34 @@ services:
       db:
         condition: service_healthy
     networks:
-      - internal
+      - zgt_net
     restart: no
+
+  # ── Backend ─────────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-zgt}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - zgt_net
+    ports:
+      # Порт 7801 — нестандартный, не конфликтует с распространёнными сервисами
+      - "${BACKEND_PORT:-7801}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   # ── Frontend ─────────────────────────────────────────────────────────────────
   frontend:
@@ -66,15 +72,18 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        # NEXT_PUBLIC_API_URL вшивается в бандл при сборке.
+        # После изменения — пересобрать: docker compose build frontend
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:7801}
     restart: unless-stopped
     env_file: .env
     depends_on:
       backend:
         condition: service_healthy
     networks:
-      - public
+      - zgt_net
     ports:
+      # Порт 7800 — нестандартный, не конфликтует с распространёнными сервисами
       - "${FRONTEND_PORT:-7800}:3000"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/"]
@@ -88,7 +97,8 @@ volumes:
     driver: local
 
 networks:
-  internal:
-    driver: bridge
-  public:
+  # Одна внутренняя сеть — достаточно для связи db↔backend.
+  # Frontend обращается к backend через браузер клиента (NEXT_PUBLIC_API_URL),
+  # а не напрямую контейнер→контейнер, поэтому отдельная «public» сеть не нужна.
+  zgt_net:
     driver: bridge
