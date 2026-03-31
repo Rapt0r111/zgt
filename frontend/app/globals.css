@@ -3,39 +3,47 @@
 @import "shadcn/tailwind.css";
 
 :root {
-	/* Базовые настройки радиуса и шрифтов */
 	--radius: 0.625rem;
-	--font-sans: var(--font-geist-sans);
-	--font-mono: var(--font-geist-mono);
 
-	/* Цветовая палитра (перенесена из dark темы) */
+	/*
+	  Системный font-stack: Inter → system-ui → платформенные шрифты.
+	  Никаких сетевых запросов — работает офлайн.
+	  Inter предустановлен на большинстве современных ОС и в Docker-образах с ним.
+	*/
+	--font-sans: "Inter", "Inter Variable", system-ui, -apple-system,
+		BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	--font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace,
+		"SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
+		"Courier New", monospace;
+
+	/* Цветовая палитра (dark-only) */
 	--background: oklch(0.141 0.005 285.823);
 	--foreground: oklch(0.985 0 0);
-	
+
 	--card: oklch(0.21 0.006 285.885);
 	--card-foreground: oklch(0.985 0 0);
-	
+
 	--popover: oklch(0.21 0.006 285.885);
 	--popover-foreground: oklch(0.985 0 0);
-	
+
 	--primary: oklch(0.92 0.004 286.32);
 	--primary-foreground: oklch(0.21 0.006 285.885);
-	
+
 	--secondary: oklch(0.274 0.006 286.033);
 	--secondary-foreground: oklch(0.985 0 0);
-	
+
 	--muted: oklch(0.274 0.006 286.033);
 	--muted-foreground: oklch(0.705 0.015 286.067);
-	
+
 	--accent: oklch(0.274 0.006 286.033);
 	--accent-foreground: oklch(0.985 0 0);
-	
+
 	--destructive: oklch(0.704 0.191 22.216);
-	
+
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
 	--ring: oklch(0.552 0.016 285.938);
-	
+
 	/* Charts */
 	--chart-1: oklch(0.488 0.243 264.376);
 	--chart-2: oklch(0.696 0.17 162.48);
@@ -53,7 +61,7 @@
 	--sidebar-border: oklch(1 0 0 / 10%);
 	--sidebar-ring: oklch(0.552 0.016 285.938);
 
-	/* Привязка переменных Tailwind 4 к значениям */
+	/* Привязка переменных Tailwind 4 */
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
 	--color-card: var(--card);
@@ -72,7 +80,7 @@
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
-	
+
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
@@ -83,78 +91,79 @@
 @layer base {
 	* {
 		border-color: var(--border);
-		/* Исправлено: используем переменную напрямую для контура */
 		outline-color: var(--ring);
 	}
+
 	body {
 		background-color: var(--background);
 		color: var(--foreground);
-		/* Оптимизация шрифтов для темной темы */
+		/* Системный шрифт — без обращения к внешним CDN */
+		font-family: var(--font-sans);
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
 	}
 }
 
-/* Glassmorphism адаптированный под Dark-only */
+/* Glassmorphism */
 @layer utilities {
-  .glass {
-	background-color: rgba(15, 23, 42, 0.6);
-	backdrop-filter: blur(12px);
-	border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  
-  .glass-elevated {
-    background-color: rgba(30, 41, 59, 0.7);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-  }
-  
-  .glass-hover {
-	transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
+	.glass {
+		background-color: rgba(15, 23, 42, 0.6);
+		backdrop-filter: blur(12px);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+	}
 
-  .glass-hover:hover {
-	background-color: rgba(30, 41, 59, 0.8);
-	box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
-	transform: translateY(-2px);
-	border-color: rgba(255, 255, 255, 0.2);
-  }
+	.glass-elevated {
+		background-color: rgba(30, 41, 59, 0.7);
+		box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+	}
+
+	.glass-hover {
+		transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+	}
+
+	.glass-hover:hover {
+		background-color: rgba(30, 41, 59, 0.8);
+		box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+		transform: translateY(-2px);
+		border-color: rgba(255, 255, 255, 0.2);
+	}
 }
 
-/* Gradients - сделаны чуть глубже для темной темы */
+/* Gradients */
 .gradient-primary {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+	background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
 }
 
 .gradient-success {
-  background: linear-gradient(135deg, #065f46 0%, #059669 100%);
+	background: linear-gradient(135deg, #065f46 0%, #059669 100%);
 }
 
 .gradient-danger {
-  background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%);
+	background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%);
 }
 
-/* Status glow effects */
+/* Status glow */
 .status-glow-success {
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+	box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
 }
 
 .status-glow-danger {
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+	box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
 }
 
-/* Анимация пульсации для алертов */
 @keyframes tactical-pulse {
-  0%, 100% {
-    opacity: 1;
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-  }
-  50% {
-    opacity: 0.8;
-    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
-  }
+	0%,
+	100% {
+		opacity: 1;
+		box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+	}
+	50% {
+		opacity: 0.8;
+		box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+	}
 }
 
 .tactical-pulse {
-  animation: tactical-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+	animation: tactical-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

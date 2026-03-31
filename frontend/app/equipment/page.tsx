@@ -60,11 +60,6 @@ function EquipmentPageContent() {
 	const [typeFilter, setTypeFilter] = useState("all");
 
 	// Сброс typeFilter при смене категории
-	useEffect(() => {
-		setTypeFilter("all");
-		setStatusTab("all");
-	}, [category]);
-
 	// Обновляем URL при смене категории
 	useEffect(() => {
 		const params = new URLSearchParams(searchParams.toString());
@@ -153,7 +148,11 @@ function EquipmentPageContent() {
 					<div className="flex gap-3 mb-6">
 						<button
 							type="button"
-							onClick={() => setCategory("computing")}
+							onClick={() => {
+								setCategory("computing");
+								setTypeFilter("all");
+								setStatusTab("all");
+							}}
 							className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border text-sm font-medium transition-all ${category === "computing"
 								? "bg-primary/20 border-primary/50 text-primary shadow-lg shadow-primary/10"
 								: "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600"
@@ -164,7 +163,11 @@ function EquipmentPageContent() {
 						</button>
 						<button
 							type="button"
-							onClick={() => setCategory("other")}
+							onClick={() => {
+								setCategory("other");
+								setTypeFilter("all");
+								setStatusTab("all");
+							}}
 							className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border text-sm font-medium transition-all ${category === "other"
 								? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-lg shadow-emerald-900/20"
 								: "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600"

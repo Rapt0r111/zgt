@@ -1,3 +1,7 @@
+# docker-compose.yml
+# ВАЖНО: для кеш-маунтов в Dockerfile требуется BuildKit.
+# Используйте: DOCKER_BUILDKIT=1 docker compose build
+# Или: make build  (Makefile автоматически выставляет DOCKER_BUILDKIT=1)
 name: zgt
 
 services:
@@ -69,6 +73,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
+        # Значение вшивается в JS-бандл на этапе сборки (не runtime!).
+        # После изменения — обязательно пересобрать: make build
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:38801}
     restart: unless-stopped
     env_file: .env

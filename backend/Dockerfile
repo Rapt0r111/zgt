@@ -1,21 +1,34 @@
+# syntax=docker/dockerfile:1
 FROM python:3.12-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
+    PIP_NO_CACHE_DIR=0 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
-# System deps
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev gcc curl \
+# Системные зависимости — отдельный слой, кешируется надолго
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+        libpq-dev \
+        gcc \
+        curl \
     && rm -rf /var/lib/apt/lists/*
+
 
 # ── Dependencies stage ──────────────────────────────────────────────────────
 FROM base AS deps
+
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# BuildKit cache-mount для pip.
+# После первой сборки с интернетом все пакеты кешируются на диске хоста.
+# Повторные сборки (и пересборки с нуля) работают офлайн из кеша.
+RUN --mount=type=cache,target=/root/.cache/pip,id=pip-cache \
+    pip install -r requirements.txt
+
 
 # ── Production stage ─────────────────────────────────────────────────────────
 FROM base AS runner
@@ -24,6 +37,7 @@ FROM base AS runner
 RUN groupadd --gid 1001 appgroup && \
     useradd --uid 1001 --gid appgroup --shell /bin/bash --create-home appuser
 
+# Копируем установленные пакеты из deps-стейджа (без кеша pip в финальном образе)
 COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
 

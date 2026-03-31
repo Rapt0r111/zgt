@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/sonner"; // ДОБАВИТЬ
+import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "./providers";
-
-const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
 	title: "Система учёта ЗГТ",
@@ -18,10 +15,15 @@ export default function RootLayout({
 }) {
 	return (
 		<html lang="ru">
-			<body className={inter.className}>
+			{/*
+			  Шрифт Inter загружается из системы (большинство современных ОС содержат его)
+			  или подтягивается из CSS font-stack без обращения к Google Fonts.
+			  Это позволяет собирать проект полностью офлайн.
+			*/}
+			<body>
 				<Providers>
 					{children}
-					<Toaster /> {/* ДОБАВИТЬ */}
+					<Toaster />
 				</Providers>
 			</body>
 		</html>
