@@ -1,4 +1,4 @@
-version: "3.8"
+# docker-compose.yml — без устаревшего version, с healthcheck и migrate
 
 services:
   db:
@@ -12,6 +12,25 @@ services:
       - pg_data:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:${DB_LOCAL_PORT:-34599}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-zgt}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - zgt_net
+
+  migrate:
+    image: zgt-backend:latest
+    restart: "no"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-zgt}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["alembic", "upgrade", "head"]
     networks:
       - zgt_net
 
@@ -24,9 +43,10 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-zgt}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
-      - "38801:8000"   # ← ВАЖНО
+      - "0.0.0.0:38801:8000"
     networks:
       - zgt_net
 
@@ -41,7 +61,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "38800:3000"   # ← ВАЖНО
+      - "0.0.0.0:38800:3000"
     networks:
       - zgt_net
 
