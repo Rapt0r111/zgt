@@ -1,13 +1,8 @@
-# docker-compose.yml
-# ВАЖНО: для кеш-маунтов в Dockerfile требуется BuildKit.
-# Используйте: DOCKER_BUILDKIT=1 docker compose build
-# Или: make build  (Makefile автоматически выставляет DOCKER_BUILDKIT=1)
-name: zgt
+version: "3.8"
 
 services:
-  # ── PostgreSQL ──────────────────────────────────────────────────────────────
   db:
-    image: postgres:16-alpine
+    image: localhost/postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -26,36 +21,27 @@ services:
       retries: 5
       start_period: 10s
 
-  # ── Migration job (runs once, then exits) ───────────────────────────────────
   migrate:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: localhost/zgt-backend:latest
     command: ["alembic", "upgrade", "head"]
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-zgt}
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     networks:
       - zgt_net
-    restart: no
+    restart: "no"
 
-  # ── Backend ─────────────────────────────────────────────────────────────────
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: localhost/zgt-backend:latest
     restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-zgt}
     depends_on:
-      db:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
+      - db
+      - migrate
     networks:
       - zgt_net
     ports:
@@ -67,20 +53,12 @@ services:
       retries: 3
       start_period: 20s
 
-  # ── Frontend ─────────────────────────────────────────────────────────────────
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        # Значение вшивается в JS-бандл на этапе сборки (не runtime!).
-        # После изменения — обязательно пересобрать: make build
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:38801}
+    image: localhost/zgt-frontend:latest
     restart: unless-stopped
     env_file: .env
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
     networks:
       - zgt_net
     ports:
