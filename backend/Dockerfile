@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Системные зависимости — отдельный слой, кешируется надолго
+# Системные зависимости — curl нужен и для установки, и для HEALTHCHECK
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -23,9 +23,6 @@ FROM base AS deps
 
 COPY requirements.txt .
 
-# BuildKit cache-mount для pip.
-# После первой сборки с интернетом все пакеты кешируются на диске хоста.
-# Повторные сборки (и пересборки с нуля) работают офлайн из кеша.
 RUN --mount=type=cache,target=/root/.cache/pip,id=pip-cache \
     pip install -r requirements.txt
 
@@ -33,15 +30,17 @@ RUN --mount=type=cache,target=/root/.cache/pip,id=pip-cache \
 # ── Production stage ─────────────────────────────────────────────────────────
 FROM base AS runner
 
-# Non-root user
 RUN groupadd --gid 1001 appgroup && \
     useradd --uid 1001 --gid appgroup --shell /bin/bash --create-home appuser
 
-# Копируем установленные пакеты из deps-стейджа (без кеша pip в финальном образе)
+# Копируем установленные пакеты из deps-стейджа
 COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
 
 COPY --chown=appuser:appgroup . .
+
+# Создаём директорию для бэкапов с правильными правами
+RUN mkdir -p /app/backups && chown appuser:appgroup /app/backups
 
 USER appuser
 

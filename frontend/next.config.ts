@@ -1,5 +1,12 @@
 import type { NextConfig } from "next";
 
+const SERVER_IP = process.env.NEXT_PUBLIC_SERVER_IP || "192.168.99.101";
+const BACKEND_PORT = process.env.BACKEND_PORT || "38801";
+const FRONTEND_PORT = process.env.FRONTEND_PORT || "38800";
+
+const BACKEND_URL = `http://${SERVER_IP}:${BACKEND_PORT}`;
+const FRONTEND_URL = `http://${SERVER_IP}:${FRONTEND_PORT}`;
+
 const nextConfig: NextConfig = {
 	// Обязательно для Docker (создаёт .next/standalone)
 	output: "standalone",
@@ -15,13 +22,13 @@ const nextConfig: NextConfig = {
 							"default-src 'self'",
 							"script-src 'self' 'unsafe-inline' 'unsafe-eval'",
 							"style-src 'self' 'unsafe-inline'",
-							"img-src 'self' data: https:",
+							"img-src 'self' data: https: blob:",
 							"font-src 'self' data:",
-							// Позволяем подключение как к localhost, так и к IP сети
-							"connect-src 'self' http://localhost:38801 http://192.168.99.101:38801 ws://localhost:38800 ws://192.168.99.101:38800",
-
-
+							// Разрешаем API-запросы к бэкенду (localhost для дев, IP для прод)
+							`connect-src 'self' http://localhost:${BACKEND_PORT} ${BACKEND_URL} ${FRONTEND_URL} http://localhost:${FRONTEND_PORT}`,
 							"frame-ancestors 'none'",
+							"base-uri 'self'",
+							"form-action 'self'",
 						].join("; "),
 					},
 					{

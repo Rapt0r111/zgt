@@ -1,4 +1,8 @@
-# docker-compose.yml — без устаревшего version, с healthcheck и migrate
+# docker-compose.yml
+# BuildKit обязателен для кеш-маунтов в Dockerfile
+x-buildkit: &buildkit
+  DOCKER_BUILDKIT: "1"
+  COMPOSE_DOCKER_CLI_BUILD: "1"
 
 services:
   db:
@@ -22,6 +26,10 @@ services:
       - zgt_net
 
   migrate:
+    # migrate использует тот же образ, что собирает backend
+    # Запускается ПОСЛЕ успешной сборки: docker compose build && docker compose run --rm migrate
+    build:
+      context: ./backend
     image: zgt-backend:latest
     restart: "no"
     env_file: .env
@@ -46,7 +54,13 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "0.0.0.0:38801:8000"
+      - "0.0.0.0:${BACKEND_PORT:-38801}:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     networks:
       - zgt_net
 
@@ -55,13 +69,23 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_SERVER_IP: ${SERVER_IP:-192.168.99.101}
+        BACKEND_PORT: ${BACKEND_PORT:-38801}
+        FRONTEND_PORT: ${FRONTEND_PORT:-38800}
     image: zgt-frontend:latest
     restart: unless-stopped
     env_file: .env
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
-      - "0.0.0.0:38800:3000"
+      - "0.0.0.0:${FRONTEND_PORT:-38800}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - zgt_net
 
@@ -70,3 +94,4 @@ volumes:
 
 networks:
   zgt_net:
+    driver: bridge
