@@ -8,6 +8,8 @@ class Equipment(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     equipment_type = Column(String(50), nullable=False)
+    # Человекочитаемое имя устройства (актуально для простой электроники)
+    display_name = Column(String(255), nullable=True, index=True)
     inventory_number = Column(String(100), index=True)
     serial_number = Column(String(100), index=True)
     mni_serial_number = Column(String(100), index=True)
@@ -42,6 +44,9 @@ class Equipment(Base):
     updated_at = Column(DateTime(timezone=True), server_default=utcnow_expr(), onupdate=utcnow_expr(), nullable=False)
 
     __table_args__ = (
+        # Только частичный уникальный индекс (без NULL) создаётся через миграцию;
+        # здесь оставляем UniqueConstraint для обратной совместимости с Alembic autogenerate.
+        # Реальная уникальность обеспечивается индексом uq_equipment_inventory_notnull.
         UniqueConstraint("inventory_number", name="uq_equipment_inventory"),
     )
 

@@ -2,33 +2,44 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { ArrowLeft, Monitor, Laptop, Cpu, HardDrive, MapPin, User as UserIcon, Save, Info } from "lucide-react";
+import {
+	ArrowLeft, Monitor, Laptop, Cpu, HardDrive, MapPin,
+	User as UserIcon, Save, Info, Tv, Tag,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { type FieldErrors, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { PersonnelSelect } from "@/components/shared/personnel-select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card, CardContent, CardFooter, CardHeader, CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+	Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { equipmentApi } from "@/lib/api/equipment";
+import {
+	ALL_EQUIPMENT_TYPES, COMPLEX_EQUIPMENT_TYPES, STATUSES,
+	STORAGE_TYPES, isSimpleEquipmentType,
+} from "@/lib/equipment-types";
 import { cleanEmptyStrings } from "@/lib/utils/transform";
 import type { EquipmentCreate } from "@/types/equipment";
-const EQUIPMENT_TYPES = ["АРМ", "ПЭВМ", "Ноутбук", "Сервер", "Принтер", "Другое"];
-const STATUSES = ["В работе", "На складе", "В ремонте", "Сломан"];
-const STORAGE_TYPES = ["HDD", "SSD", "NVMe", "Другое"];
+
+// ─── Zod schema ────────────────────────────────────────────────────────────
 
 const equipmentSchema = z
 	.object({
 		is_personal: z.boolean().default(false),
 		equipment_type: z.string().min(1, "Выберите тип техники"),
+		display_name: z.string().max(255).default(""),
 		inventory_number: z.string().default(""),
 		serial_number: z.string().default(""),
 		mni_serial_number: z.string().default(""),
@@ -55,19 +66,41 @@ const equipmentSchema = z
 		notes: z.string().default(""),
 	})
 	.superRefine((data, ctx) => {
-		if (data.is_personal) return;
-		const isLaptopNotInUse = data.equipment_type === "Ноутбук" && data.status !== "В работе";
-		if (!isLaptopNotInUse && !data.inventory_number.trim()) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: ["inventory_number"],
-				message: "Учетный номер обязателен",
-			});
+		const simple = isSimpleEquipmentType(data.equipment_type);
+
+		if (simple) {
+			// Для простой техники нужен хотя бы один идентификатор
+			const hasId =
+				data.serial_number.trim() ||
+				data.inventory_number.trim() ||
+				data.display_name.trim() ||
+				data.model.trim();
+			if (!hasId) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ["serial_number"],
+					message: "Укажите серийный номер, инвентарный номер или название устройства",
+				});
+			}
+		} else {
+			// Для вычислительной техники: инв. номер обязателен кроме ноутбуков «не в работе»
+			if (data.is_personal) return;
+			const isLaptopNotInUse =
+				data.equipment_type === "Ноутбук" && data.status !== "В работе";
+			if (!isLaptopNotInUse && !data.inventory_number.trim()) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ["inventory_number"],
+					message: "Учетный номер обязателен",
+				});
+			}
 		}
 	});
 
 type EquipmentFormInput = z.input<typeof equipmentSchema>;
 type EquipmentFormData = z.output<typeof equipmentSchema>;
+
+// ─── Component ────────────────────────────────────────────────────────────
 
 function CreateEquipmentForm() {
 	const router = useRouter();
@@ -75,13 +108,17 @@ function CreateEquipmentForm() {
 	const [error, setError] = useState("");
 
 	const initialIsPersonal = searchParams.get("personal") === "true";
+	const initialType = searchParams.get("type") ?? "";
 
-	const { register, handleSubmit, setFocus, setValue, watch, formState: { errors } } = useForm<EquipmentFormInput, unknown, EquipmentFormData>({
+	const {
+		register, handleSubmit, setFocus, setValue, watch,
+		formState: { errors },
+	} = useForm<EquipmentFormInput, unknown, EquipmentFormData>({
 		resolver: zodResolver(equipmentSchema),
 		shouldFocusError: false,
 		defaultValues: {
 			is_personal: initialIsPersonal,
-			equipment_type: initialIsPersonal ? "Ноутбук" : "",
+			equipment_type: initialType,
 			status: "В работе",
 			has_optical_drive: false, has_card_reader: false,
 			has_laptop: false, laptop_functional: false,
@@ -107,12 +144,19 @@ function CreateEquipmentForm() {
 	const hasBag = watch("has_bag");
 	const bagFunctional = watch("bag_functional");
 
+	const isSimple = useMemo(() => isSimpleEquipmentType(currentType), [currentType]);
+
 	const createMutation = useMutation({
 		mutationFn: (data: EquipmentFormData) =>
 			equipmentApi.create(cleanEmptyStrings(data) as EquipmentCreate),
 		onSuccess: (_, variables) => {
-			toast.success(variables.is_personal ? "Личный ноутбук добавлен" : "Техника добавлена");
-			router.push(variables.is_personal ? "/personal-items" : "/equipment");
+			if (variables.is_personal) {
+				toast.success("Личный ноутбук добавлен");
+				router.push("/personal-items");
+			} else {
+				toast.success("Оборудование добавлено");
+				router.push("/equipment");
+			}
 		},
 		onError: (err: unknown) => {
 			const e = err as { response?: { data?: { detail?: string } } };
@@ -129,11 +173,15 @@ function CreateEquipmentForm() {
 
 	const onInvalidSubmit = (formErrors: FieldErrors<EquipmentFormInput>) => {
 		toast.error("Проверьте обязательные поля формы");
-		const firstErrorField = Object.keys(formErrors)[0] as keyof EquipmentFormInput | undefined;
-		type FocusableField = Exclude<keyof EquipmentFormInput, "inventory_number">;
-		if (firstErrorField && firstErrorField !== "inventory_number")
-			setFocus(firstErrorField as FocusableField);
+		const firstField = Object.keys(formErrors)[0] as keyof EquipmentFormInput | undefined;
+		type FocusableField = Exclude<keyof EquipmentFormInput, "inventory_number" | "serial_number">;
+		if (firstField && firstField !== "inventory_number" && firstField !== "serial_number") {
+			setFocus(firstField as FocusableField);
+		}
 	};
+
+	const inputCls =
+		"bg-background/50 border-white/10 focus:border-primary/50 transition-all";
 
 	return (
 		<div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-foreground">
@@ -146,49 +194,55 @@ function CreateEquipmentForm() {
 				</Button>
 
 				<div className="mb-6">
-					<h1 className="text-3xl font-bold tracking-tight">Добавление техники</h1>
-					<p className="text-muted-foreground mt-1">Заполните данные для регистрации новой единицы оборудования</p>
+					<h1 className="text-3xl font-bold tracking-tight">Добавление оборудования</h1>
+					<p className="text-muted-foreground mt-1">
+						Выберите тип — форма адаптируется автоматически
+					</p>
 				</div>
 
 				<Card className="glass-elevated border-white/10 shadow-2xl overflow-hidden">
 					<CardHeader className="bg-white/5 border-b border-white/10 py-6">
 						<div className="flex items-center justify-between">
 							<CardTitle className="text-lg font-semibold flex items-center gap-2">
-								{isPersonal
-									? <Laptop className="h-5 w-5 text-purple-400" />
-									: <Monitor className="h-5 w-5 text-primary" />
+								{isSimple
+									? <Tv className="h-5 w-5 text-emerald-400" />
+									: isPersonal
+										? <Laptop className="h-5 w-5 text-purple-400" />
+										: <Monitor className="h-5 w-5 text-primary" />
 								}
-								Форма регистрации
+								{isSimple
+									? "Электронное оборудование"
+									: "Вычислительная техника"
+								}
 							</CardTitle>
 
-							<button
-								type="button"
-								onClick={() => setValue("is_personal", !isPersonal)}
-								className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all ${isPersonal
-									? "bg-purple-500/15 border-purple-500/30"
-									: "bg-white/5 border-white/10 hover:bg-white/10"
-									}`}
-							>
-								<div className={`relative w-9 h-5 rounded-full transition-colors ${isPersonal ? "bg-purple-500" : "bg-white/20"}`}>
-									<div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isPersonal ? "translate-x-4" : "translate-x-0.5"}`} />
-								</div>
-								<div className="text-sm select-none text-left">
-									<span className={isPersonal ? "text-purple-300 font-semibold" : "text-muted-foreground"}>
+							{/* Тогл «Личное имущество» — только для ноутбуков */}
+							{(currentType === "Ноутбук" || isPersonal) && (
+								<button
+									type="button"
+									onClick={() => setValue("is_personal", !isPersonal)}
+									className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all ${isPersonal
+										? "bg-purple-500/15 border-purple-500/30"
+										: "bg-white/5 border-white/10 hover:bg-white/10"
+										}`}
+								>
+									<div className={`relative w-9 h-5 rounded-full transition-colors ${isPersonal ? "bg-purple-500" : "bg-white/20"}`}>
+										<div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isPersonal ? "translate-x-4" : "translate-x-0.5"}`} />
+									</div>
+									<span className={`text-sm select-none ${isPersonal ? "text-purple-300 font-semibold" : "text-muted-foreground"}`}>
 										Личное имущество
 									</span>
-									{isPersonal && (
-										<p className="text-[10px] text-purple-400/70 mt-0.5">Не принадлежит МО</p>
-									)}
-								</div>
-							</button>
+								</button>
+							)}
 						</div>
 
-						{isPersonal && (
-							<div className="flex items-start gap-3 mt-4 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
-								<Laptop className="h-4 w-4 text-purple-400 mt-0.5 shrink-0" />
-								<p className="text-xs text-purple-300/80 leading-relaxed">
-									Личный ноутбук не требует обязательного инвентарного номера МО.
-									После сохранения он будет отображаться в разделе «Личные вещи».
+						{/* Подсказка для простой техники */}
+						{isSimple && currentType && (
+							<div className="flex items-start gap-3 mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+								<Tv className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
+								<p className="text-xs text-emerald-300/80 leading-relaxed">
+									Для {currentType.toLowerCase()} достаточно указать название или серийный номер.
+									Технические характеристики (CPU, RAM) не нужны.
 								</p>
 							</div>
 						)}
@@ -202,163 +256,249 @@ function CreateEquipmentForm() {
 								</Alert>
 							)}
 
-							{/* Основная информация */}
+							{/* ── Тип и основная идентификация ── */}
 							<div className="space-y-4">
 								<h3 className="text-sm font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2">
-									Основная информация
+									Тип и идентификация
 								</h3>
 
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
-										<Label className="text-muted-foreground">Тип техники *</Label>
+										<Label className="text-muted-foreground">Тип оборудования *</Label>
 										<Select
 											value={currentType}
 											onValueChange={(val) => setValue("equipment_type", val)}
 										>
-											<SelectTrigger className={`bg-background/50 border-white/10 focus:border-primary/50 ${errors.equipment_type ? "border-destructive/50" : ""}`}>
+											<SelectTrigger className={`${inputCls} ${errors.equipment_type ? "border-destructive/50" : ""}`}>
 												<SelectValue placeholder="Выберите тип" />
 											</SelectTrigger>
 											<SelectContent className="glass border-white/10">
-												{EQUIPMENT_TYPES.map((type) => (
-													<SelectItem key={type} value={type}>{type}</SelectItem>
+												{/* Вычислительная техника */}
+												<SelectItem value="__group_complex__" disabled className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-bold py-1 px-2">
+													── Вычислительная техника ──
+												</SelectItem>
+												{COMPLEX_EQUIPMENT_TYPES.map((t) => (
+													<SelectItem key={t} value={t}>{t}</SelectItem>
+												))}
+												{/* Прочее оборудование */}
+												<SelectItem value="__group_simple__" disabled className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-bold py-1 px-2 mt-1">
+													── Прочее оборудование ──
+												</SelectItem>
+												{["Телевизор", "Интерактивная доска", "Проектор", "МФУ", "Монитор", "Принтер", "Сканер", "ИБП", "Сетевое оборудование", "Другое"].map((t) => (
+													<SelectItem key={t} value={t}>{t}</SelectItem>
 												))}
 											</SelectContent>
 										</Select>
-										{errors.equipment_type && <p className="text-xs text-destructive">{errors.equipment_type.message}</p>}
+										{errors.equipment_type && (
+											<p className="text-xs text-destructive">{errors.equipment_type.message}</p>
+										)}
 									</div>
 
-									<div className="space-y-2">
-										<Label htmlFor="inventory_number" className="text-muted-foreground">
-											Учетный номер
-											{!isPersonal && !(currentType === "Ноутбук" && currentStatus !== "В работе") ? " *" : ""}
-											{isPersonal && <span className="ml-1 text-purple-400/60 text-[10px] font-normal">(опционально для личного)</span>}
-										</Label>
-										<Input
-											id="inventory_number"
-											{...register("inventory_number")}
-											placeholder="570/720/321"
-											className={`bg-background/50 border-white/10 font-mono focus:border-primary/50 ${errors.inventory_number ? "border-destructive/50" : ""}`}
-										/>
-										{errors.inventory_number && <p className="text-xs text-destructive">{errors.inventory_number.message}</p>}
-									</div>
+									{/* Название (для простой техники — основное поле) */}
+									{isSimple && (
+										<div className="space-y-2">
+											<Label htmlFor="display_name" className="text-muted-foreground flex items-center gap-1.5">
+												<Tag className="h-3 w-3" />
+												Название устройства
+											</Label>
+											<Input
+												id="display_name"
+												{...register("display_name")}
+												placeholder={`Напр.: Samsung UE55TU7100`}
+												className={inputCls}
+											/>
+											<p className="text-[11px] text-muted-foreground/60">
+												Краткое имя для отображения в списке
+											</p>
+										</div>
+									)}
+
+									{/* Инвентарный номер — для сложной техники обязателен */}
+									{!isSimple && (
+										<div className="space-y-2">
+											<Label htmlFor="inventory_number" className="text-muted-foreground">
+												Учетный номер
+												{!isPersonal && !(currentType === "Ноутбук" && currentStatus !== "В работе")
+													? " *"
+													: " "}
+												{isPersonal && (
+													<span className="ml-1 text-purple-400/60 text-[10px] font-normal">(опционально)</span>
+												)}
+											</Label>
+											<Input
+												id="inventory_number"
+												{...register("inventory_number")}
+												placeholder="570/720/321"
+												className={`font-mono ${inputCls} ${errors.inventory_number ? "border-destructive/50" : ""}`}
+											/>
+											{errors.inventory_number && (
+												<p className="text-xs text-destructive">{errors.inventory_number.message}</p>
+											)}
+										</div>
+									)}
 								</div>
 
+								{/* Серийный номер — для простой техники основной идентификатор */}
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<div className="space-y-2">
+										<Label htmlFor="serial_number" className="text-muted-foreground font-mono text-xs uppercase">
+											Серийный номер (S/N)
+											{isSimple && <span className="ml-1 text-primary/60 normal-case font-normal text-[11px]">— основной идентификатор</span>}
+										</Label>
+										<Input
+											id="serial_number"
+											{...register("serial_number")}
+											placeholder="ABC123XYZ"
+											className={`font-mono ${inputCls} ${errors.serial_number ? "border-destructive/50" : ""}`}
+										/>
+										{errors.serial_number && (
+											<p className="text-xs text-destructive">{errors.serial_number.message}</p>
+										)}
+									</div>
+
+									{/* Инв. номер — для простой техники опциональный */}
+									{isSimple && (
+										<div className="space-y-2">
+											<Label htmlFor="inventory_number_simple" className="text-muted-foreground">
+												Инвентарный номер
+												<span className="ml-1 text-muted-foreground/50 text-[11px] font-normal">(необязательно)</span>
+											</Label>
+											<Input
+												id="inventory_number_simple"
+												{...register("inventory_number")}
+												placeholder="570/720/321"
+												className={`font-mono ${inputCls}`}
+											/>
+										</div>
+									)}
+
+									{/* МНИ серийный — только для сложной техники */}
+									{!isSimple && (
+										<div className="space-y-2">
+											<Label htmlFor="mni_serial_number" className="text-muted-foreground font-mono text-xs uppercase">
+												Серийный номер МНИ
+											</Label>
+											<Input
+												id="mni_serial_number"
+												{...register("mni_serial_number")}
+												placeholder="МНИ: MNI789456"
+												className={`font-mono ${inputCls}`}
+											/>
+										</div>
+									)}
+								</div>
+
+								{/* Производитель + Модель */}
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
 										<Label htmlFor="manufacturer" className="text-muted-foreground">Производитель</Label>
-										<Input id="manufacturer" {...register("manufacturer")} placeholder="Dell, HP, Lenovo..."
-											className="bg-background/50 border-white/10 focus:border-primary/50" />
+										<Input
+											id="manufacturer"
+											{...register("manufacturer")}
+											placeholder="Samsung, LG, Panasonic…"
+											className={inputCls}
+										/>
 									</div>
 									<div className="space-y-2">
 										<Label htmlFor="model" className="text-muted-foreground">Модель</Label>
-										<Input id="model" {...register("model")} placeholder="OptiPlex 7090"
-											className="bg-background/50 border-white/10 focus:border-primary/50" />
-									</div>
-								</div>
-
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-									<div className="space-y-2">
-										<Label htmlFor="serial_number" className="text-muted-foreground font-mono text-xs uppercase">Серийный номер (S/N)</Label>
-										<Input id="serial_number" {...register("serial_number")} placeholder="S/N: ABC123XYZ"
-											className="bg-background/50 border-white/10 font-mono focus:border-primary/50" />
-									</div>
-									<div className="space-y-2">
-										<Label htmlFor="mni_serial_number" className="text-muted-foreground font-mono text-xs uppercase">Серийный номер МНИ</Label>
-										<Input id="mni_serial_number" {...register("mni_serial_number")} placeholder="МНИ: MNI789456"
-											className="bg-background/50 border-white/10 font-mono focus:border-primary/50" />
+										<Input
+											id="model"
+											{...register("model")}
+											placeholder={isSimple ? "UE55TU7100, DL-S75C…" : "OptiPlex 7090, ThinkPad…"}
+											className={inputCls}
+										/>
 									</div>
 								</div>
 							</div>
 
-							{/* Характеристики */}
-							<div className="space-y-4">
-								<h3 className="text-sm font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2 flex items-center gap-2">
-									<Cpu className="h-4 w-4" /> Характеристики
-								</h3>
-								<div className="space-y-2">
-									<Label htmlFor="cpu" className="text-muted-foreground">Процессор</Label>
-									<Input id="cpu" {...register("cpu")} placeholder="Intel Core i5-10400"
-										className="bg-background/50 border-white/10 focus:border-primary/50" />
-								</div>
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+							{/* ── Технические характеристики — только для сложной техники ── */}
+							{!isSimple && (
+								<div className="space-y-4">
+									<h3 className="text-sm font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2 flex items-center gap-2">
+										<Cpu className="h-4 w-4" /> Характеристики
+									</h3>
 									<div className="space-y-2">
-										<Label htmlFor="ram_gb" className="text-muted-foreground">Объём RAM (ГБ)</Label>
-										<Input id="ram_gb" type="number" {...register("ram_gb", { valueAsNumber: true })} placeholder="16"
-											className="bg-background/50 border-white/10 focus:border-primary/50" />
+										<Label htmlFor="cpu" className="text-muted-foreground">Процессор</Label>
+										<Input id="cpu" {...register("cpu")} placeholder="Intel Core i5-10400" className={inputCls} />
 									</div>
-									<div className="space-y-2">
-										<Label className="text-muted-foreground flex items-center gap-2"><HardDrive className="h-3 w-3" /> Тип хранилища</Label>
-										<Select value={currentStorageType} onValueChange={(val) => setValue("storage_type", val)}>
-											<SelectTrigger className="bg-background/50 border-white/10 focus:border-primary/50">
-												<SelectValue placeholder="Выберите тип" />
-											</SelectTrigger>
-											<SelectContent className="glass border-white/10">
-												{STORAGE_TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}
-											</SelectContent>
-										</Select>
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+										<div className="space-y-2">
+											<Label htmlFor="ram_gb" className="text-muted-foreground">Объём RAM (ГБ)</Label>
+											<Input id="ram_gb" type="number" {...register("ram_gb", { valueAsNumber: true })} placeholder="16" className={inputCls} />
+										</div>
+										<div className="space-y-2">
+											<Label className="text-muted-foreground flex items-center gap-2"><HardDrive className="h-3 w-3" /> Тип хранилища</Label>
+											<Select value={currentStorageType} onValueChange={(val) => setValue("storage_type", val)}>
+												<SelectTrigger className={inputCls}>
+													<SelectValue placeholder="Выберите тип" />
+												</SelectTrigger>
+												<SelectContent className="glass border-white/10">
+													{STORAGE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+												</SelectContent>
+											</Select>
+										</div>
 									</div>
-								</div>
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-									<div className="space-y-2">
-										<Label htmlFor="storage_capacity_gb" className="text-muted-foreground">Объём хранилища (ГБ)</Label>
-										<Input id="storage_capacity_gb" type="number" {...register("storage_capacity_gb", { valueAsNumber: true })} placeholder="512"
-											className="bg-background/50 border-white/10 focus:border-primary/50" />
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+										<div className="space-y-2">
+											<Label htmlFor="storage_capacity_gb" className="text-muted-foreground">Объём (ГБ)</Label>
+											<Input id="storage_capacity_gb" type="number" {...register("storage_capacity_gb", { valueAsNumber: true })} placeholder="512" className={inputCls} />
+										</div>
+										<div className="space-y-2">
+											<Label htmlFor="operating_system" className="text-muted-foreground">ОС</Label>
+											<Input id="operating_system" {...register("operating_system")} placeholder="Windows 10 Pro" className={inputCls} />
+										</div>
 									</div>
-									<div className="space-y-2">
-										<Label htmlFor="operating_system" className="text-muted-foreground">Операционная система</Label>
-										<Input id="operating_system" {...register("operating_system")} placeholder="Windows 10 Pro"
-											className="bg-background/50 border-white/10 focus:border-primary/50" />
-									</div>
-								</div>
 
-								<div className="space-y-4 pt-2">
-									<Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Комплектация и периферия</Label>
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white/5 p-4 rounded-xl border border-white/5">
-										<div className="space-y-3">
-											{([
-												["has_optical_drive", hasOpticalDrive, "Оптический привод"],
-												["has_card_reader", hasCardReader, "Картридер"],
-												["has_laptop", hasLaptop, "Ноутбук (наличие)"],
-												["laptop_functional", laptopFunctional, "Ноутбук исправен"],
-											] as const).map(([field, val, label]) => (
-												<div key={field} className="flex items-center space-x-3">
-													<Checkbox id={field} checked={val as boolean}
-														onCheckedChange={(c) => setValue(field, c as boolean)} />
-													<Label htmlFor={field} className="text-sm font-medium cursor-pointer">{label}</Label>
-												</div>
-											))}
-										</div>
-										<div className="space-y-3">
-											{([
-												["has_charger", hasCharger, "Зарядка (наличие)"],
-												["charger_functional", chargerFunctional, "Зарядка исправна"],
-												["has_mouse", hasMouse, "Мышь (наличие)"],
-												["mouse_functional", mouseFunctional, "Мышь исправна"],
-											] as const).map(([field, val, label]) => (
-												<div key={field} className="flex items-center space-x-3">
-													<Checkbox id={field} checked={val as boolean}
-														onCheckedChange={(c) => setValue(field, c as boolean)} />
-													<Label htmlFor={field} className="text-sm font-medium cursor-pointer">{label}</Label>
-												</div>
-											))}
-										</div>
-										<div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-white/5 mt-1">
-											{([
-												["has_bag", hasBag, "Сумка (наличие)"],
-												["bag_functional", bagFunctional, "Сумка исправна"],
-											] as const).map(([field, val, label]) => (
-												<div key={field} className="flex items-center space-x-3">
-													<Checkbox id={field} checked={val as boolean}
-														onCheckedChange={(c) => setValue(field, c as boolean)} />
-													<Label htmlFor={field} className="text-sm font-medium cursor-pointer">{label}</Label>
-												</div>
-											))}
+									{/* Периферия */}
+									<div className="space-y-4 pt-2">
+										<Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Комплектация и периферия</Label>
+										<div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white/5 p-4 rounded-xl border border-white/5">
+											<div className="space-y-3">
+												{([
+													["has_optical_drive", hasOpticalDrive, "Оптический привод"],
+													["has_card_reader", hasCardReader, "Картридер"],
+													["has_laptop", hasLaptop, "Ноутбук (наличие)"],
+													["laptop_functional", laptopFunctional, "Ноутбук исправен"],
+												] as const).map(([field, val, label]) => (
+													<div key={field} className="flex items-center space-x-3">
+														<Checkbox id={field} checked={val as boolean}
+															onCheckedChange={(c) => setValue(field, c as boolean)} />
+														<Label htmlFor={field} className="text-sm font-medium cursor-pointer">{label}</Label>
+													</div>
+												))}
+											</div>
+											<div className="space-y-3">
+												{([
+													["has_charger", hasCharger, "Зарядка (наличие)"],
+													["charger_functional", chargerFunctional, "Зарядка исправна"],
+													["has_mouse", hasMouse, "Мышь (наличие)"],
+													["mouse_functional", mouseFunctional, "Мышь исправна"],
+												] as const).map(([field, val, label]) => (
+													<div key={field} className="flex items-center space-x-3">
+														<Checkbox id={field} checked={val as boolean}
+															onCheckedChange={(c) => setValue(field, c as boolean)} />
+														<Label htmlFor={field} className="text-sm font-medium cursor-pointer">{label}</Label>
+													</div>
+												))}
+											</div>
+											<div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-white/5 mt-1">
+												{([
+													["has_bag", hasBag, "Сумка (наличие)"],
+													["bag_functional", bagFunctional, "Сумка исправна"],
+												] as const).map(([field, val, label]) => (
+													<div key={field} className="flex items-center space-x-3">
+														<Checkbox id={field} checked={val as boolean}
+															onCheckedChange={(c) => setValue(field, c as boolean)} />
+														<Label htmlFor={field} className="text-sm font-medium cursor-pointer">{label}</Label>
+													</div>
+												))}
+											</div>
 										</div>
 									</div>
 								</div>
-							</div>
+							)}
 
-							{/* Размещение */}
+							{/* ── Размещение ── */}
 							<div className="space-y-4">
 								<h3 className="text-sm font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2 flex items-center gap-2">
 									<MapPin className="h-4 w-4" /> Размещение
@@ -366,13 +506,16 @@ function CreateEquipmentForm() {
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
 										<Label className="text-muted-foreground flex items-center gap-1.5"><UserIcon className="h-3 w-3" /> Ответственное лицо</Label>
-										<PersonnelSelect value={currentOwnerId} onValueChange={(val) => setValue("current_owner_id", val)}
-											placeholder="Выберите владельца (опционально)" />
+										<PersonnelSelect
+											value={currentOwnerId}
+											onValueChange={(val) => setValue("current_owner_id", val)}
+											placeholder="Выберите владельца (опционально)"
+										/>
 									</div>
 									<div className="space-y-2">
-										<Label className="text-muted-foreground">Статус оборудования</Label>
+										<Label className="text-muted-foreground">Статус</Label>
 										<Select value={currentStatus} onValueChange={(val) => setValue("status", val)}>
-											<SelectTrigger className="bg-background/50 border-white/10 focus:border-primary/50">
+											<SelectTrigger className={inputCls}>
 												<SelectValue />
 											</SelectTrigger>
 											<SelectContent className="glass border-white/10">
@@ -383,30 +526,39 @@ function CreateEquipmentForm() {
 								</div>
 								<div className="space-y-2">
 									<Label htmlFor="current_location" className="text-muted-foreground">Местоположение</Label>
-									<Input id="current_location" {...register("current_location")} placeholder="Каб. 205, Склад №1"
-										className="bg-background/50 border-white/10 focus:border-primary/50" />
+									<Input id="current_location" {...register("current_location")}
+										placeholder={isSimple ? "Каб. 205, Переговорная 2…" : "Каб. 205, Склад №1"}
+										className={inputCls} />
 								</div>
 							</div>
 
-							{/* Дополнительно */}
+							{/* ── Примечания ── */}
 							<div className="space-y-4">
 								<h3 className="text-sm font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2 flex items-center gap-2">
-									<Info className="h-4 w-4" /> Дополнительно
+									<Info className="h-4 w-4" /> Примечания
 								</h3>
 								<div className="space-y-2">
-									<Label htmlFor="notes" className="text-muted-foreground">Примечания</Label>
-									<Textarea id="notes" {...register("notes")} placeholder="Дополнительные сведения о технике..." rows={4}
-										className="bg-background/50 border-white/10 focus:border-primary/50 resize-none" />
+									<Textarea id="notes" {...register("notes")}
+										placeholder="Дополнительные сведения, особенности, комплектация…"
+										rows={3} className={`${inputCls} resize-none`} />
 								</div>
 							</div>
 						</CardContent>
 
 						<CardFooter className="bg-white/5 flex justify-between border-t border-white/10 py-6 px-8">
-							<Button type="button" variant="ghost" asChild className="hover:bg-white/10 text-muted-foreground transition-colors">
+							<Button type="button" variant="ghost" asChild className="hover:bg-white/10 text-muted-foreground">
 								<Link href="/equipment">Отмена</Link>
 							</Button>
-							<Button type="submit" disabled={createMutation.isPending}
-								className={`border-0 shadow-lg px-8 font-semibold ${isPersonal ? "bg-purple-600 hover:bg-purple-700" : "gradient-primary"}`}>
+							<Button
+								type="submit"
+								disabled={createMutation.isPending}
+								className={`border-0 shadow-lg px-8 font-semibold ${isSimple
+									? "bg-emerald-600 hover:bg-emerald-700 text-white"
+									: isPersonal
+										? "bg-purple-600 hover:bg-purple-700 text-white"
+										: "gradient-primary"
+									}`}
+							>
 								{createMutation.isPending ? (
 									<div className="flex items-center gap-2">
 										<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
@@ -415,7 +567,7 @@ function CreateEquipmentForm() {
 								) : (
 									<div className="flex items-center gap-2">
 										<Save className="h-4 w-4" />
-										{isPersonal ? "Добавить личный ноутбук" : "Создать запись"}
+										{isSimple ? "Добавить оборудование" : isPersonal ? "Добавить личный ноутбук" : "Создать запись"}
 									</div>
 								)}
 							</Button>

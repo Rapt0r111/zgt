@@ -1,7 +1,9 @@
 export interface Equipment {
 	id: number;
 	equipment_type: string;
-	inventory_number?: string;       // optional: личные ноутбуки без инв. номера
+	/** Человекочитаемое имя (телевизор Samsung 55", доска Promethean…) */
+	display_name?: string;
+	inventory_number?: string;
 	serial_number?: string;
 	mni_serial_number?: string;
 	manufacturer?: string;
@@ -25,7 +27,7 @@ export interface Equipment {
 	current_location?: string;
 	status: string;
 	notes?: string;
-	is_personal: boolean;            // новое поле
+	is_personal: boolean;
 	is_active: boolean;
 	created_at: string;
 	updated_at: string;
@@ -35,7 +37,8 @@ export interface Equipment {
 
 export interface EquipmentCreate {
 	equipment_type: string;
-	inventory_number?: string;       // optional: личным ноутбукам не нужен
+	display_name?: string;
+	inventory_number?: string;
 	serial_number?: string;
 	mni_serial_number?: string;
 	manufacturer?: string;
@@ -59,7 +62,7 @@ export interface EquipmentCreate {
 	current_location?: string;
 	status?: string;
 	notes?: string;
-	is_personal?: boolean;           // новое поле
+	is_personal?: boolean;
 }
 
 export type EquipmentUpdate = Partial<EquipmentCreate>;

@@ -6,6 +6,8 @@ from datetime import datetime
 
 class EquipmentBase(BaseModel):
     equipment_type: str = Field(..., max_length=50)
+    # Человекочитаемое имя устройства — актуально для телевизоров, досок, проекторов и др.
+    display_name: Optional[str] = Field(None, max_length=255)
     inventory_number: Optional[str] = Field(None, max_length=100)
     serial_number: Optional[str] = Field(None, max_length=100)
     mni_serial_number: Optional[str] = Field(None, max_length=100)
@@ -40,6 +42,7 @@ class EquipmentCreate(EquipmentBase):
 
 class EquipmentUpdate(BaseModel):
     equipment_type: Optional[str] = None
+    display_name: Optional[str] = None
     inventory_number: Optional[str] = None
     serial_number: Optional[str] = None
     mni_serial_number: Optional[str] = None
@@ -69,6 +72,7 @@ class EquipmentUpdate(BaseModel):
 
 class EquipmentResponse(EquipmentBase):
     id: int
+    display_name: Optional[str] = None
     inventory_number: Optional[str] = None
     is_active: bool
     is_personal: bool

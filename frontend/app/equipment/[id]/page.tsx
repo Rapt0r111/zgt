@@ -2,7 +2,10 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, History, Save, Monitor, Cpu, MapPin, Info, Edit3, X, FileText, User as UserIcon, Calendar, Hash } from "lucide-react";
+import {
+	ArrowLeft, History, Save, Monitor, Cpu, MapPin, Info, Edit3, X,
+	FileText, User as UserIcon, Calendar, Hash, Tag, Tv,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -17,25 +20,22 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+	Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { equipmentApi } from "@/lib/api/equipment";
+import {
+	COMPLEX_EQUIPMENT_TYPES, STATUSES,
+	SIMPLE_EQUIPMENT_TYPES, STORAGE_TYPES, isSimpleEquipmentType,
+} from "@/lib/equipment-types";
 import { personnelApi } from "@/lib/api/personnel";
 import { cleanEmptyStrings } from "@/lib/utils/transform";
-
-const EQUIPMENT_TYPES = ["АРМ", "ПЭВМ", "Ноутбук", "Сервер", "Принтер", "Другое"];
-const STATUSES = ["В работе", "На складе", "В ремонте", "Сломан"];
-const STORAGE_TYPES = ["HDD", "SSD", "NVMe", "Другое"];
 
 const equipmentSchema = z
 	.object({
 		equipment_type: z.string().min(1),
+		display_name: z.string().max(255).default(""),
 		inventory_number: z.string().default(""),
 		serial_number: z.string().default(""),
 		mni_serial_number: z.string().default(""),
@@ -62,15 +62,26 @@ const equipmentSchema = z
 		notes: z.string().default(""),
 	})
 	.superRefine((data, ctx) => {
-		const isLaptopNotInUse =
-			data.equipment_type === "Ноутбук" && data.status !== "В работе";
-
-		if (!isLaptopNotInUse && !data.inventory_number.trim()) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: ["inventory_number"],
-				message: "Учетный номер обязателен",
-			});
+		const simple = isSimpleEquipmentType(data.equipment_type);
+		if (simple) {
+			const hasId = data.serial_number.trim() || data.inventory_number.trim() ||
+				data.display_name.trim() || data.model.trim();
+			if (!hasId) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ["serial_number"],
+					message: "Укажите серийный номер, инвентарный номер или название",
+				});
+			}
+		} else {
+			const isLaptopNotInUse = data.equipment_type === "Ноутбук" && data.status !== "В работе";
+			if (!isLaptopNotInUse && !data.inventory_number.trim()) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ["inventory_number"],
+					message: "Учетный номер обязателен",
+				});
+			}
 		}
 	});
 
@@ -103,12 +114,7 @@ export default function EquipmentDetailPage() {
 	});
 
 	const {
-		register,
-		handleSubmit,
-		setFocus,
-		setValue,
-		watch,
-		reset,
+		register, handleSubmit, setFocus, setValue, watch, reset,
 		formState: { errors },
 	} = useForm<EquipmentFormInput, unknown, EquipmentFormData>({
 		resolver: zodResolver(equipmentSchema),
@@ -119,6 +125,7 @@ export default function EquipmentDetailPage() {
 		if (equipment) {
 			reset({
 				equipment_type: equipment.equipment_type,
+				display_name: equipment.display_name || "",
 				inventory_number: equipment.inventory_number || "",
 				serial_number: equipment.serial_number || "",
 				mni_serial_number: equipment.mni_serial_number || "",
@@ -148,8 +155,7 @@ export default function EquipmentDetailPage() {
 	}, [equipment, reset]);
 
 	const updateMutation = useMutation({
-		mutationFn: (data: EquipmentFormData) =>
-			equipmentApi.update(equipmentId, data),
+		mutationFn: (data: EquipmentFormData) => equipmentApi.update(equipmentId, data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["equipment", equipmentId] });
 			queryClient.invalidateQueries({ queryKey: ["equipment"] });
@@ -158,8 +164,8 @@ export default function EquipmentDetailPage() {
 			toast.success("Данные обновлены");
 		},
 		onError: (err: unknown) => {
-			const error = err as { response?: { data?: { detail?: string } } };
-			const detail = error.response?.data?.detail;
+			const e = err as { response?: { data?: { detail?: string } } };
+			const detail = e.response?.data?.detail;
 			setError(typeof detail === "string" ? detail : "Ошибка");
 			toast.error("Ошибка при обновлении");
 		},
@@ -167,19 +173,15 @@ export default function EquipmentDetailPage() {
 
 	const onSubmit = (data: EquipmentFormData) => {
 		setError("");
-		const cleanedData = cleanEmptyStrings(data);
-		updateMutation.mutate(cleanedData as EquipmentFormData);
+		const cleaned = cleanEmptyStrings(data);
+		updateMutation.mutate(cleaned as EquipmentFormData);
 	};
 
 	const onInvalidSubmit = (formErrors: FieldErrors<EquipmentFormInput>) => {
 		toast.error("Проверьте обязательные поля формы");
-
-		const firstErrorField = Object.keys(formErrors)[0] as
-			| keyof EquipmentFormInput
-			| undefined;
-
-		if (firstErrorField && firstErrorField !== "inventory_number") {
-			setFocus(firstErrorField);
+		const first = Object.keys(formErrors)[0] as keyof EquipmentFormInput | undefined;
+		if (first && first !== "inventory_number" && first !== "serial_number") {
+			setFocus(first as keyof EquipmentFormInput);
 		}
 	};
 
@@ -187,37 +189,14 @@ export default function EquipmentDetailPage() {
 	const currentStatus = watch("status");
 	const currentOwnerId = watch("current_owner_id");
 	const currentStorageType = watch("storage_type");
-	type PeripheryItem = {
-		id:
-		| "has_optical_drive"
-		| "has_card_reader"
-		| "has_laptop"
-		| "has_charger"
-		| "has_mouse"
-		| "has_bag";
-		label: string;
-		type?: string;
-		subId?:
-		| "laptop_functional"
-		| "charger_functional"
-		| "mouse_functional"
-		| "bag_functional";
-		subLabel?: string;
-	};
+	const isSimple = isSimpleEquipmentType(currentType);
 
-	const peripheryItems: PeripheryItem[] = [
-		{ id: "has_optical_drive", label: "Оптический привод", type: "check" },
-		{ id: "has_card_reader", label: "Картридер", type: "check" },
-		{ id: "has_laptop", label: "Ноутбук", subId: "laptop_functional", subLabel: "Исправен" },
-		{ id: "has_charger", label: "Зарядка", subId: "charger_functional", subLabel: "Исправна" },
-		{ id: "has_mouse", label: "Мышь", subId: "mouse_functional", subLabel: "Исправна" },
-		{ id: "has_bag", label: "Сумка", subId: "bag_functional", subLabel: "Исправна" },
-	];
+	const inputCls = "bg-background/50 border-white/10 focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5";
 
 	if (isLoading) {
 		return (
 			<div className="min-h-screen bg-slate-900 flex items-center justify-center">
-				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
 			</div>
 		);
 	}
@@ -225,17 +204,19 @@ export default function EquipmentDetailPage() {
 	if (!equipment) {
 		return (
 			<div className="min-h-screen bg-slate-900 flex items-center justify-center text-foreground">
-				<p>Техника не найдена</p>
+				<p>Оборудование не найдено</p>
 			</div>
 		);
 	}
 
+	const displayLabel = equipment.display_name ||
+		[equipment.manufacturer, equipment.model].filter(Boolean).join(" ") ||
+		equipment.equipment_type;
+
 	const getStatusBadge = (status: string) => {
 		const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-			"В работе": "default",
-			"На складе": "secondary",
-			"В ремонте": "outline",
-			"Сломан": "destructive",
+			"В работе": "default", "На складе": "secondary",
+			"В ремонте": "outline", "Сломан": "destructive",
 		};
 		return <Badge variant={variants[status] || "default"} className="px-3 shadow-sm">{status}</Badge>;
 	};
@@ -253,16 +234,22 @@ export default function EquipmentDetailPage() {
 				<div className="flex flex-wrap justify-between items-start mb-8 gap-4">
 					<div>
 						<div className="flex items-center gap-3 mb-1">
-							<h1 className="text-3xl font-bold tracking-tight">{equipment.inventory_number}</h1>
+							<div className={`p-2 rounded-lg ${isSimpleEquipmentType(equipment.equipment_type) ? "bg-emerald-500/10" : "bg-primary/10"}`}>
+								{isSimpleEquipmentType(equipment.equipment_type)
+									? <Tv className="h-5 w-5 text-emerald-400" />
+									: <Monitor className="h-5 w-5 text-primary" />
+								}
+							</div>
+							<h1 className="text-3xl font-bold tracking-tight">{displayLabel}</h1>
 							{getStatusBadge(equipment.status)}
 						</div>
-						<p className="text-muted-foreground flex items-center gap-2">
+						<p className="text-muted-foreground flex items-center gap-2 ml-11">
 							<span className="font-medium text-primary/80">{equipment.equipment_type}</span>
-							{equipment.model && (
-								<>
-									<span className="opacity-30">•</span>
-									<span>{equipment.manufacturer} {equipment.model}</span>
-								</>
+							{equipment.inventory_number && (
+								<><span className="opacity-30">•</span><span className="font-mono text-xs">#{equipment.inventory_number}</span></>
+							)}
+							{equipment.serial_number && !equipment.inventory_number && (
+								<><span className="opacity-30">•</span><span className="font-mono text-xs">S/N: {equipment.serial_number}</span></>
 							)}
 						</p>
 					</div>
@@ -272,18 +259,14 @@ export default function EquipmentDetailPage() {
 							onClick={() => setIsEditing(!isEditing)}
 							className={!isEditing ? "bg-white/10 hover:bg-white/20 border-0" : "bg-transparent border-white/20"}
 						>
-							{isEditing ? (
-								<><X className="mr-2 h-4 w-4" /> Отменить</>
-							) : (
-								<><Edit3 className="mr-2 h-4 w-4" /> Редактировать</>
-							)}
+							{isEditing ? <><X className="mr-2 h-4 w-4" /> Отменить</> : <><Edit3 className="mr-2 h-4 w-4" /> Редактировать</>}
 						</Button>
 					</div>
 				</div>
 
 				<Tabs defaultValue="details" className="space-y-6">
 					<TabsList className="bg-background/50 border border-white/5 p-1">
-						<TabsTrigger value="details" className="data-[state=active]:bg-primary/20">Детали устройства</TabsTrigger>
+						<TabsTrigger value="details" className="data-[state=active]:bg-primary/20">Детали</TabsTrigger>
 						<TabsTrigger value="movements" className="data-[state=active]:bg-primary/20">
 							<History className="mr-2 h-4 w-4" />
 							История ({movementHistory?.total || 0})
@@ -293,15 +276,14 @@ export default function EquipmentDetailPage() {
 					<TabsContent value="details" className="space-y-6">
 						<form onSubmit={handleSubmit(onSubmit, onInvalidSubmit)}>
 							<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-								{/* Основная колонка */}
 								<div className="lg:col-span-2 space-y-6">
 									{error && (
-										<Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive-foreground">
+										<Alert variant="destructive" className="bg-destructive/10 border-destructive/20">
 											<AlertDescription>{error}</AlertDescription>
 										</Alert>
 									)}
 
-									{/* Основная информация */}
+									{/* Основные данные */}
 									<Card className="glass-elevated border-white/10 overflow-hidden">
 										<CardHeader className="bg-white/5 border-b border-white/10">
 											<CardTitle className="text-lg flex items-center gap-2">
@@ -311,143 +293,177 @@ export default function EquipmentDetailPage() {
 										<CardContent className="p-6 space-y-6">
 											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 												<div className="space-y-2">
-													<Label className="text-muted-foreground">Тип техники *</Label>
+													<Label className="text-muted-foreground">Тип оборудования</Label>
 													{isEditing ? (
 														<Select value={currentType} onValueChange={(val) => setValue("equipment_type", val)}>
 															<SelectTrigger className={`bg-background/50 border-white/10 ${errors.equipment_type ? "border-destructive/50" : ""}`}>
 																<SelectValue />
 															</SelectTrigger>
 															<SelectContent className="glass border-white/10">
-																{EQUIPMENT_TYPES.map((type) => (
-																	<SelectItem key={type} value={type}>{type}</SelectItem>
-																))}
+																{COMPLEX_EQUIPMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+																<SelectItem value="__sep__" disabled className="text-muted-foreground/40 text-xs py-1">──────</SelectItem>
+																{SIMPLE_EQUIPMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
 															</SelectContent>
 														</Select>
 													) : (
-														<div className="p-2.5 rounded-md bg-white/5 border border-transparent font-medium">{equipment.equipment_type}</div>
+														<div className="p-2.5 rounded-md bg-white/5 border border-transparent font-medium flex items-center gap-2">
+															{isSimpleEquipmentType(equipment.equipment_type)
+																? <Tv className="h-3.5 w-3.5 text-emerald-400" />
+																: <Monitor className="h-3.5 w-3.5 text-primary" />
+															}
+															{equipment.equipment_type}
+														</div>
 													)}
 												</div>
 
+												{/* Название — для простой техники */}
 												<div className="space-y-2">
-													<Label htmlFor="inventory_number" className="text-muted-foreground">Учетный номер *</Label>
-													<Input
-														id="inventory_number"
-														{...register("inventory_number")}
-														disabled={!isEditing}
-														className="bg-background/50 border-white/10 font-mono focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5"
-													/>
+													<Label htmlFor="display_name" className="text-muted-foreground flex items-center gap-1.5">
+														<Tag className="h-3 w-3" /> Название
+													</Label>
+													<Input id="display_name" {...register("display_name")} disabled={!isEditing}
+														placeholder="Samsung UE55TU7100…"
+														className={inputCls} />
 												</div>
 											</div>
 
 											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 												<div className="space-y-2">
 													<Label htmlFor="manufacturer" className="text-muted-foreground">Производитель</Label>
-													<Input id="manufacturer" {...register("manufacturer")} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
+													<Input id="manufacturer" {...register("manufacturer")} disabled={!isEditing} className={inputCls} />
 												</div>
 												<div className="space-y-2">
 													<Label htmlFor="model" className="text-muted-foreground">Модель</Label>
-													<Input id="model" {...register("model")} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
+													<Input id="model" {...register("model")} disabled={!isEditing} className={inputCls} />
 												</div>
 											</div>
 
+											{/* Инвентарный + серийный */}
 											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 												<div className="space-y-2">
-													<Label htmlFor="serial_number" className="text-muted-foreground">Серийный номер (S/N)</Label>
-													<Input id="serial_number" {...register("serial_number")} disabled={!isEditing} className="bg-background/50 border-white/10 font-mono text-sm disabled:opacity-100 disabled:bg-white/5" />
+													<Label htmlFor="inventory_number" className="text-muted-foreground">
+														Инвентарный номер
+														{!isSimple && <span className="text-destructive ml-1">*</span>}
+													</Label>
+													<Input id="inventory_number" {...register("inventory_number")} disabled={!isEditing}
+														className={`font-mono ${inputCls} ${errors.inventory_number ? "border-destructive/50" : ""}`} />
+													{errors.inventory_number && (
+														<p className="text-xs text-destructive">{errors.inventory_number.message}</p>
+													)}
 												</div>
 												<div className="space-y-2">
-													<Label htmlFor="mni_serial_number" className="text-muted-foreground">Серийный номер МНИ</Label>
-													<Input id="mni_serial_number" {...register("mni_serial_number")} disabled={!isEditing} className="bg-background/50 border-white/10 font-mono text-sm disabled:opacity-100 disabled:bg-white/5" />
-												</div>
-											</div>
-										</CardContent>
-									</Card>
-
-									{/* Технические характеристики */}
-									<Card className="glass-elevated border-white/10 overflow-hidden">
-										<CardHeader className="bg-white/5 border-b border-white/10">
-											<CardTitle className="text-lg flex items-center gap-2">
-												<Cpu className="h-4 w-4 text-primary" /> Спецификация
-											</CardTitle>
-										</CardHeader>
-										<CardContent className="p-6 space-y-6">
-											<div className="space-y-2">
-												<Label htmlFor="cpu" className="text-muted-foreground">Процессор</Label>
-												<Input id="cpu" {...register("cpu")} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
-											</div>
-
-											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-												<div className="space-y-2">
-													<Label htmlFor="ram_gb" className="text-muted-foreground">RAM (ГБ)</Label>
-													<Input id="ram_gb" type="number" {...register("ram_gb", { valueAsNumber: true })} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
-												</div>
-												<div className="space-y-2">
-													<Label className="text-muted-foreground">Тип хранилища</Label>
-													{isEditing ? (
-														<Select value={currentStorageType} onValueChange={(val) => setValue("storage_type", val)}>
-															<SelectTrigger className="bg-background/50 border-white/10">
-																<SelectValue placeholder="Выберите тип" />
-															</SelectTrigger>
-															<SelectContent className="glass border-white/10">
-																{STORAGE_TYPES.map((type) => (
-																	<SelectItem key={type} value={type}>{type}</SelectItem>
-																))}
-															</SelectContent>
-														</Select>
-													) : (
-														<div className="p-2.5 rounded-md bg-white/5 border border-transparent">{equipment.storage_type || "–"}</div>
+													<Label htmlFor="serial_number" className="text-muted-foreground">
+														Серийный номер (S/N)
+														{isSimple && <span className="text-primary/60 ml-1 text-[10px]">— основной ID</span>}
+													</Label>
+													<Input id="serial_number" {...register("serial_number")} disabled={!isEditing}
+														className={`font-mono ${inputCls} ${errors.serial_number ? "border-destructive/50" : ""}`} />
+													{errors.serial_number && (
+														<p className="text-xs text-destructive">{errors.serial_number.message}</p>
 													)}
 												</div>
 											</div>
 
-											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+											{/* МНИ — только для сложной техники */}
+											{!isSimple && (
 												<div className="space-y-2">
-													<Label htmlFor="storage_capacity_gb" className="text-muted-foreground">Объём (ГБ)</Label>
-													<Input id="storage_capacity_gb" type="number" {...register("storage_capacity_gb", { valueAsNumber: true })} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
+													<Label htmlFor="mni_serial_number" className="text-muted-foreground">Серийный номер МНИ</Label>
+													<Input id="mni_serial_number" {...register("mni_serial_number")} disabled={!isEditing}
+														className={`font-mono text-sm ${inputCls}`} />
 												</div>
-												<div className="space-y-2">
-													<Label htmlFor="operating_system" className="text-muted-foreground">ОС</Label>
-													<Input id="operating_system" {...register("operating_system")} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
-												</div>
-											</div>
+											)}
+										</CardContent>
+									</Card>
 
-											<div className="space-y-4">
-												<Label className="text-xs font-bold uppercase tracking-widest text-primary/70">Периферия и аксессуары</Label>
-												<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-													{/* Индивидуальные блоки для ноутбучных аксессуаров */}
-													{peripheryItems.map((item) => (
-														<div key={item.id} className="rounded-xl border border-white/5 bg-white/5 p-4 flex flex-col justify-center">
-															<div className="flex items-center justify-between">
-																<Label htmlFor={item.id} className="font-medium cursor-pointer">{item.label}</Label>
-																<Checkbox
-																	id={item.id}
-																	checked={watch(item.id)}
-																	onCheckedChange={(val) => setValue(item.id, val as boolean)}
-																	disabled={!isEditing}
-																/>
-															</div>
-															{item.subId && watch(item.id) && (
-																<div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-muted-foreground">
-																	<span>{item.subLabel}</span>
+									{/* Технические характеристики — только для сложной техники */}
+									{!isSimple && (
+										<Card className="glass-elevated border-white/10 overflow-hidden">
+											<CardHeader className="bg-white/5 border-b border-white/10">
+												<CardTitle className="text-lg flex items-center gap-2">
+													<Cpu className="h-4 w-4 text-primary" /> Спецификация
+												</CardTitle>
+											</CardHeader>
+											<CardContent className="p-6 space-y-6">
+												<div className="space-y-2">
+													<Label htmlFor="cpu" className="text-muted-foreground">Процессор</Label>
+													<Input id="cpu" {...register("cpu")} disabled={!isEditing} className={inputCls} />
+												</div>
+												<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+													<div className="space-y-2">
+														<Label htmlFor="ram_gb" className="text-muted-foreground">RAM (ГБ)</Label>
+														<Input id="ram_gb" type="number" {...register("ram_gb", { valueAsNumber: true })} disabled={!isEditing} className={inputCls} />
+													</div>
+													<div className="space-y-2">
+														<Label className="text-muted-foreground">Тип хранилища</Label>
+														{isEditing ? (
+															<Select value={currentStorageType} onValueChange={(val) => setValue("storage_type", val)}>
+																<SelectTrigger className="bg-background/50 border-white/10">
+																	<SelectValue placeholder="Выберите тип" />
+																</SelectTrigger>
+																<SelectContent className="glass border-white/10">
+																	{STORAGE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+																</SelectContent>
+															</Select>
+														) : (
+															<div className="p-2.5 rounded-md bg-white/5 border border-transparent">{equipment.storage_type || "—"}</div>
+														)}
+													</div>
+												</div>
+												<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+													<div className="space-y-2">
+														<Label htmlFor="storage_capacity_gb" className="text-muted-foreground">Объём (ГБ)</Label>
+														<Input id="storage_capacity_gb" type="number" {...register("storage_capacity_gb", { valueAsNumber: true })} disabled={!isEditing} className={inputCls} />
+													</div>
+													<div className="space-y-2">
+														<Label htmlFor="operating_system" className="text-muted-foreground">ОС</Label>
+														<Input id="operating_system" {...register("operating_system")} disabled={!isEditing} className={inputCls} />
+													</div>
+												</div>
+
+												{/* Периферия */}
+												<div className="space-y-4">
+													<Label className="text-xs font-bold uppercase tracking-widest text-primary/70">Периферия и аксессуары</Label>
+													<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+														{([
+															["has_optical_drive", "Оптический привод", null, null],
+															["has_card_reader", "Картридер", null, null],
+															["has_laptop", "Ноутбук", "laptop_functional", "Исправен"],
+															["has_charger", "Зарядка", "charger_functional", "Исправна"],
+															["has_mouse", "Мышь", "mouse_functional", "Исправна"],
+															["has_bag", "Сумка", "bag_functional", "Исправна"],
+														] as const).map(([id, label, subId, subLabel]) => (
+															<div key={id} className="rounded-xl border border-white/5 bg-white/5 p-4">
+																<div className="flex items-center justify-between">
+																	<Label htmlFor={id} className="font-medium cursor-pointer">{label}</Label>
 																	<Checkbox
-																		id={item.subId}
-																		checked={watch(item.subId)}
-																		onCheckedChange={(val) => setValue(item.subId!, val as boolean)}
+																		id={id}
+																		checked={watch(id as keyof EquipmentFormInput) as boolean}
+																		onCheckedChange={(val) => setValue(id as keyof EquipmentFormInput, val as never)}
 																		disabled={!isEditing}
 																	/>
 																</div>
-															)}
-														</div>
-													))}
+																{subId && watch(id as keyof EquipmentFormInput) && (
+																	<div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-muted-foreground">
+																		<span>{subLabel}</span>
+																		<Checkbox
+																			id={subId}
+																			checked={watch(subId as keyof EquipmentFormInput) as boolean}
+																			onCheckedChange={(val) => setValue(subId as keyof EquipmentFormInput, val as never)}
+																			disabled={!isEditing}
+																		/>
+																	</div>
+																)}
+															</div>
+														))}
+													</div>
 												</div>
-											</div>
-										</CardContent>
-									</Card>
+											</CardContent>
+										</Card>
+									)}
 								</div>
 
 								{/* Боковая колонка */}
 								<div className="space-y-6">
-									{/* Размещение */}
 									<Card className="glass-elevated border-white/10 overflow-hidden">
 										<CardHeader className="bg-white/5 border-b border-white/10">
 											<CardTitle className="text-lg flex items-center gap-2">
@@ -456,30 +472,28 @@ export default function EquipmentDetailPage() {
 										</CardHeader>
 										<CardContent className="p-6 space-y-6">
 											<div className="space-y-2">
-												<Label className="text-muted-foreground flex items-center gap-1.5">
-													<UserIcon className="h-3 w-3" /> Владелец
-												</Label>
+												<Label className="text-muted-foreground flex items-center gap-1.5"><UserIcon className="h-3 w-3" /> Владелец</Label>
 												{isEditing ? (
 													<Select
-														value={currentOwnerId != null ? currentOwnerId.toString() : "__no_person__"}
+														value={currentOwnerId != null ? currentOwnerId.toString() : "__no__"}
 														onValueChange={(val) =>
-															setValue("current_owner_id", val === "__no_person__" ? null : parseInt(val, 10))
+															setValue("current_owner_id", val === "__no__" ? null : parseInt(val, 10))
 														}
 													>
 														<SelectTrigger className="bg-background/50 border-white/10">
 															<SelectValue />
 														</SelectTrigger>
 														<SelectContent className="glass border-white/10">
-															<SelectItem value="__no_person__">–</SelectItem>
-															{personnelData?.items.map((person) => (
-																<SelectItem key={person.id} value={person.id.toString()}>
-																	{person.rank ? `${person.rank} ` : ""}{person.full_name}
+															<SelectItem value="__no__">—</SelectItem>
+															{personnelData?.items.map((p) => (
+																<SelectItem key={p.id} value={p.id.toString()}>
+																	{p.rank ? `${p.rank} ` : ""}{p.full_name}
 																</SelectItem>
 															))}
 														</SelectContent>
 													</Select>
 												) : (
-													<div className="p-2.5 rounded-md bg-white/5 border border-transparent text-sm">
+													<div className="p-2.5 rounded-md bg-white/5 text-sm">
 														{equipment.current_owner_name ? (
 															<div>
 																<div className="font-semibold">{equipment.current_owner_name}</div>
@@ -487,16 +501,14 @@ export default function EquipmentDetailPage() {
 																	<div className="text-xs text-muted-foreground mt-0.5">{equipment.current_owner_rank}</div>
 																)}
 															</div>
-														) : "–"}
+														) : "—"}
 													</div>
 												)}
 											</div>
-
 											<div className="space-y-2">
 												<Label htmlFor="current_location" className="text-muted-foreground">Местоположение</Label>
-												<Input id="current_location" {...register("current_location")} disabled={!isEditing} className="bg-background/50 border-white/10 disabled:opacity-100 disabled:bg-white/5" />
+												<Input id="current_location" {...register("current_location")} disabled={!isEditing} className={inputCls} />
 											</div>
-
 											<div className="space-y-2">
 												<Label className="text-muted-foreground">Статус</Label>
 												{isEditing ? (
@@ -505,9 +517,7 @@ export default function EquipmentDetailPage() {
 															<SelectValue />
 														</SelectTrigger>
 														<SelectContent className="glass border-white/10">
-															{STATUSES.map((status) => (
-																<SelectItem key={status} value={status}>{status}</SelectItem>
-															))}
+															{STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
 														</SelectContent>
 													</Select>
 												) : (
@@ -517,7 +527,6 @@ export default function EquipmentDetailPage() {
 										</CardContent>
 									</Card>
 
-									{/* Примечания */}
 									<Card className="glass-elevated border-white/10 overflow-hidden">
 										<CardHeader className="bg-white/5 border-b border-white/10">
 											<CardTitle className="text-lg flex items-center gap-2">
@@ -529,17 +538,16 @@ export default function EquipmentDetailPage() {
 												{...register("notes")}
 												disabled={!isEditing}
 												rows={4}
-												placeholder="Дополнительная информация..."
+												placeholder="Дополнительная информация…"
 												className="bg-background/50 border-white/10 resize-none disabled:opacity-100 disabled:bg-white/5"
 											/>
 										</CardContent>
 									</Card>
 
-									{/* Мета-информация */}
 									<Card className="bg-white/5 border-white/10">
 										<CardContent className="p-5 space-y-3 text-xs text-muted-foreground">
 											<div className="flex justify-between">
-												<span className="flex items-center gap-1.5"><Hash className="h-3 w-3" /> ID устройства</span>
+												<span className="flex items-center gap-1.5"><Hash className="h-3 w-3" /> ID</span>
 												<span className="font-mono text-foreground/70">{equipment.id}</span>
 											</div>
 											<div className="flex justify-between">
@@ -561,7 +569,7 @@ export default function EquipmentDetailPage() {
 										Отмена
 									</Button>
 									<Button type="submit" disabled={updateMutation.isPending} className="gradient-primary border-0 px-6">
-										{updateMutation.isPending ? "Сохранение..." : <><Save className="mr-2 h-4 w-4" /> Сохранить изменения</>}
+										{updateMutation.isPending ? "Сохранение..." : <><Save className="mr-2 h-4 w-4" /> Сохранить</>}
 									</Button>
 								</div>
 							)}
@@ -579,72 +587,32 @@ export default function EquipmentDetailPage() {
 								</Button>
 							</CardHeader>
 							<CardContent className="p-6">
-								{movementHistory?.items.length === 0 ? (
+								{!movementHistory?.items.length ? (
 									<div className="text-center py-20 text-muted-foreground bg-white/5 rounded-xl border border-dashed border-white/10">
 										История перемещений пуста
 									</div>
 								) : (
 									<div className="space-y-4">
 										{movementHistory?.items.map((movement) => (
-											<div
-												key={movement.id}
-												className="group relative border border-white/5 bg-white/5 rounded-xl p-5 hover:bg-white/10 transition-all"
-											>
-												<div className="flex justify-between items-start mb-4">
+											<div key={movement.id} className="border border-white/5 bg-white/5 rounded-xl p-5">
+												<div className="flex justify-between items-start mb-3">
+													<div className="text-sm font-bold text-primary/90">{movement.movement_type}</div>
+													<div className="text-xs text-muted-foreground font-mono">
+														{new Date(movement.created_at).toLocaleString("ru-RU")}
+													</div>
+												</div>
+												<div className="grid grid-cols-2 gap-6 text-sm">
 													<div>
-														<div className="text-sm font-bold text-primary/90 mb-1">{movement.movement_type}</div>
-														<div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-															<Calendar className="h-3 w-3" />
-															{new Date(movement.created_at).toLocaleString("ru-RU")}
-														</div>
+														<div className="text-[10px] text-muted-foreground uppercase mb-1">Откуда</div>
+														<div>{movement.from_location || "—"}</div>
+														{movement.from_person_name && <div className="text-xs text-muted-foreground italic">{movement.from_person_name}</div>}
 													</div>
-													{movement.document_number && (
-														<Badge variant="outline" className="bg-background/30 border-white/10 text-[10px] tracking-wider uppercase">
-															Док: {movement.document_number}
-														</Badge>
-													)}
-												</div>
-
-												<div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-													<div className="space-y-3">
-														<div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Источник</div>
-														<div className="space-y-1">
-															<div className="text-sm font-medium">{movement.from_location || "–"}</div>
-															{movement.from_person_name && (
-																<div className="text-xs text-muted-foreground italic flex items-center gap-1.5">
-																	<UserIcon className="h-3 w-3" /> {movement.from_person_name}
-																</div>
-															)}
-														</div>
-													</div>
-													<div className="space-y-3">
-														<div className="text-[10px] uppercase tracking-widest text-primary/70 font-bold">Получатель / Место</div>
-														<div className="space-y-1">
-															<div className="text-sm font-medium">{movement.to_location}</div>
-															{movement.to_person_name && (
-																<div className="text-xs text-muted-foreground italic flex items-center gap-1.5">
-																	<UserIcon className="h-3 w-3" /> {movement.to_person_name}
-																</div>
-															)}
-														</div>
+													<div>
+														<div className="text-[10px] text-primary/70 uppercase mb-1">Куда</div>
+														<div>{movement.to_location}</div>
+														{movement.to_person_name && <div className="text-xs text-muted-foreground italic">{movement.to_person_name}</div>}
 													</div>
 												</div>
-
-												{(movement.reason || movement.created_by_username) && (
-													<div className="mt-4 pt-4 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 gap-4">
-														{movement.reason && (
-															<div className="text-xs">
-																<span className="text-muted-foreground mr-1.5">Причина:</span>
-																<span className="text-foreground/80">{movement.reason}</span>
-															</div>
-														)}
-														{movement.created_by_username && (
-															<div className="text-[10px] text-muted-foreground md:text-right self-end opacity-50">
-																Оператор: {movement.created_by_username}
-															</div>
-														)}
-													</div>
-												)}
 											</div>
 										))}
 									</div>
