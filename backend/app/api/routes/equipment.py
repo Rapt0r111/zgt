@@ -125,7 +125,8 @@ async def list_equipment(
     equipment_type: Optional[str] = None,
     status: Optional[str] = None,
     search: Optional[str] = None,
-    is_personal: Optional[bool] = None,  # <-- добавлено
+    is_personal: Optional[bool] = None,
+    is_computing: Optional[bool] = None,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -134,6 +135,7 @@ async def list_equipment(
         skip=skip, limit=limit,
         equipment_type=equipment_type, status=status,
         search=search, is_personal=is_personal,
+        is_computing=is_computing,
     )
     return EquipmentListResponse(total=total, items=[_enrich_equipment(e) for e in items])
 
@@ -158,13 +160,15 @@ async def get_statistics(
     equipment_type: Optional[str] = None,
     status: Optional[str] = None,
     search: Optional[str] = None,
-    is_personal: Optional[bool] = None,  # <-- добавлено
+    is_personal: Optional[bool] = None,
+    is_computing: Optional[bool] = None,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
     return await EquipmentService(db).get_statistics(
         equipment_type=equipment_type, status=status,
         search=search, is_personal=is_personal,
+        is_computing=is_computing,
     )
 
 

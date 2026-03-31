@@ -27,7 +27,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { equipmentApi } from "@/lib/api/equipment";
 import {
-	ALL_EQUIPMENT_TYPES, COMPLEX_EQUIPMENT_TYPES, STATUSES,
+	COMPLEX_EQUIPMENT_TYPES, STATUSES,
 	STORAGE_TYPES, isSimpleEquipmentType,
 } from "@/lib/equipment-types";
 import { cleanEmptyStrings } from "@/lib/utils/transform";
@@ -69,21 +69,21 @@ const equipmentSchema = z
 		const simple = isSimpleEquipmentType(data.equipment_type);
 
 		if (simple) {
-			// Для простой техники нужен хотя бы один идентификатор
+			// Для прочей техники: нужно хотя бы название ИЛИ серийный номер
 			const hasId =
+				data.display_name.trim() ||
 				data.serial_number.trim() ||
 				data.inventory_number.trim() ||
-				data.display_name.trim() ||
 				data.model.trim();
 			if (!hasId) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
-					path: ["serial_number"],
-					message: "Укажите серийный номер, инвентарный номер или название устройства",
+					path: ["display_name"],
+					message: "Укажите название или серийный номер устройства",
 				});
 			}
 		} else {
-			// Для вычислительной техники: инв. номер обязателен кроме ноутбуков «не в работе»
+			// Для вычислительной техники: инв. номер обязателен (кроме неисправных ноутбуков)
 			if (data.is_personal) return;
 			const isLaptopNotInUse =
 				data.equipment_type === "Ноутбук" && data.status !== "В работе";
@@ -153,6 +153,9 @@ function CreateEquipmentForm() {
 			if (variables.is_personal) {
 				toast.success("Личный ноутбук добавлен");
 				router.push("/personal-items");
+			} else if (isSimpleEquipmentType(variables.equipment_type)) {
+				toast.success("Оборудование добавлено");
+				router.push("/equipment?category=other");
 			} else {
 				toast.success("Оборудование добавлено");
 				router.push("/equipment");
@@ -174,9 +177,10 @@ function CreateEquipmentForm() {
 	const onInvalidSubmit = (formErrors: FieldErrors<EquipmentFormInput>) => {
 		toast.error("Проверьте обязательные поля формы");
 		const firstField = Object.keys(formErrors)[0] as keyof EquipmentFormInput | undefined;
-		type FocusableField = Exclude<keyof EquipmentFormInput, "inventory_number" | "serial_number">;
-		if (firstField && firstField !== "inventory_number" && firstField !== "serial_number") {
-			setFocus(firstField as FocusableField);
+		// Пропускаем только inventory_number и serial_number — они показывают ошибку inline
+		const skipFocus = new Set<string>(["inventory_number", "serial_number"]);
+		if (firstField && !skipFocus.has(firstField as string)) {
+			setFocus(firstField);
 		}
 	};
 
@@ -211,7 +215,7 @@ function CreateEquipmentForm() {
 										: <Monitor className="h-5 w-5 text-primary" />
 								}
 								{isSimple
-									? "Электронное оборудование"
+									? "Прочее электронное оборудование"
 									: "Вычислительная техника"
 								}
 							</CardTitle>
@@ -241,8 +245,8 @@ function CreateEquipmentForm() {
 							<div className="flex items-start gap-3 mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
 								<Tv className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
 								<p className="text-xs text-emerald-300/80 leading-relaxed">
-									Для {currentType.toLowerCase()} достаточно указать название или серийный номер.
-									Технические характеристики (CPU, RAM) не нужны.
+									Для {currentType.toLowerCase()} укажите <strong>название</strong> — это основной идентификатор.
+									Серийный и инвентарный номера необязательны.
 								</p>
 							</div>
 						)}
@@ -273,14 +277,12 @@ function CreateEquipmentForm() {
 												<SelectValue placeholder="Выберите тип" />
 											</SelectTrigger>
 											<SelectContent className="glass border-white/10">
-												{/* Вычислительная техника */}
 												<SelectItem value="__group_complex__" disabled className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-bold py-1 px-2">
 													── Вычислительная техника ──
 												</SelectItem>
 												{COMPLEX_EQUIPMENT_TYPES.map((t) => (
 													<SelectItem key={t} value={t}>{t}</SelectItem>
 												))}
-												{/* Прочее оборудование */}
 												<SelectItem value="__group_simple__" disabled className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-bold py-1 px-2 mt-1">
 													── Прочее оборудование ──
 												</SelectItem>
@@ -294,99 +296,78 @@ function CreateEquipmentForm() {
 										)}
 									</div>
 
-									{/* Название (для простой техники — основное поле) */}
-									{isSimple && (
-										<div className="space-y-2">
-											<Label htmlFor="display_name" className="text-muted-foreground flex items-center gap-1.5">
-												<Tag className="h-3 w-3" />
-												Название устройства
-											</Label>
-											<Input
-												id="display_name"
-												{...register("display_name")}
-												placeholder={`Напр.: Samsung UE55TU7100`}
-												className={inputCls}
-											/>
-											<p className="text-[11px] text-muted-foreground/60">
-												Краткое имя для отображения в списке
-											</p>
-										</div>
-									)}
-
-									{/* Инвентарный номер — для сложной техники обязателен */}
-									{!isSimple && (
-										<div className="space-y-2">
-											<Label htmlFor="inventory_number" className="text-muted-foreground">
-												Учетный номер
-												{!isPersonal && !(currentType === "Ноутбук" && currentStatus !== "В работе")
-													? " *"
-													: " "}
-												{isPersonal && (
-													<span className="ml-1 text-purple-400/60 text-[10px] font-normal">(опционально)</span>
-												)}
-											</Label>
-											<Input
-												id="inventory_number"
-												{...register("inventory_number")}
-												placeholder="570/720/321"
-												className={`font-mono ${inputCls} ${errors.inventory_number ? "border-destructive/50" : ""}`}
-											/>
-											{errors.inventory_number && (
-												<p className="text-xs text-destructive">{errors.inventory_number.message}</p>
+									{/* Название — для простой техники обязательное поле */}
+									<div className="space-y-2">
+										<Label htmlFor="display_name" className="text-muted-foreground flex items-center gap-1.5">
+											<Tag className="h-3 w-3" />
+											{isSimple ? (
+												<>Название <span className="text-destructive">*</span></>
+											) : (
+												<>Название <span className="text-muted-foreground/50 text-[11px] font-normal">(опционально)</span></>
 											)}
-										</div>
-									)}
+										</Label>
+										<Input
+											id="display_name"
+											{...register("display_name")}
+											placeholder={isSimple ? "Напр.: Samsung UE55TU7100" : "Краткое имя для отображения"}
+											className={`${inputCls} ${errors.display_name ? "border-destructive/50" : ""}`}
+										/>
+										{errors.display_name && (
+											<p className="text-xs text-destructive">{errors.display_name.message}</p>
+										)}
+									</div>
 								</div>
 
-								{/* Серийный номер — для простой техники основной идентификатор */}
+								{/* Серийный номер и инвентарный */}
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
 										<Label htmlFor="serial_number" className="text-muted-foreground font-mono text-xs uppercase">
 											Серийный номер (S/N)
-											{isSimple && <span className="ml-1 text-primary/60 normal-case font-normal text-[11px]">— основной идентификатор</span>}
 										</Label>
 										<Input
 											id="serial_number"
 											{...register("serial_number")}
 											placeholder="ABC123XYZ"
-											className={`font-mono ${inputCls} ${errors.serial_number ? "border-destructive/50" : ""}`}
+											className={`font-mono ${inputCls}`}
 										/>
-										{errors.serial_number && (
-											<p className="text-xs text-destructive">{errors.serial_number.message}</p>
-										)}
 									</div>
 
-									{/* Инв. номер — для простой техники опциональный */}
-									{isSimple && (
-										<div className="space-y-2">
-											<Label htmlFor="inventory_number_simple" className="text-muted-foreground">
-												Инвентарный номер
-												<span className="ml-1 text-muted-foreground/50 text-[11px] font-normal">(необязательно)</span>
-											</Label>
-											<Input
-												id="inventory_number_simple"
-												{...register("inventory_number")}
-												placeholder="570/720/321"
-												className={`font-mono ${inputCls}`}
-											/>
-										</div>
-									)}
-
-									{/* МНИ серийный — только для сложной техники */}
-									{!isSimple && (
-										<div className="space-y-2">
-											<Label htmlFor="mni_serial_number" className="text-muted-foreground font-mono text-xs uppercase">
-												Серийный номер МНИ
-											</Label>
-											<Input
-												id="mni_serial_number"
-												{...register("mni_serial_number")}
-												placeholder="МНИ: MNI789456"
-												className={`font-mono ${inputCls}`}
-											/>
-										</div>
-									)}
+									<div className="space-y-2">
+										<Label htmlFor="inventory_number" className="text-muted-foreground">
+											Инвентарный номер
+											{!isSimple && !isPersonal && (
+												<span className="text-destructive ml-1">*</span>
+											)}
+											{isPersonal && (
+												<span className="ml-1 text-purple-400/60 text-[10px] font-normal">(опционально)</span>
+											)}
+										</Label>
+										<Input
+											id="inventory_number"
+											{...register("inventory_number")}
+											placeholder="570/720/321"
+											className={`font-mono ${inputCls} ${errors.inventory_number ? "border-destructive/50" : ""}`}
+										/>
+										{errors.inventory_number && (
+											<p className="text-xs text-destructive">{errors.inventory_number.message}</p>
+										)}
+									</div>
 								</div>
+
+								{/* МНИ серийный — только для сложной техники */}
+								{!isSimple && (
+									<div className="space-y-2">
+										<Label htmlFor="mni_serial_number" className="text-muted-foreground font-mono text-xs uppercase">
+											Серийный номер МНИ
+										</Label>
+										<Input
+											id="mni_serial_number"
+											{...register("mni_serial_number")}
+											placeholder="МНИ: MNI789456"
+											className={`font-mono ${inputCls}`}
+										/>
+									</div>
+								)}
 
 								{/* Производитель + Модель */}
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">

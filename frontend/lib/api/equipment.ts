@@ -13,6 +13,7 @@ export const equipmentApi = {
     status?: string;
     search?: string;
     is_personal?: boolean;
+    is_computing?: boolean;
   }): Promise<EquipmentListResponse> => {
     const { data } = await apiClient.get("/api/equipment/", { params });
     return data;
@@ -52,6 +53,7 @@ export const equipmentApi = {
     status?: string;
     search?: string;
     is_personal?: boolean;
+    is_computing?: boolean;
   }): Promise<EquipmentStats> => {
     const { data } = await apiClient.get("/api/equipment/stats", { params });
     return data;

@@ -64,13 +64,16 @@ const equipmentSchema = z
 	.superRefine((data, ctx) => {
 		const simple = isSimpleEquipmentType(data.equipment_type);
 		if (simple) {
-			const hasId = data.serial_number.trim() || data.inventory_number.trim() ||
-				data.display_name.trim() || data.model.trim();
+			const hasId =
+				data.display_name.trim() ||
+				data.serial_number.trim() ||
+				data.inventory_number.trim() ||
+				data.model.trim();
 			if (!hasId) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
-					path: ["serial_number"],
-					message: "Укажите серийный номер, инвентарный номер или название",
+					path: ["display_name"],
+					message: "Укажите название или серийный номер устройства",
 				});
 			}
 		} else {
@@ -180,7 +183,7 @@ export default function EquipmentDetailPage() {
 	const onInvalidSubmit = (formErrors: FieldErrors<EquipmentFormInput>) => {
 		toast.error("Проверьте обязательные поля формы");
 		const first = Object.keys(formErrors)[0] as keyof EquipmentFormInput | undefined;
-		if (first && first !== "inventory_number" && first !== "serial_number") {
+		if (first && first !== "inventory_number") {
 			setFocus(first as keyof EquipmentFormInput);
 		}
 	};
@@ -319,11 +322,19 @@ export default function EquipmentDetailPage() {
 												{/* Название — для простой техники */}
 												<div className="space-y-2">
 													<Label htmlFor="display_name" className="text-muted-foreground flex items-center gap-1.5">
-														<Tag className="h-3 w-3" /> Название
+														<Tag className="h-3 w-3" />
+														{isSimple ? (
+															<>Название <span className="text-destructive">*</span></>
+														) : (
+															"Название"
+														)}
 													</Label>
 													<Input id="display_name" {...register("display_name")} disabled={!isEditing}
 														placeholder="Samsung UE55TU7100…"
-														className={inputCls} />
+														className={`${inputCls} ${errors.display_name ? "border-destructive/50" : ""}`} />
+													{errors.display_name && (
+														<p className="text-xs text-destructive">{errors.display_name.message}</p>
+													)}
 												</div>
 											</div>
 

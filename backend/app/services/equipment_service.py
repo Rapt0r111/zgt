@@ -15,6 +15,9 @@ from app.core.validators import sanitize_html
 
 logger = logging.getLogger(__name__)
 
+# Типы «вычислительной» техники (требуют полной спецификации)
+COMPUTING_TYPES = ["АРМ", "ПЭВМ", "Ноутбук", "Сервер"]
+
 def _equipment_search_filter(search: str):
     s = sanitize_html(search)
     return or_(
@@ -23,6 +26,7 @@ def _equipment_search_filter(search: str):
         Equipment.mni_serial_number.ilike(f"%{s}%"),
         Equipment.manufacturer.ilike(f"%{s}%"),
         Equipment.model.ilike(f"%{s}%"),
+        Equipment.display_name.ilike(f"%{s}%"),
         Equipment.equipment_type.ilike(f"%{s}%"),
         Equipment.current_location.ilike(f"%{s}%"),
         Equipment.notes.ilike(f"%{s}%"),
@@ -32,9 +36,14 @@ class EquipmentService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    def _apply_filters(self, stmt, equipment_type=None, status=None, search=None, is_personal=None):
+    def _apply_filters(self, stmt, equipment_type=None, status=None, search=None, is_personal=None, is_computing=None):
         if equipment_type:
             stmt = stmt.where(Equipment.equipment_type == equipment_type)
+        elif is_computing is not None:
+            if is_computing:
+                stmt = stmt.where(Equipment.equipment_type.in_(COMPUTING_TYPES))
+            else:
+                stmt = stmt.where(Equipment.equipment_type.notin_(COMPUTING_TYPES))
         if status:
             stmt = stmt.where(Equipment.status == status)
         if is_personal is not None:
@@ -43,24 +52,21 @@ class EquipmentService:
             stmt = stmt.where(_equipment_search_filter(search))
         return stmt
 
-    async def get_list(self, skip=0, limit=100, equipment_type=None, status=None, search=None, is_personal=None):
-        # Базовый запрос
+    async def get_list(self, skip=0, limit=100, equipment_type=None, status=None, search=None, is_personal=None, is_computing=None):
         stmt = (
             select(Equipment)
             .options(joinedload(Equipment.current_owner))
             .where(Equipment.is_active == True)
         )
-        stmt = self._apply_filters(stmt, equipment_type, status, search, is_personal)
-        
-        # Получаем общее количество (в асинхронном стиле это отдельный запрос)
+        stmt = self._apply_filters(stmt, equipment_type, status, search, is_personal, is_computing)
+
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = await self.db.scalar(count_stmt) or 0
-        
-        # Получаем элементы
+
         stmt = stmt.order_by(Equipment.inventory_number).offset(skip).limit(limit)
         result = await self.db.execute(stmt)
         items = result.scalars().all()
-        
+
         return items, total
 
     async def get_by_id(self, equipment_id: int) -> Optional[Equipment]:
@@ -111,7 +117,6 @@ class EquipmentService:
 
     async def create_movement(self, movement_data: MovementCreate, created_by_id: int) -> EquipmentMovement:
         try:
-            # В асинхронной алхимии begin_nested используется как async context manager
             async with self.db.begin_nested():
                 stmt = (
                     select(Equipment)
@@ -120,15 +125,13 @@ class EquipmentService:
                 )
                 result = await self.db.execute(stmt)
                 equipment = result.scalars().one_or_none()
-                
+
                 if not equipment:
                     raise ValueError("Техника не найдена")
 
-                # Проверка на дублирование перемещения
                 check_stmt = select(EquipmentMovement).where(
                     EquipmentMovement.equipment_id == equipment.id,
                     EquipmentMovement.created_at > datetime.now(timezone.utc) - timedelta(minutes=5)
-
                 )
                 check_res = await self.db.execute(check_stmt)
                 if check_res.scalars().first():
@@ -136,7 +139,7 @@ class EquipmentService:
 
                 movement = EquipmentMovement(**movement_data.model_dump(), created_by_id=created_by_id)
                 self.db.add(movement)
-                
+
                 equipment.current_location = movement_data.to_location
                 equipment.current_owner_id = movement_data.to_person_id
                 await self.db.flush()
@@ -159,43 +162,50 @@ class EquipmentService:
             )
             .where(EquipmentMovement.equipment_id == equipment_id)
         )
-        
+
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = await self.db.scalar(count_stmt) or 0
-        
+
         stmt = stmt.order_by(EquipmentMovement.created_at.desc()).offset(skip).limit(limit)
         result = await self.db.execute(stmt)
         items = result.scalars().all()
-        
+
         return items, total
 
-    async def get_statistics(self, equipment_type=None, status=None, search=None, is_personal=None) -> dict:
-        # 1. Total count
+    async def get_statistics(self, equipment_type=None, status=None, search=None, is_personal=None, is_computing=None) -> dict:
         base_stmt = select(Equipment).where(Equipment.is_active == True)
-        base_stmt = self._apply_filters(base_stmt, equipment_type, status, search, is_personal)
+        base_stmt = self._apply_filters(base_stmt, equipment_type, status, search, is_personal, is_computing)
         total = await self.db.scalar(select(func.count()).select_from(base_stmt.subquery())) or 0
 
-        # 2. By status
         status_stmt = select(Equipment.status, func.count(Equipment.id)).where(Equipment.is_active == True)
         if equipment_type:
             status_stmt = status_stmt.where(Equipment.equipment_type == equipment_type)
+        elif is_computing is not None:
+            if is_computing:
+                status_stmt = status_stmt.where(Equipment.equipment_type.in_(COMPUTING_TYPES))
+            else:
+                status_stmt = status_stmt.where(Equipment.equipment_type.notin_(COMPUTING_TYPES))
         if is_personal is not None:
             status_stmt = status_stmt.where(Equipment.is_personal == is_personal)
         if search:
             status_stmt = status_stmt.where(_equipment_search_filter(search))
-        
+
         status_res = await self.db.execute(status_stmt.group_by(Equipment.status))
         by_status = dict(status_res.all())
 
-        # 3. By type
         type_stmt = select(Equipment.equipment_type, func.count(Equipment.id)).where(Equipment.is_active == True)
         if status:
             type_stmt = type_stmt.where(Equipment.status == status)
+        if is_computing is not None:
+            if is_computing:
+                type_stmt = type_stmt.where(Equipment.equipment_type.in_(COMPUTING_TYPES))
+            else:
+                type_stmt = type_stmt.where(Equipment.equipment_type.notin_(COMPUTING_TYPES))
         if is_personal is not None:
             type_stmt = type_stmt.where(Equipment.is_personal == is_personal)
         if search:
             type_stmt = type_stmt.where(_equipment_search_filter(search))
-            
+
         type_res = await self.db.execute(type_stmt.group_by(Equipment.equipment_type))
         by_type = dict(type_res.all())
 
@@ -232,9 +242,9 @@ class StorageDeviceService:
                 StorageDevice.location.ilike(f"%{search_clean}%"),
                 StorageDevice.notes.ilike(f"%{search_clean}%"),
             ))
-            
+
         total = await self.db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-        
+
         stmt = stmt.order_by(StorageDevice.inventory_number).offset(skip).limit(limit)
         result = await self.db.execute(stmt)
         items = result.scalars().all()

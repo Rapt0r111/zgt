@@ -4,9 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	ArrowLeft, Eye, Plus, Search, Trash2, Monitor, Hash, MapPin,
 	User as UserIcon, Activity, Package, Wrench, Laptop, Tv,
+	Cpu,
 } from "lucide-react";
 import Link from "next/link";
-import { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,9 +23,11 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { equipmentApi } from "@/lib/api/equipment";
 import {
-	ALL_EQUIPMENT_TYPES, COMPLEX_EQUIPMENT_TYPES, SIMPLE_EQUIPMENT_TYPES,
+	COMPLEX_EQUIPMENT_TYPES, SIMPLE_EQUIPMENT_TYPES,
 	isSimpleEquipmentType,
 } from "@/lib/equipment-types";
+
+type CategoryFilter = "computing" | "other";
 
 const STATUS_VARIANTS = {
 	"В работе": "default",
@@ -41,24 +45,48 @@ const StatBar = ({ value, colorClass }: { value: number; colorClass: string }) =
 	</div>
 );
 
-export default function EquipmentPage() {
+function EquipmentPageContent() {
+	const router = useRouter();
+	const searchParams = useSearchParams();
 	const queryClient = useQueryClient();
+
+	// Категория из URL (?category=other) или по умолчанию "computing"
+	const initialCategory = (searchParams.get("category") === "other" ? "other" : "computing") as CategoryFilter;
+	const [category, setCategory] = useState<CategoryFilter>(initialCategory);
+
 	const [search, setSearch] = useState("");
 	const [debouncedSearch, setDebouncedSearch] = useState("");
-	const [activeTab, setActiveTab] = useState("all");
+	const [statusTab, setStatusTab] = useState("all");
 	const [typeFilter, setTypeFilter] = useState("all");
+
+	// Сброс typeFilter при смене категории
+	useEffect(() => {
+		setTypeFilter("all");
+		setStatusTab("all");
+	}, [category]);
+
+	// Обновляем URL при смене категории
+	useEffect(() => {
+		const params = new URLSearchParams(searchParams.toString());
+		params.set("category", category);
+		router.replace(`/equipment?${params.toString()}`, { scroll: false });
+	}, [category]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
 		const timer = setTimeout(() => setDebouncedSearch(search), 500);
 		return () => clearTimeout(timer);
 	}, [search]);
 
+	const isComputing = category === "computing";
+	const availableTypes = isComputing ? COMPLEX_EQUIPMENT_TYPES : SIMPLE_EQUIPMENT_TYPES;
+
 	const filterParams = useMemo(() => ({
 		search: debouncedSearch.trim() || undefined,
-		status: activeTab === "all" ? undefined : activeTab,
+		status: statusTab === "all" ? undefined : statusTab,
 		equipment_type: typeFilter === "all" ? undefined : typeFilter,
 		is_personal: false,
-	}), [debouncedSearch, activeTab, typeFilter]);
+		is_computing: isComputing,
+	}), [debouncedSearch, statusTab, typeFilter, isComputing]);
 
 	const { data, isLoading } = useQuery({
 		queryKey: ["equipment", filterParams],
@@ -91,6 +119,10 @@ export default function EquipmentPage() {
 	const broken = (stats?.by_status?.["Сломан"] || 0) + (stats?.by_status?.["В ремонте"] || 0);
 	const healthScore = totalItems > 0 ? 100 - getPercent(broken, totalItems) : 100;
 
+	const categoryLabel = isComputing ? "Вычислительная техника" : "Прочее оборудование";
+	const categoryIcon = isComputing ? Cpu : Tv;
+	const CategoryIcon = categoryIcon;
+
 	return (
 		<div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-foreground">
 			<div className="max-w-7xl mx-auto">
@@ -102,11 +134,11 @@ export default function EquipmentPage() {
 						</Link>
 					</Button>
 
-					<div className="flex justify-between items-center mb-6">
+					<div className="flex justify-between items-center mb-4">
 						<div>
 							<h1 className="text-3xl font-bold tracking-tight">Оборудование</h1>
 							<p className="text-muted-foreground text-sm mt-1">
-								Вычислительная техника, телевизоры, доски и прочее
+								Учёт вычислительной и прочей электронной техники
 							</p>
 						</div>
 						<Button asChild className="gradient-primary border-0 shadow-lg px-4">
@@ -117,6 +149,32 @@ export default function EquipmentPage() {
 						</Button>
 					</div>
 
+					{/* ── Категориальные вкладки ── */}
+					<div className="flex gap-3 mb-6">
+						<button
+							type="button"
+							onClick={() => setCategory("computing")}
+							className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border text-sm font-medium transition-all ${category === "computing"
+								? "bg-primary/20 border-primary/50 text-primary shadow-lg shadow-primary/10"
+								: "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600"
+								}`}
+						>
+							<Cpu className="w-4 h-4" />
+							Вычислительная техника
+						</button>
+						<button
+							type="button"
+							onClick={() => setCategory("other")}
+							className={`flex items-center gap-2.5 px-5 py-3 rounded-xl border text-sm font-medium transition-all ${category === "other"
+								? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-lg shadow-emerald-900/20"
+								: "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-300 hover:border-slate-600"
+								}`}
+						>
+							<Tv className="w-4 h-4" />
+							Прочая техника
+						</button>
+					</div>
+
 					{/* Статистика */}
 					{stats && (
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -125,13 +183,13 @@ export default function EquipmentPage() {
 									<div className="flex justify-between items-start">
 										<div>
 											<div className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">
-												Всего единиц
+												{categoryLabel}
 											</div>
 											<div className="text-3xl font-bold tracking-tight">{totalItems}</div>
-											<div className="text-[10px] text-muted-foreground mt-1 opacity-70">Весь парк</div>
+											<div className="text-[10px] text-muted-foreground mt-1 opacity-70">Всего единиц</div>
 										</div>
 										<div className="p-2.5 bg-indigo-500/10 rounded-xl group-hover:bg-indigo-500/20 transition-colors">
-											<Monitor className="h-5 w-5 text-indigo-400" />
+											<CategoryIcon className="h-5 w-5 text-indigo-400" />
 										</div>
 									</div>
 								</CardContent>
@@ -208,8 +266,8 @@ export default function EquipmentPage() {
 					<CardHeader className="bg-white/5 border-b pt-6 border-white/10 pb-6 space-y-4">
 						<div className="flex items-center justify-between">
 							<CardTitle className="text-lg font-semibold flex items-center gap-2">
-								<Monitor className="h-4 w-4 text-muted-foreground" />
-								Поиск и фильтры
+								<CategoryIcon className={`h-4 w-4 ${isComputing ? "text-primary" : "text-emerald-400"}`} />
+								{categoryLabel}
 							</CardTitle>
 							<Badge variant="outline" className="bg-white/5 border-white/10 text-muted-foreground">
 								Найдено: {data?.total || 0}
@@ -232,25 +290,14 @@ export default function EquipmentPage() {
 								</SelectTrigger>
 								<SelectContent className="glass border-white/10">
 									<SelectItem value="all">Все типы</SelectItem>
-									{/* Вычислительная техника */}
-									<SelectItem value="__g1__" disabled className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-bold py-1">
-										── Вычислительная ──
-									</SelectItem>
-									{COMPLEX_EQUIPMENT_TYPES.map((t) => (
-										<SelectItem key={t} value={t}>{t}</SelectItem>
-									))}
-									{/* Прочее */}
-									<SelectItem value="__g2__" disabled className="text-[10px] uppercase tracking-widest text-muted-foreground/60 font-bold py-1 mt-1">
-										── Прочее ──
-									</SelectItem>
-									{SIMPLE_EQUIPMENT_TYPES.map((t) => (
+									{availableTypes.map((t) => (
 										<SelectItem key={t} value={t}>{t}</SelectItem>
 									))}
 								</SelectContent>
 							</Select>
 						</div>
 
-						<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+						<Tabs value={statusTab} onValueChange={setStatusTab} className="w-full">
 							<TabsList className="bg-background/50 border border-white/5 p-1 w-fit">
 								<TabsTrigger value="all" className="text-xs data-[state=active]:bg-primary/20 px-4">Все</TabsTrigger>
 								<TabsTrigger value="В работе" className="text-xs data-[state=active]:bg-primary/20 px-4">В работе</TabsTrigger>
@@ -285,18 +332,15 @@ export default function EquipmentPage() {
 									) : data?.items.length === 0 ? (
 										<TableRow>
 											<TableCell colSpan={6} className="text-center py-20 text-muted-foreground">
-												Оборудование не найдено.
+												{search ? "Ничего не найдено по запросу." : `${categoryLabel} не добавлены.`}
 											</TableCell>
 										</TableRow>
 									) : (
 										data?.items.map((equipment) => {
 											const simple = isSimpleEquipmentType(equipment.equipment_type);
-											// Приоритет: display_name > manufacturer+model > equipment_type
 											const displayLabel = equipment.display_name ||
 												[equipment.manufacturer, equipment.model].filter(Boolean).join(" ") ||
 												equipment.equipment_type;
-											// Основной идентификатор
-											const mainId = equipment.inventory_number || equipment.serial_number || "—";
 
 											return (
 												<TableRow
@@ -402,5 +446,17 @@ export default function EquipmentPage() {
 				</Card>
 			</div>
 		</div>
+	);
+}
+
+export default function EquipmentPage() {
+	return (
+		<Suspense fallback={
+			<div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+			</div>
+		}>
+			<EquipmentPageContent />
+		</Suspense>
 	);
 }
