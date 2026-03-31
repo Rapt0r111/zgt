@@ -18,7 +18,8 @@ const nextConfig: NextConfig = {
 							"img-src 'self' data: https:",
 							"font-src 'self' data:",
 							// Позволяем подключение как к localhost, так и к IP сети
-							"connect-src 'self' http://localhost:38801 http://192.168.0.0/16 ws://localhost:38800",
+							"connect-src 'self' http://localhost:38801 http://192.168.99.101:38801 ws://localhost:38800 ws://192.168.99.101:38800",
+
 
 							"frame-ancestors 'none'",
 						].join("; "),
