@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-03-30 16:09:29.302988
 
 """
+from datetime import datetime, timezone
 from typing import Sequence, Union
 
 from alembic import op
@@ -41,7 +42,8 @@ def upgrade() -> None:
         sa.Column(
             'created_at',
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text("timezone('UTC', now())"),
+            
             nullable=False,
         ),
         sa.PrimaryKeyConstraint('id'),
@@ -63,23 +65,20 @@ def upgrade() -> None:
         sa.Column('security_clearance_level', sa.Integer(), nullable=True),
         sa.Column('clearance_order_number', sa.String(), nullable=True),
         sa.Column('clearance_expiry_date', sa.DateTime(), nullable=True),
-        sa.Column(
-            'status',
-            sa.Enum('IN_SERVICE', 'ON_MISSION', 'IN_HOSPITAL', 'ON_LEAVE',
-                    name='personnelstatus'),
-            nullable=False,
-        ),
+        sa.Column('status', personnelstatus, nullable=False),
         sa.Column('is_active', sa.Boolean(), nullable=False),
         sa.Column(
             'created_at',
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text("timezone('UTC', now())"),
+            
             nullable=False,
         ),
         sa.Column(
             'updated_at',
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text("timezone('UTC', now())"),
+            
             nullable=False,
         ),
         sa.PrimaryKeyConstraint('id'),
@@ -107,13 +106,15 @@ def upgrade() -> None:
         sa.Column(
             'created_at',
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text("timezone('UTC', now())"),
+            
             nullable=True,
         ),
         sa.Column(
             'updated_at',
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text("timezone('UTC', now())"),
+            
             nullable=True,
         ),
         sa.ForeignKeyConstraint(['owner_id'], ['personnel.id'], ondelete='CASCADE'),

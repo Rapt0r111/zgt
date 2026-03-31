@@ -72,7 +72,9 @@ class PhoneService:
         return (await self.db.execute(stmt)).scalars().first()
 
     async def create(self, phone_data: PhoneCreate) -> Phone:
-        owner_stmt = select(Personnel).where(Personnel.id == phone_data.owner_id, Personnel.is_active.is_(True))
+        owner_stmt = select(Personnel).where(
+            Personnel.id == phone_data.owner_id, Personnel.is_active.is_(True)
+        )
         owner = (await self.db.execute(owner_stmt)).scalars().first()
         if not owner:
             raise ValueError("Владелец не найден")
@@ -80,8 +82,15 @@ class PhoneService:
         phone = Phone(**phone_data.model_dump())
         self.db.add(phone)
         await self.db.commit()
-        await self.db.refresh(phone)
-        return phone
+
+        # Eager-load owner чтобы избежать lazy load в _enrich
+        stmt = (
+            select(Phone)
+            .options(joinedload(Phone.owner))
+            .where(Phone.id == phone.id)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
 
     async def update(self, phone_id: int, phone_data: PhoneUpdate) -> Optional[Phone]:
         phone = await self.get_by_id(phone_id)
