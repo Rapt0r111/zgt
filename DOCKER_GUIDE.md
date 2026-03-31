@@ -750,3 +750,25 @@ docker system prune -af --volumes
 | Обновить код | `git pull && docker compose build --no-cache && docker compose run --rm migrate && docker compose up -d` |
 | Backup БД | `docker compose exec db pg_dump -U postgres zgt > backup.sql` |
 | Статус контейнеров | `docker compose ps` |
+
+
+# 1. Загрузить образы
+bash /путь/с/флешки/offline-images/load-images.sh
+
+# 2. Скопировать проект
+cp -r /путь/с/флешки/проект /opt/zgt
+cd /opt/zgt
+
+# 3. Убедиться что .env на месте
+ls .env
+
+# 4. Поднять БД и накатить миграции
+docker compose up -d db
+sleep 15
+docker compose run --rm migrate
+
+# 5. Запустить всё (--no-build — не пересобирать)
+docker compose up -d --no-build
+
+# 6. Создать администратора
+docker compose exec backend python -m app.cli create-admin

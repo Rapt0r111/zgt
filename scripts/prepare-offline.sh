@@ -49,7 +49,7 @@ fi
 step "Загрузка базовых Docker-образов"
 
 IMAGES=(
-    "python:3.12-slim-bookworm"
+    "python:3.12-slim"
     "postgres:16-alpine"
     "node:20-alpine"
     "oven/bun:1.2-alpine"
