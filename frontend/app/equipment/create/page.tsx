@@ -1,3 +1,4 @@
+// frontend/app/equipment/create/page.tsx
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -39,9 +40,11 @@ const equipmentSchema = z
 	.object({
 		is_personal: z.boolean().default(false),
 		equipment_type: z.string().min(1, "Выберите тип техники"),
+		// Название — показывается всем, обязательно для простой техники
 		display_name: z.string().max(255).default(""),
-		inventory_number: z.string().default(""),
+		// Серийный номер — обязателен для простой техники
 		serial_number: z.string().default(""),
+		inventory_number: z.string().default(""),
 		mni_serial_number: z.string().default(""),
 		manufacturer: z.string().default(""),
 		model: z.string().default(""),
@@ -69,29 +72,32 @@ const equipmentSchema = z
 		const simple = isSimpleEquipmentType(data.equipment_type);
 
 		if (simple) {
-			// Для прочей техники: нужно хотя бы название ИЛИ серийный номер
-			const hasId =
-				data.display_name.trim() ||
-				data.serial_number.trim() ||
-				data.inventory_number.trim() ||
-				data.model.trim();
-			if (!hasId) {
+			// Для прочей техники: Название И Серийный номер обязательны
+			if (!data.display_name.trim()) {
 				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
+					code: "custom",
 					path: ["display_name"],
-					message: "Укажите название или серийный номер устройства",
+					message: "Название обязательно для данного типа оборудования",
+				});
+			}
+			if (!data.serial_number.trim()) {
+				ctx.addIssue({
+					code: "custom",
+					path: ["serial_number"],
+					message: "Серийный номер обязателен",
 				});
 			}
 		} else {
-			// Для вычислительной техники: инв. номер обязателен (кроме неисправных ноутбуков)
+			// Для вычислительной техники: инв. номер обязателен
+			// (кроме личных ноутбуков или неисправных)
 			if (data.is_personal) return;
 			const isLaptopNotInUse =
 				data.equipment_type === "Ноутбук" && data.status !== "В работе";
 			if (!isLaptopNotInUse && !data.inventory_number.trim()) {
 				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
+					code: "custom",
 					path: ["inventory_number"],
-					message: "Учетный номер обязателен",
+					message: "Учётный номер обязателен",
 				});
 			}
 		}
@@ -119,12 +125,28 @@ function CreateEquipmentForm() {
 		defaultValues: {
 			is_personal: initialIsPersonal,
 			equipment_type: initialType,
+			display_name: "",
+			serial_number: "",
+			inventory_number: "",
+			mni_serial_number: "",
+			manufacturer: "",
+			model: "",
+			cpu: "",
+			storage_type: "",
+			operating_system: "",
+			current_location: "",
+			notes: "",
 			status: "В работе",
-			has_optical_drive: false, has_card_reader: false,
-			has_laptop: false, laptop_functional: false,
-			has_charger: false, charger_functional: false,
-			has_mouse: false, mouse_functional: false,
-			has_bag: false, bag_functional: false,
+			has_optical_drive: false,
+			has_card_reader: false,
+			has_laptop: false,
+			laptop_functional: false,
+			has_charger: false,
+			charger_functional: false,
+			has_mouse: false,
+			mouse_functional: false,
+			has_bag: false,
+			bag_functional: false,
 		},
 	});
 
@@ -176,16 +198,21 @@ function CreateEquipmentForm() {
 
 	const onInvalidSubmit = (formErrors: FieldErrors<EquipmentFormInput>) => {
 		toast.error("Проверьте обязательные поля формы");
+		// Фокусируем первое поле с ошибкой (кроме числовых)
+		const skipFocus = new Set<string>(["inventory_number", "ram_gb", "storage_capacity_gb"]);
 		const firstField = Object.keys(formErrors)[0] as keyof EquipmentFormInput | undefined;
-		// Пропускаем только inventory_number и serial_number — они показывают ошибку inline
-		const skipFocus = new Set<string>(["inventory_number", "serial_number"]);
 		if (firstField && !skipFocus.has(firstField as string)) {
-			setFocus(firstField);
+			try {
+				setFocus(firstField);
+			} catch {
+				// ignore
+			}
 		}
 	};
 
 	const inputCls =
 		"bg-background/50 border-white/10 focus:border-primary/50 transition-all";
+	const inputErrCls = `${inputCls} border-destructive/50 focus:border-destructive/50`;
 
 	return (
 		<div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-foreground">
@@ -245,7 +272,7 @@ function CreateEquipmentForm() {
 							<div className="flex items-start gap-3 mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
 								<Tv className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
 								<p className="text-xs text-emerald-300/80 leading-relaxed">
-									Для {currentType.toLowerCase()} укажите <strong>название</strong> — это основной идентификатор.
+									Для {currentType.toLowerCase()} укажите <strong>название</strong> и <strong>серийный номер</strong> — оба поля обязательны.
 									Серийный и инвентарный номера необязательны.
 								</p>
 							</div>
@@ -267,13 +294,16 @@ function CreateEquipmentForm() {
 								</h3>
 
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									{/* Тип оборудования */}
 									<div className="space-y-2">
-										<Label className="text-muted-foreground">Тип оборудования *</Label>
+										<Label className="text-muted-foreground">
+											Тип оборудования <span className="text-destructive">*</span>
+										</Label>
 										<Select
 											value={currentType}
-											onValueChange={(val) => setValue("equipment_type", val)}
+											onValueChange={(val) => setValue("equipment_type", val, { shouldValidate: true })}
 										>
-											<SelectTrigger className={`${inputCls} ${errors.equipment_type ? "border-destructive/50" : ""}`}>
+											<SelectTrigger className={`${errors.equipment_type ? inputErrCls : inputCls}`}>
 												<SelectValue placeholder="Выберите тип" />
 											</SelectTrigger>
 											<SelectContent className="glass border-white/10">
@@ -296,21 +326,19 @@ function CreateEquipmentForm() {
 										)}
 									</div>
 
-									{/* Название — для простой техники обязательное поле */}
+									{/* Название — для простой техники обязательно */}
 									<div className="space-y-2">
 										<Label htmlFor="display_name" className="text-muted-foreground flex items-center gap-1.5">
 											<Tag className="h-3 w-3" />
-											{isSimple ? (
-												<>Название <span className="text-destructive">*</span></>
-											) : (
-												<>Название <span className="text-muted-foreground/50 text-[11px] font-normal">(опционально)</span></>
-											)}
+											Название
+											{isSimple && <span className="text-destructive">*</span>}
+											{!isSimple && <span className="text-muted-foreground/50 text-[11px] font-normal">(опционально)</span>}
 										</Label>
 										<Input
 											id="display_name"
 											{...register("display_name")}
 											placeholder={isSimple ? "Напр.: Samsung UE55TU7100" : "Краткое имя для отображения"}
-											className={`${inputCls} ${errors.display_name ? "border-destructive/50" : ""}`}
+											className={errors.display_name ? inputErrCls : inputCls}
 										/>
 										{errors.display_name && (
 											<p className="text-xs text-destructive">{errors.display_name.message}</p>
@@ -323,13 +351,17 @@ function CreateEquipmentForm() {
 									<div className="space-y-2">
 										<Label htmlFor="serial_number" className="text-muted-foreground font-mono text-xs uppercase">
 											Серийный номер (S/N)
+											{isSimple && <span className="text-destructive ml-1">*</span>}
 										</Label>
 										<Input
 											id="serial_number"
 											{...register("serial_number")}
 											placeholder="ABC123XYZ"
-											className={`font-mono ${inputCls}`}
+											className={`font-mono ${errors.serial_number ? inputErrCls : inputCls}`}
 										/>
+										{errors.serial_number && (
+											<p className="text-xs text-destructive">{errors.serial_number.message}</p>
+										)}
 									</div>
 
 									<div className="space-y-2">
@@ -346,7 +378,7 @@ function CreateEquipmentForm() {
 											id="inventory_number"
 											{...register("inventory_number")}
 											placeholder="570/720/321"
-											className={`font-mono ${inputCls} ${errors.inventory_number ? "border-destructive/50" : ""}`}
+											className={`font-mono ${errors.inventory_number ? inputErrCls : inputCls}`}
 										/>
 										{errors.inventory_number && (
 											<p className="text-xs text-destructive">{errors.inventory_number.message}</p>
@@ -405,7 +437,13 @@ function CreateEquipmentForm() {
 									<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 										<div className="space-y-2">
 											<Label htmlFor="ram_gb" className="text-muted-foreground">Объём RAM (ГБ)</Label>
-											<Input id="ram_gb" type="number" {...register("ram_gb", { valueAsNumber: true })} placeholder="16" className={inputCls} />
+											<Input
+												id="ram_gb"
+												type="number"
+												{...register("ram_gb", { setValueAs: (v) => v === "" ? undefined : Number(v) })}
+												placeholder="16"
+												className={inputCls}
+											/>
 										</div>
 										<div className="space-y-2">
 											<Label className="text-muted-foreground flex items-center gap-2"><HardDrive className="h-3 w-3" /> Тип хранилища</Label>
@@ -422,7 +460,13 @@ function CreateEquipmentForm() {
 									<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 										<div className="space-y-2">
 											<Label htmlFor="storage_capacity_gb" className="text-muted-foreground">Объём (ГБ)</Label>
-											<Input id="storage_capacity_gb" type="number" {...register("storage_capacity_gb", { valueAsNumber: true })} placeholder="512" className={inputCls} />
+											<Input
+												id="storage_capacity_gb"
+												type="number"
+												{...register("storage_capacity_gb", { setValueAs: (v) => v === "" ? undefined : Number(v) })}
+												placeholder="512"
+												className={inputCls}
+											/>
 										</div>
 										<div className="space-y-2">
 											<Label htmlFor="operating_system" className="text-muted-foreground">ОС</Label>

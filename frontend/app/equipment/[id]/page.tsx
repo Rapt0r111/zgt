@@ -1,3 +1,4 @@
+// frontend/app/equipment/[id]/page.tsx
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,6 +33,8 @@ import {
 import { personnelApi } from "@/lib/api/personnel";
 import { cleanEmptyStrings } from "@/lib/utils/transform";
 
+// ─── Zod schema ──────────────────────────────────────────────────────────────
+
 const equipmentSchema = z
 	.object({
 		equipment_type: z.string().min(1),
@@ -63,26 +66,31 @@ const equipmentSchema = z
 	})
 	.superRefine((data, ctx) => {
 		const simple = isSimpleEquipmentType(data.equipment_type);
+
 		if (simple) {
-			const hasId =
-				data.display_name.trim() ||
-				data.serial_number.trim() ||
-				data.inventory_number.trim() ||
-				data.model.trim();
-			if (!hasId) {
+			// Для прочей техники: Название И Серийный номер обязательны
+			if (!data.display_name.trim()) {
 				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
+					code: "custom",
 					path: ["display_name"],
-					message: "Укажите название или серийный номер устройства",
+					message: "Название обязательно для данного типа оборудования",
+				});
+			}
+			if (!data.serial_number.trim()) {
+				ctx.addIssue({
+					code: "custom",
+					path: ["serial_number"],
+					message: "Серийный номер обязателен",
 				});
 			}
 		} else {
+			// Для вычислительной техники: инв. номер обязателен
 			const isLaptopNotInUse = data.equipment_type === "Ноутбук" && data.status !== "В работе";
 			if (!isLaptopNotInUse && !data.inventory_number.trim()) {
 				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
+					code: "custom",
 					path: ["inventory_number"],
-					message: "Учетный номер обязателен",
+					message: "Учётный номер обязателен",
 				});
 			}
 		}
@@ -90,6 +98,8 @@ const equipmentSchema = z
 
 type EquipmentFormInput = z.input<typeof equipmentSchema>;
 type EquipmentFormData = z.output<typeof equipmentSchema>;
+
+// ─── Page component ───────────────────────────────────────────────────────────
 
 export default function EquipmentDetailPage() {
 	const _router = useRouter();
@@ -138,16 +148,16 @@ export default function EquipmentDetailPage() {
 				ram_gb: equipment.ram_gb,
 				storage_type: equipment.storage_type || "",
 				storage_capacity_gb: equipment.storage_capacity_gb,
-				has_optical_drive: equipment.has_optical_drive,
-				has_card_reader: equipment.has_card_reader,
-				has_laptop: equipment.has_laptop,
-				laptop_functional: equipment.laptop_functional,
-				has_charger: equipment.has_charger,
-				charger_functional: equipment.charger_functional,
-				has_mouse: equipment.has_mouse,
-				mouse_functional: equipment.mouse_functional,
-				has_bag: equipment.has_bag,
-				bag_functional: equipment.bag_functional,
+				has_optical_drive: equipment.has_optical_drive ?? false,
+				has_card_reader: equipment.has_card_reader ?? false,
+				has_laptop: equipment.has_laptop ?? false,
+				laptop_functional: equipment.laptop_functional ?? false,
+				has_charger: equipment.has_charger ?? false,
+				charger_functional: equipment.charger_functional ?? false,
+				has_mouse: equipment.has_mouse ?? false,
+				mouse_functional: equipment.mouse_functional ?? false,
+				has_bag: equipment.has_bag ?? false,
+				bag_functional: equipment.bag_functional ?? false,
 				operating_system: equipment.operating_system || "",
 				current_owner_id: equipment.current_owner_id,
 				current_location: equipment.current_location || "",
@@ -182,9 +192,10 @@ export default function EquipmentDetailPage() {
 
 	const onInvalidSubmit = (formErrors: FieldErrors<EquipmentFormInput>) => {
 		toast.error("Проверьте обязательные поля формы");
+		const skipFocus = new Set<string>(["inventory_number", "serial_number", "ram_gb", "storage_capacity_gb"]);
 		const first = Object.keys(formErrors)[0] as keyof EquipmentFormInput | undefined;
-		if (first && first !== "inventory_number") {
-			setFocus(first as keyof EquipmentFormInput);
+		if (first && !skipFocus.has(first as string)) {
+			try { setFocus(first as keyof EquipmentFormInput); } catch { /* ignore */ }
 		}
 	};
 
@@ -195,6 +206,7 @@ export default function EquipmentDetailPage() {
 	const isSimple = isSimpleEquipmentType(currentType);
 
 	const inputCls = "bg-background/50 border-white/10 focus:border-primary/50 disabled:opacity-100 disabled:bg-white/5";
+	const inputErrCls = "bg-background/50 border-destructive/50 focus:border-destructive/50 disabled:opacity-100 disabled:bg-white/5";
 
 	if (isLoading) {
 		return (
@@ -295,10 +307,11 @@ export default function EquipmentDetailPage() {
 										</CardHeader>
 										<CardContent className="p-6 space-y-6">
 											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+												{/* Тип оборудования */}
 												<div className="space-y-2">
 													<Label className="text-muted-foreground">Тип оборудования</Label>
 													{isEditing ? (
-														<Select value={currentType} onValueChange={(val) => setValue("equipment_type", val)}>
+														<Select value={currentType} onValueChange={(val) => setValue("equipment_type", val, { shouldValidate: true })}>
 															<SelectTrigger className={`bg-background/50 border-white/10 ${errors.equipment_type ? "border-destructive/50" : ""}`}>
 																<SelectValue />
 															</SelectTrigger>
@@ -319,20 +332,21 @@ export default function EquipmentDetailPage() {
 													)}
 												</div>
 
-												{/* Название — для простой техники */}
+												{/* Название */}
 												<div className="space-y-2">
 													<Label htmlFor="display_name" className="text-muted-foreground flex items-center gap-1.5">
 														<Tag className="h-3 w-3" />
-														{isSimple ? (
-															<>Название <span className="text-destructive">*</span></>
-														) : (
-															"Название"
-														)}
+														Название
+														{isSimple && <span className="text-destructive ml-0.5">*</span>}
 													</Label>
-													<Input id="display_name" {...register("display_name")} disabled={!isEditing}
+													<Input
+														id="display_name"
+														{...register("display_name")}
+														disabled={!isEditing}
 														placeholder="Samsung UE55TU7100…"
-														className={`${inputCls} ${errors.display_name ? "border-destructive/50" : ""}`} />
-													{errors.display_name && (
+														className={`${isEditing && errors.display_name ? inputErrCls : inputCls}`}
+													/>
+													{isEditing && errors.display_name && (
 														<p className="text-xs text-destructive">{errors.display_name.message}</p>
 													)}
 												</div>
@@ -356,20 +370,28 @@ export default function EquipmentDetailPage() {
 														Инвентарный номер
 														{!isSimple && <span className="text-destructive ml-1">*</span>}
 													</Label>
-													<Input id="inventory_number" {...register("inventory_number")} disabled={!isEditing}
-														className={`font-mono ${inputCls} ${errors.inventory_number ? "border-destructive/50" : ""}`} />
-													{errors.inventory_number && (
+													<Input
+														id="inventory_number"
+														{...register("inventory_number")}
+														disabled={!isEditing}
+														className={`font-mono ${isEditing && errors.inventory_number ? inputErrCls : inputCls}`}
+													/>
+													{isEditing && errors.inventory_number && (
 														<p className="text-xs text-destructive">{errors.inventory_number.message}</p>
 													)}
 												</div>
 												<div className="space-y-2">
 													<Label htmlFor="serial_number" className="text-muted-foreground">
 														Серийный номер (S/N)
-														{isSimple && <span className="text-primary/60 ml-1 text-[10px]">— основной ID</span>}
+														{isSimple && <span className="text-destructive ml-1">*</span>}
 													</Label>
-													<Input id="serial_number" {...register("serial_number")} disabled={!isEditing}
-														className={`font-mono ${inputCls} ${errors.serial_number ? "border-destructive/50" : ""}`} />
-													{errors.serial_number && (
+													<Input
+														id="serial_number"
+														{...register("serial_number")}
+														disabled={!isEditing}
+														className={`font-mono ${isEditing && errors.serial_number ? inputErrCls : inputCls}`}
+													/>
+													{isEditing && errors.serial_number && (
 														<p className="text-xs text-destructive">{errors.serial_number.message}</p>
 													)}
 												</div>
@@ -402,7 +424,13 @@ export default function EquipmentDetailPage() {
 												<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 													<div className="space-y-2">
 														<Label htmlFor="ram_gb" className="text-muted-foreground">RAM (ГБ)</Label>
-														<Input id="ram_gb" type="number" {...register("ram_gb", { valueAsNumber: true })} disabled={!isEditing} className={inputCls} />
+														<Input
+															id="ram_gb"
+															type="number"
+															{...register("ram_gb", { setValueAs: (v) => v === "" ? undefined : Number(v) })}
+															disabled={!isEditing}
+															className={inputCls}
+														/>
 													</div>
 													<div className="space-y-2">
 														<Label className="text-muted-foreground">Тип хранилища</Label>
@@ -423,7 +451,13 @@ export default function EquipmentDetailPage() {
 												<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 													<div className="space-y-2">
 														<Label htmlFor="storage_capacity_gb" className="text-muted-foreground">Объём (ГБ)</Label>
-														<Input id="storage_capacity_gb" type="number" {...register("storage_capacity_gb", { valueAsNumber: true })} disabled={!isEditing} className={inputCls} />
+														<Input
+															id="storage_capacity_gb"
+															type="number"
+															{...register("storage_capacity_gb", { setValueAs: (v) => v === "" ? undefined : Number(v) })}
+															disabled={!isEditing}
+															className={inputCls}
+														/>
 													</div>
 													<div className="space-y-2">
 														<Label htmlFor="operating_system" className="text-muted-foreground">ОС</Label>
