@@ -775,3 +775,4 @@ docker compose exec backend python -m app.cli create-admin
 
 
 docker compose down --rmi all --volumes --remove-orphans
+
