@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Usb, ShieldCheck, HardDrive, Save, FileText, Settings, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -92,6 +92,7 @@ type AssetFormData = z.infer<typeof assetSchema>;
 
 export default function CreateStorageAndPassPage() {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const [error, setError] = useState("");
 
 	const {
@@ -113,6 +114,9 @@ export default function CreateStorageAndPassPage() {
 	const createMutation = useMutation({
 		mutationFn: (data: AssetFormData) => storageAndPassesApi.create(data),
 		onSuccess: () => {
+			// Invalidate all storage queries so the list refreshes immediately
+			queryClient.invalidateQueries({ queryKey: ["storage-and-passes"] });
+			queryClient.invalidateQueries({ queryKey: ["storage-stats"] });
 			toast.success("Актив добавлен");
 			router.push("/storage-and-passes");
 		},
@@ -348,7 +352,7 @@ export default function CreateStorageAndPassPage() {
 								
 								{currentStatus === "in_use" && (
 									<p className="text-[10px] text-primary/60 italic">
-										При статусе "Используется" необходимо обязательно закрепить актив за сотрудником.
+										При статусе &quot;Используется&quot; необходимо обязательно закрепить актив за сотрудником.
 									</p>
 								)}
 							</div>

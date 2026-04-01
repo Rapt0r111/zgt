@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Smartphone, User as UserIcon, Shield, Archive, Save, Camera, Mic } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -49,6 +49,7 @@ type PhoneFormData = z.input<typeof phoneSchema>;
 
 export default function CreatePhonePage() {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const [error, setError] = useState("");
 
 	const {
@@ -69,6 +70,8 @@ export default function CreatePhonePage() {
 	const createMutation = useMutation({
 		mutationFn: (data: PhoneFormData) => phonesApi.create(data),
 		onSuccess: () => {
+			// Invalidate all phone queries so the list refreshes immediately
+			queryClient.invalidateQueries({ queryKey: ["phones"] });
 			toast.success("Телефон добавлен");
 			router.push("/phones");
 		},

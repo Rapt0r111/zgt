@@ -1,3 +1,6 @@
+// frontend/app/personnel/[id]/page.tsx
+// KEY CHANGE: updateMutation.onSuccess now also invalidates ["personnel"]
+// so the list page reflects the change immediately without re-fetching.
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -122,7 +125,9 @@ export default function PersonnelDetailPage() {
 		mutationFn: (data: PersonnelFormData) =>
 			personnelApi.update(personnelId, data),
 		onSuccess: () => {
+			// Invalidate both the specific record AND the list so changes reflect everywhere
 			queryClient.invalidateQueries({ queryKey: ["personnel", personnelId] });
+			queryClient.invalidateQueries({ queryKey: ["personnel"] });
 			setIsEditing(false);
 			setError("");
 		},

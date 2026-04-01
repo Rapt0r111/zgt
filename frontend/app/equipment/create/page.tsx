@@ -2,7 +2,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
 	ArrowLeft, Monitor, Laptop, Cpu, HardDrive, MapPin,
 	User as UserIcon, Save, Info, Tv, Tag,
@@ -34,15 +34,11 @@ import {
 import { cleanEmptyStrings } from "@/lib/utils/transform";
 import type { EquipmentCreate } from "@/types/equipment";
 
-// ─── Zod schema ────────────────────────────────────────────────────────────
-
 const equipmentSchema = z
 	.object({
 		is_personal: z.boolean().default(false),
 		equipment_type: z.string().min(1, "Выберите тип техники"),
-		// Название — показывается всем, обязательно для простой техники
 		display_name: z.string().max(255).default(""),
-		// Серийный номер — обязателен для простой техники
 		serial_number: z.string().default(""),
 		inventory_number: z.string().default(""),
 		mni_serial_number: z.string().default(""),
@@ -72,7 +68,6 @@ const equipmentSchema = z
 		const simple = isSimpleEquipmentType(data.equipment_type);
 
 		if (simple) {
-			// Для прочей техники: Название И Серийный номер обязательны
 			if (!data.display_name.trim()) {
 				ctx.addIssue({
 					code: "custom",
@@ -88,8 +83,6 @@ const equipmentSchema = z
 				});
 			}
 		} else {
-			// Для вычислительной техники: инв. номер обязателен
-			// (кроме личных ноутбуков или неисправных)
 			if (data.is_personal) return;
 			const isLaptopNotInUse =
 				data.equipment_type === "Ноутбук" && data.status !== "В работе";
@@ -106,10 +99,9 @@ const equipmentSchema = z
 type EquipmentFormInput = z.input<typeof equipmentSchema>;
 type EquipmentFormData = z.output<typeof equipmentSchema>;
 
-// ─── Component ────────────────────────────────────────────────────────────
-
 function CreateEquipmentForm() {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const searchParams = useSearchParams();
 	const [error, setError] = useState("");
 
@@ -172,6 +164,8 @@ function CreateEquipmentForm() {
 		mutationFn: (data: EquipmentFormData) =>
 			equipmentApi.create(cleanEmptyStrings(data) as EquipmentCreate),
 		onSuccess: (_, variables) => {
+			// Invalidate all equipment queries so lists refresh immediately
+			queryClient.invalidateQueries({ queryKey: ["equipment"] });
 			if (variables.is_personal) {
 				toast.success("Личный ноутбук добавлен");
 				router.push("/personal-items");
@@ -198,7 +192,6 @@ function CreateEquipmentForm() {
 
 	const onInvalidSubmit = (formErrors: FieldErrors<EquipmentFormInput>) => {
 		toast.error("Проверьте обязательные поля формы");
-		// Фокусируем первое поле с ошибкой (кроме числовых)
 		const skipFocus = new Set<string>(["inventory_number", "ram_gb", "storage_capacity_gb"]);
 		const firstField = Object.keys(formErrors)[0] as keyof EquipmentFormInput | undefined;
 		if (firstField && !skipFocus.has(firstField as string)) {
@@ -247,7 +240,6 @@ function CreateEquipmentForm() {
 								}
 							</CardTitle>
 
-							{/* Тогл «Личное имущество» — только для ноутбуков */}
 							{(currentType === "Ноутбук" || isPersonal) && (
 								<button
 									type="button"
@@ -267,13 +259,11 @@ function CreateEquipmentForm() {
 							)}
 						</div>
 
-						{/* Подсказка для простой техники */}
 						{isSimple && currentType && (
 							<div className="flex items-start gap-3 mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
 								<Tv className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
 								<p className="text-xs text-emerald-300/80 leading-relaxed">
 									Для {currentType.toLowerCase()} укажите <strong>название</strong> и <strong>серийный номер</strong> — оба поля обязательны.
-									Серийный и инвентарный номера необязательны.
 								</p>
 							</div>
 						)}
@@ -287,14 +277,13 @@ function CreateEquipmentForm() {
 								</Alert>
 							)}
 
-							{/* ── Тип и основная идентификация ── */}
+							{/* Тип и идентификация */}
 							<div className="space-y-4">
 								<h3 className="text-sm font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2">
 									Тип и идентификация
 								</h3>
 
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-									{/* Тип оборудования */}
 									<div className="space-y-2">
 										<Label className="text-muted-foreground">
 											Тип оборудования <span className="text-destructive">*</span>
@@ -326,7 +315,6 @@ function CreateEquipmentForm() {
 										)}
 									</div>
 
-									{/* Название — для простой техники обязательно */}
 									<div className="space-y-2">
 										<Label htmlFor="display_name" className="text-muted-foreground flex items-center gap-1.5">
 											<Tag className="h-3 w-3" />
@@ -346,7 +334,6 @@ function CreateEquipmentForm() {
 									</div>
 								</div>
 
-								{/* Серийный номер и инвентарный */}
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
 										<Label htmlFor="serial_number" className="text-muted-foreground font-mono text-xs uppercase">
@@ -386,7 +373,6 @@ function CreateEquipmentForm() {
 									</div>
 								</div>
 
-								{/* МНИ серийный — только для сложной техники */}
 								{!isSimple && (
 									<div className="space-y-2">
 										<Label htmlFor="mni_serial_number" className="text-muted-foreground font-mono text-xs uppercase">
@@ -401,7 +387,6 @@ function CreateEquipmentForm() {
 									</div>
 								)}
 
-								{/* Производитель + Модель */}
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									<div className="space-y-2">
 										<Label htmlFor="manufacturer" className="text-muted-foreground">Производитель</Label>
@@ -424,7 +409,7 @@ function CreateEquipmentForm() {
 								</div>
 							</div>
 
-							{/* ── Технические характеристики — только для сложной техники ── */}
+							{/* Технические характеристики — только для сложной техники */}
 							{!isSimple && (
 								<div className="space-y-4">
 									<h3 className="text-sm font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2 flex items-center gap-2">
@@ -474,7 +459,6 @@ function CreateEquipmentForm() {
 										</div>
 									</div>
 
-									{/* Периферия */}
 									<div className="space-y-4 pt-2">
 										<Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Комплектация и периферия</Label>
 										<div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white/5 p-4 rounded-xl border border-white/5">
@@ -523,7 +507,7 @@ function CreateEquipmentForm() {
 								</div>
 							)}
 
-							{/* ── Размещение ── */}
+							{/* Размещение */}
 							<div className="space-y-4">
 								<h3 className="text-sm font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2 flex items-center gap-2">
 									<MapPin className="h-4 w-4" /> Размещение
@@ -557,7 +541,7 @@ function CreateEquipmentForm() {
 								</div>
 							</div>
 
-							{/* ── Примечания ── */}
+							{/* Примечания */}
 							<div className="space-y-4">
 								<h3 className="text-sm font-bold uppercase tracking-widest text-primary/70 border-b border-white/5 pb-2 flex items-center gap-2">
 									<Info className="h-4 w-4" /> Примечания

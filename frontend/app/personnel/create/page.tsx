@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, UserPlus, ShieldCheck, Briefcase, Info, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -70,6 +70,7 @@ type PersonnelFormData = z.input<typeof personnelSchema>;
 
 export default function CreatePersonnelPage() {
 	const router = useRouter();
+	const queryClient = useQueryClient();
 	const [error, setError] = useState("");
 
 	const {
@@ -88,6 +89,8 @@ export default function CreatePersonnelPage() {
 	const createMutation = useMutation({
 		mutationFn: (data: PersonnelFormData) => personnelApi.create(data),
 		onSuccess: () => {
+			// Invalidate all personnel queries so the list refreshes immediately
+			queryClient.invalidateQueries({ queryKey: ["personnel"] });
 			toast.success("Военнослужащий добавлен");
 			router.push("/personnel");
 		},
