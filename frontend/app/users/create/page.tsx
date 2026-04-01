@@ -32,16 +32,33 @@ const INITIAL_FORM: UserCreate = {
   role: "user",
 };
 
+function validateForm(form: UserCreate): string | null {
+  if (!form.username.trim()) return "Введите логин";
+  if (form.username.trim().length < 3) return "Логин должен содержать минимум 3 символа";
+  if (form.username.trim().length > 50) return "Логин не должен превышать 50 символов";
+  if (!form.full_name.trim()) return "Введите полное имя";
+  if (!form.password.trim()) return "Введите пароль";
+  if (form.password.length < 8) return "Пароль должен содержать минимум 8 символов";
+  if (form.password.length > 100) return "Пароль не должен превышать 100 символов";
+  return null;
+}
+
 export default function CreateUserPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState<UserCreate>(INITIAL_FORM);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof UserCreate, string>>>({});
 
   const setField =
     <K extends keyof UserCreate>(key: K) =>
-    (value: UserCreate[K]) =>
+    (value: UserCreate[K]) => {
       setForm((f) => ({ ...f, [key]: value }));
+      // Clear field error on change
+      if (fieldErrors[key]) {
+        setFieldErrors((e) => ({ ...e, [key]: undefined }));
+      }
+    };
 
   const mutation = useMutation({
     mutationFn: usersApi.create,
@@ -57,12 +74,18 @@ export default function CreateUserPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.username.trim() || !form.full_name.trim() || !form.password.trim()) {
-      toast.error("Заполните все обязательные поля");
+    const validationError = validateForm(form);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
-    mutation.mutate(form);
+    mutation.mutate({ ...form, username: form.username.trim() });
   };
+
+  const inputCls = (field: keyof UserCreate) =>
+    `bg-background/50 border-white/10 focus:border-primary/50 transition-all h-11${
+      fieldErrors[field] ? " border-destructive/50" : ""
+    }`;
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 p-8 text-foreground">
@@ -100,7 +123,7 @@ export default function CreateUserPage() {
                   value={form.full_name}
                   onChange={(e) => setField("full_name")(e.target.value)}
                   placeholder="Иванов Иван Иванович"
-                  className="bg-background/50 border-white/10 focus:border-primary/50 transition-all h-11"
+                  className={inputCls("full_name")}
                   required
                   autoFocus
                 />
@@ -108,22 +131,25 @@ export default function CreateUserPage() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="username" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Логин *
+                  Логин * <span className="normal-case font-normal text-muted-foreground/60">(минимум 3 символа)</span>
                 </Label>
                 <Input
                   id="username"
                   value={form.username}
                   onChange={(e) => setField("username")(e.target.value.toLowerCase().replace(/\s/g, ""))}
                   placeholder="ivanov"
-                  className="bg-background/50 border-white/10 focus:border-primary/50 transition-all h-11 font-mono"
+                  className={`${inputCls("username")} font-mono`}
                   required
                   autoComplete="off"
                 />
+                {fieldErrors.username && (
+                  <p className="text-xs text-destructive">{fieldErrors.username}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Пароль *
+                  Пароль * <span className="normal-case font-normal text-muted-foreground/60">(минимум 8 символов)</span>
                 </Label>
                 <div className="relative">
                   <Input
@@ -132,7 +158,7 @@ export default function CreateUserPage() {
                     value={form.password}
                     onChange={(e) => setField("password")(e.target.value)}
                     placeholder="••••••••"
-                    className="bg-background/50 border-white/10 focus:border-primary/50 transition-all h-11 pr-11"
+                    className={`${inputCls("password")} pr-11`}
                     required
                     autoComplete="new-password"
                   />
@@ -145,7 +171,11 @@ export default function CreateUserPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground/60 mt-1">{PASSWORD_HINT}</p>
+                {form.password.length > 0 && form.password.length < 8 && (
+                  <p className="text-xs text-amber-400">
+                    Ещё {8 - form.password.length} символ{8 - form.password.length === 1 ? "" : "ов"}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
