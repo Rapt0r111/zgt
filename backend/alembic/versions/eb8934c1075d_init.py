@@ -25,9 +25,8 @@ def upgrade() -> None:
     # ── ENUM: personnelstatus ────────────────────────────────────────────────
     personnelstatus = sa.Enum(
         'IN_SERVICE', 'ON_MISSION', 'IN_HOSPITAL', 'ON_LEAVE',
-        name='personnelstatus',
+        name='personnelstatus'
     )
-    personnelstatus.create(op.get_bind(), checkfirst=True)
 
     # ── TABLE: users ─────────────────────────────────────────────────────────
     op.create_table(
