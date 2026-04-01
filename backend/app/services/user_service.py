@@ -46,7 +46,6 @@ class UserService:
             role=user_data.role,
             is_active=True,
         )
-
         try:
             self.db.add(user)
             await self.db.commit()
@@ -54,7 +53,10 @@ class UserService:
             return user
         except IntegrityError as exc:
             await self.db.rollback()
-            raise ValueError(f"Пользователь с логином '{user_data.username}' уже существует") from exc
+            orig = str(exc.orig).lower()
+            if "username" in orig or "ix_users_username" in orig:
+                raise ValueError(f"Пользователь с логином '{user_data.username}' уже существует") from exc
+            raise ValueError(f"Ошибка БД при создании пользователя: {exc.orig}") from exc
 
     async def update(self, user_id: int, user_data: UserUpdate) -> Optional[User]:
         user = await self.get_by_id(user_id)

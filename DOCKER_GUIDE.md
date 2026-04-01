@@ -776,3 +776,5 @@ docker compose exec backend python -m app.cli create-admin
 
 docker compose down --rmi all --volumes --remove-orphans
 
+docker compose build --no-cache backend
+docker compose up -d --no-deps backend
