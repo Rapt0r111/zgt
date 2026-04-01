@@ -772,3 +772,6 @@ docker compose up -d --no-build
 
 # 6. Создать администратора
 docker compose exec backend python -m app.cli create-admin
+
+
+docker compose down --rmi all --volumes --remove-orphans
