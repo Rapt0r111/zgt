@@ -23,7 +23,7 @@ const ROLES = [
   { value: "user", label: "Пользователь" },
 ];
 
-const PASSWORD_HINT = "Минимум 8 символов, заглавная и строчная буква, цифра";
+const PASSWORD_HINT = "Минимум 8 символов";
 
 const INITIAL_FORM: UserCreate = {
   username: "",

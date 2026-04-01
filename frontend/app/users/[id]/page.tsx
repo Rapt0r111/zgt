@@ -31,7 +31,7 @@ const ROLE_BADGES: Record<string, { label: string; className: string }> = {
   user: { label: "Пользователь", className: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
 };
 
-const PASSWORD_HINT = "Минимум 8 символов, заглавная и строчная буква, цифра";
+const PASSWORD_HINT = "Минимум 8 символов";
 
 const INITIAL_FORM: UserUpdate = { username: "", full_name: "", role: "user", is_active: true };
 
@@ -100,6 +100,10 @@ export default function EditUserPage() {
   const handlePasswordSave = () => {
     if (!newPassword.trim()) {
       toast.error("Введите новый пароль");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error("Пароль должен содержать минимум 8 символов");
       return;
     }
     passwordMutation.mutate(newPassword);
@@ -202,12 +206,6 @@ export default function EditUserPage() {
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Роль</Label>
-                {/*
-                  ВАЖНО: value должен быть одним из значений ROLES.
-                  Если user.role не входит в список (например, устаревшее значение) –
-                  Select покажет пустую строку, и при сохранении роль «слетит».
-                  Решение: ROLES содержит все роли из бэкенда (VALID_ROLES в schemas/user.py).
-                */}
                 <Select
                   value={form.role ?? "user"}
                   onValueChange={(v) => setField("role")(v)}

@@ -20,12 +20,6 @@ class UserCreate(UserBase):
     def validate_password(cls, v):
         if len(v) < 8:
             raise ValueError("Пароль должен содержать минимум 8 символов")
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Пароль должен содержать хотя бы одну заглавную букву")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Пароль должен содержать хотя бы одну строчную букву")
-        if not re.search(r"[0-9]", v):
-            raise ValueError("Пароль должен содержать хотя бы одну цифру")
         return v
 
     @field_validator("role")
@@ -74,10 +68,4 @@ class ChangePasswordRequest(BaseModel):
     def validate_password(cls, v):
         if len(v) < 8:
             raise ValueError("Пароль должен содержать минимум 8 символов")
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Пароль должен содержать хотя бы одну заглавную букву")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Пароль должен содержать хотя бы одну строчную букву")
-        if not re.search(r"[0-9]", v):
-            raise ValueError("Пароль должен содержать хотя бы одну цифру")
         return v
