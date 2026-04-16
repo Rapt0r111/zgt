@@ -48,6 +48,7 @@ import {
   getPersonInitials,
   getPersonLastNameInitials,
 } from "@/lib/acts/shared";
+import { generateUUID } from "@/lib/utils/uuid";
 
 // ─── Типы ─────────────────────────────────────────────────────────────────────
 
@@ -75,9 +76,9 @@ interface FormState {
 
 function makeDefaultKitItems(): KitItem[] {
   return [
-    { id: crypto.randomUUID(), name: "ноутбук", condition: "ok", defectNote: "" },
-    { id: crypto.randomUUID(), name: "компьютерная мышь", condition: "ok", defectNote: "" },
-    { id: crypto.randomUUID(), name: "сумка для ноутбука", condition: "ok", defectNote: "" },
+    { id: generateUUID(), name: "ноутбук", condition: "ok", defectNote: "" },
+    { id: generateUUID(), name: "компьютерная мышь", condition: "ok", defectNote: "" },
+    { id: generateUUID(), name: "сумка для ноутбука", condition: "ok", defectNote: "" },
   ];
 }
 

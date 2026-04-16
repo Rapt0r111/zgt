@@ -4,6 +4,7 @@ import { z } from "zod";
 import { CONDITION_VALUES } from "@/lib/acts/shared";
 import { buildActDocument } from "@/lib/acts/docx-builder";
 import { cookies } from "next/headers";
+import { generateUUID } from "@/lib/utils/uuid";
 
 const KitItemSchema = z.object({
   id: z.string().optional(),
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       ...parsed.data,
       kitItems: parsed.data.kitItems.map((item) => ({
         ...item,
-        id: item.id ?? crypto.randomUUID(),
+        id: item.id ?? generateUUID(),
       })),
     };
     const doc = await buildActDocument(docData);
